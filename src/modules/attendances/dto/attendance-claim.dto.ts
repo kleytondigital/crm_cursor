@@ -6,7 +6,7 @@ export class AttendanceClaimDto {
   notes?: string;
 
   @IsOptional()
-  @IsUUID({ message: 'ID do departamento deve ser um UUID válido' })
+  @IsUUID()
   departmentId?: string;
 }
 

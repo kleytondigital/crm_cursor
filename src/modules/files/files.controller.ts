@@ -143,7 +143,7 @@ export class FilesController {
       }
       
       // Para outros arquivos: usar sendFile
-      res.sendFile(fullPath, (err) => {
+      res.sendFile(fullPath, (err: any) => {
         if (err) {
           this.logger.error(`Erro ao enviar arquivo ${cleanPath}: ${err.message}`);
           if (!res.headersSent) {
