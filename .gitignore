@@ -1,0 +1,45 @@
+# Dependências
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build
+dist
+build
+.next
+out
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Uploads (não commitar arquivos de mídia)
+uploads/*
+!uploads/.gitkeep
+
+# Docker
+.dockerignore
+
+# Testes
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Prisma
+prisma/migrations/**/migration.sql

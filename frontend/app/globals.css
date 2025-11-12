@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply min-h-screen bg-background text-text-primary;
+  background-image: linear-gradient(135deg, rgba(19, 34, 64, 0.92), rgba(6, 15, 31, 0.95)),
+    radial-gradient(circle at 15% 20%, rgba(79, 70, 229, 0.18), transparent 55%),
+    radial-gradient(circle at 85% 10%, rgba(56, 189, 248, 0.18), transparent 45%);
+  background-blend-mode: screen, normal;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.glass-panel {
+  @apply bg-background-muted/80 backdrop-blur-xl border border-white/5 shadow-inner-glow;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.55);
+}
+

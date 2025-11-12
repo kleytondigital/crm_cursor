@@ -1,0 +1,418 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Configuração do seed
+// Execute: npm run prisma:seed
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  email     String?  @unique
+  phone     String?
+  document  String?  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  leads         Lead[]
+  conversations Conversation[]
+  messages      Message[]
+  connections   Connection[]
+  departments   Department[]
+  attendances   Attendance[]
+  scheduledMessages ScheduledMessage[]
+  campaigns     Campaign[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  assignedConversations  Conversation[]
+  departmentMemberships  DepartmentUser[]
+  attendancesAssigned    Attendance[]     @relation("AttendanceAssignedUser")
+  attendancesTransferred Attendance[]     @relation("AttendanceTransferredBy")
+  attendancesClosed      Attendance[]     @relation("AttendanceClosedBy")
+  attendanceLogs         AttendanceLog[]
+  scheduledMessages      ScheduledMessage[]
+  createdCampaigns       Campaign[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  MANAGER
+  SUPER_ADMIN
+}
+
+model Lead {
+  id               String     @id @default(uuid())
+  name             String
+  phone            String
+  tags             String[]
+  status           LeadStatus @default(NOVO)
+  profilePictureURL String?
+  tenantId         String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  company       Company        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  messages      Message[]
+  attendances   Attendance[]
+  scheduledMessages ScheduledMessage[]
+
+  @@index([tenantId])
+  @@index([phone])
+  @@index([status])
+  @@index([createdAt])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("leads")
+}
+
+enum LeadStatus {
+  NOVO
+  EM_ATENDIMENTO
+  AGUARDANDO
+  CONCLUIDO
+}
+
+model Conversation {
+  id             String             @id @default(uuid())
+  leadId         String
+  assignedUserId String?
+  departmentId   String?
+  status         ConversationStatus @default(ACTIVE)
+  tenantId       String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  company      Company   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead         Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedUser User?     @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  messages     Message[]
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([assignedUserId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedUserId])
+  @@index([tenantId, createdAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String           @id @default(uuid())
+  conversationId String?
+  leadId         String?
+  connectionId   String?
+  senderType     SenderType       @default(LEAD)
+  contentType    ContentType      @default(TEXT)
+  sender         String?
+  contentUrl     String?
+  contentText    String?
+  latitude       Float?
+  longitude      Float?
+  direction      MessageDirection @default(INCOMING)
+  messageId      String?          @unique
+  timestamp      DateTime?
+  tenantId       String
+  createdAt      DateTime         @default(now())
+
+  company      Company       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  connection   Connection?   @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([leadId])
+  @@index([connectionId])
+  @@index([createdAt])
+  @@index([senderType])
+  @@index([tenantId, createdAt])
+  @@map("messages")
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum SenderType {
+  LEAD
+  USER
+}
+
+enum ContentType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  LOCATION
+}
+
+enum MessageDirection {
+  INCOMING
+  OUTGOING
+}
+
+model Connection {
+  id          String           @id @default(uuid())
+  tenantId    String
+  name        String
+  sessionName String           @unique
+  status      ConnectionStatus @default(PENDING)
+  webhookUrl  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company     Company      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  attendances Attendance[]
+  scheduledMessages ScheduledMessage[]
+  campaigns   Campaign[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("connections")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACTIVE
+  STOPPED
+  ERROR
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Company          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships DepartmentUser[]
+  attendances Attendance[]
+  scheduledMessages ScheduledMessage[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("departments")
+}
+
+model DepartmentUser {
+  id           String             @id @default(uuid())
+  departmentId String
+  userId       String
+  role         DepartmentUserRole @default(AGENT)
+  createdAt    DateTime           @default(now())
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, userId])
+  @@index([userId])
+  @@map("department_users")
+}
+
+model Attendance {
+  id              String             @id @default(uuid())
+  tenantId        String
+  leadId          String
+  connectionId    String?
+  assignedUserId  String?
+  departmentId    String?
+  status          AttendanceStatus   @default(OPEN)
+  priority        AttendancePriority @default(NORMAL)
+  isUrgent        Boolean            @default(false)
+  lastMessage     String?
+  lastMessageAt   DateTime?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  transferredById String?
+  closedById      String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  tenant        Company         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead          Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  connection    Connection?     @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  assignedUser  User?           @relation("AttendanceAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  department    Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  transferredBy User?           @relation("AttendanceTransferredBy", fields: [transferredById], references: [id], onDelete: SetNull)
+  closedBy      User?           @relation("AttendanceClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  logs          AttendanceLog[]
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([assignedUserId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([priority])
+  @@index([isUrgent])
+  @@index([tenantId, status])
+  @@index([tenantId, priority])
+  @@map("attendances")
+}
+
+model AttendanceLog {
+  id            String              @id @default(uuid())
+  attendanceId  String
+  action        AttendanceLogAction
+  performedById String?
+  notes         String?
+  createdAt     DateTime            @default(now())
+
+  attendance  Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  performedBy User?      @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([attendanceId])
+  @@map("attendance_logs")
+}
+
+enum DepartmentUserRole {
+  ADMIN
+  AGENT
+}
+
+enum AttendanceStatus {
+  OPEN
+  IN_PROGRESS
+  TRANSFERRED
+  CLOSED
+}
+
+enum AttendancePriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum AttendanceLogAction {
+  CREATED
+  CLAIMED
+  TRANSFERRED
+  CLOSED
+}
+
+model ScheduledMessage {
+  id            String                @id @default(uuid())
+  tenantId      String
+  leadId        String?
+  connectionId  String
+  userId        String
+  departmentId  String?
+  contentType   ScheduledContentType
+  content       String?
+  caption       String?
+  scheduledFor  DateTime
+  sentAt        DateTime?
+  status        ScheduledMessageStatus @default(PENDING)
+  campaignId    String?
+  errorMessage  String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  tenant     Company     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead       Lead?       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  connection Connection  @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([connectionId])
+  @@index([userId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledFor])
+  @@map("scheduled_messages")
+}
+
+model Campaign {
+  id            String           @id @default(uuid())
+  tenantId      String
+  name          String
+  description   String?
+  filterTags    String[]
+  filterStages  String[]
+  totalLeads    Int              @default(0)
+  scheduledFor  DateTime
+  createdById   String
+  status        CampaignStatus   @default(DRAFT)
+  contentType   ScheduledContentType @default(TEXT)
+  content       String?
+  caption       String?
+  connectionId  String?
+  useRandomConnection Boolean     @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  tenant         Company           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy      User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  connection     Connection?       @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  scheduledMessages ScheduledMessage[]
+
+  @@index([tenantId])
+  @@index([createdById])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([tenantId, status])
+  @@map("campaigns")
+}
+
+enum ScheduledContentType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+}
+
+enum ScheduledMessageStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
