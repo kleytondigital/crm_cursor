@@ -94,10 +94,10 @@ export class WahaWebhookController {
       );
       // Log adicional para debug: listar todas as sessões disponíveis
       const allSessions = await this.prisma.connection.findMany({
-        select: { sessionName: true },
+        select: { sessionName: true, name: true },
       });
-      this.logger.debug(
-        `Sessões registradas no sistema: ${allSessions.map((c) => c.sessionName).join(', ')}`,
+      this.logger.warn(
+        `Sessões registradas no sistema: ${allSessions.map((c) => `${c.sessionName} (nome: ${c.name})`).join(', ')}`,
       );
       return false;
     }
