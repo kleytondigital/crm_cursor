@@ -60,11 +60,16 @@ export class WahaWebhookController {
   }
 
   private async processEvent(event: any) {
+    // Log do evento recebido para debug
+    this.logger.debug(`Evento WAHA recebido: ${JSON.stringify(event).substring(0, 500)}`);
+    
     const session = event?.session ?? null;
     if (!session) {
       this.logger.warn('Evento WAHA sem session informado');
       return false;
     }
+    
+    this.logger.log(`Processando evento WAHA para session: ${session}`);
 
     // Buscar conexão por sessionName (case-sensitive primeiro)
     let connection = await this.prisma.connection.findFirst({
@@ -137,7 +142,9 @@ export class WahaWebhookController {
     const fromMe = payload?.fromMe ?? event?.fromMe ?? false;
     
     // Extrair informações de resposta (reply)
-    const isReply = payload?.reply ?? event?.reply ?? false;
+    // reply pode vir como boolean true/false ou string "true"/"false"
+    const replyValue = payload?.reply ?? event?.reply ?? false;
+    const isReply = replyValue === true || replyValue === 'true' || replyValue === 'TRUE';
     const replyTo = payload?.replyTo ?? event?.replyTo ?? null;
     const replyToId = replyTo?.id ?? null;
     const replyToBody = replyTo?.body ?? null;
