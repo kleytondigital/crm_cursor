@@ -4,6 +4,8 @@ import { useMemo, useState, useEffect } from 'react'
 import { useAttendances } from '@/contexts/AttendancesContext'
 import {
   Attendance,
+  AttendanceDetails,
+  AttendanceLog,
   AttendancePriority,
   AttendanceStatus,
   Department,
@@ -387,7 +389,7 @@ function AttendanceDetailsPanel({
     )
   }
 
-  const statusMeta = statusLabels[attendance.status]
+  const statusMeta = statusLabels[attendance.status as AttendanceStatus]
   
   // Funções auxiliares locais para este componente
   const hasAssignedUserLocal = () => {
@@ -530,7 +532,7 @@ function AttendanceDetailsPanel({
           {attendance.logs.length === 0 ? (
             <p>Sem registros ainda.</p>
           ) : (
-            attendance.logs.map((log) => (
+            attendance.logs.map((log: AttendanceLog) => (
               <div key={log.id} className="flex flex-col rounded-xl border border-white/5 bg-white/5 px-3 py-2">
                 <span className="text-xs uppercase tracking-wide text-brand-secondary">
                   {log.action === 'CREATED'

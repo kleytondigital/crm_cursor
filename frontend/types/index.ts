@@ -138,7 +138,7 @@ export interface UserSummary {
   id: string
   name: string
   email: string
-  role: 'ADMIN' | 'USER' | 'MANAGER'
+  role: 'ADMIN' | 'USER' | 'MANAGER' | 'SUPER_ADMIN'
 }
 
 export type ScheduledContentType = 'TEXT' | 'IMAGE' | 'AUDIO' | 'DOCUMENT'

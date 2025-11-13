@@ -69,7 +69,20 @@ Guia passo a passo para fazer deploy do B2X CRM no **Easypanel**.
    ```
 
    **Volumes**:
-   - `./uploads:/app/uploads` (para armazenar arquivos de mídia)
+   - **⚠️ IMPORTANTE**: No Easypanel, o **Target (Mount Path)** deve ser um **caminho absoluto** começando com `/`
+   - **Source** (Host): `./uploads` ou caminho absoluto no host
+   - **Target** (Container): `/app/uploads` (**DEVE começar com /** - caminho absoluto)
+   - **❌ NÃO use**: `./app/uploads` ou `app/uploads` (caminhos relativos não funcionam)
+   - **✅ Use**: `/app/uploads` (caminho absoluto)
+   - **Configuração no Easypanel**:
+     - Na seção **"Volumes"** ou **"Storage"** do serviço backend
+     - Adicione um volume:
+       - **Name**: `uploads` (opcional)
+       - **Source**: `./uploads` (caminho relativo ao projeto)
+       - **Mount Path**: `/app/uploads` (**OBRIGATORIAMENTE caminho absoluto**)
+     - Ou use caminho absoluto:
+       - **Source**: `/var/www/uploads` (caminho absoluto no host)
+       - **Mount Path**: `/app/uploads` (caminho absoluto no container)
 
    **Health Check**:
    - **Path**: `/health`
@@ -96,8 +109,15 @@ Guia passo a passo para fazer deploy do B2X CRM no **Easypanel**.
    - **Port**: `3001`
 
    **Build**:
-   - **Dockerfile Path**: `frontend/Dockerfile`
-   - **Context**: `./frontend`
+   - **⚠️ IMPORTANTE**: O Dockerfile Path é relativo ao Context
+   - **Context**: `./frontend` (caminho relativo à raiz do projeto)
+   - **Dockerfile Path**: `Dockerfile` (relativo ao Context, não `frontend/Dockerfile`)
+   - **✅ Configuração Correta**:
+     - Context: `./frontend`
+     - Dockerfile Path: `Dockerfile` (apenas o nome do arquivo, relativo ao context)
+   - **❌ Configuração Incorreta**:
+     - Context: `./frontend`
+     - Dockerfile Path: `frontend/Dockerfile` (NÃO funciona - duplica o path)
    - **Build Args**:
      ```env
      NEXT_PUBLIC_API_URL=https://seu-dominio.com/api

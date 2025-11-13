@@ -26,7 +26,7 @@ const navigationItems = [
 export default function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
-  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | null>(null)
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | 'SUPER_ADMIN' | null>(null)
 
   useEffect(() => {
     // Obter role do usuário do localStorage

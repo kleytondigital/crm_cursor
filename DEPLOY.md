@@ -61,7 +61,12 @@ Este guia descreve como fazer o deploy do B2X CRM em produção usando **Easypan
    ```
 
 4. **Volumes**:
-   - `./uploads:/app/uploads` (para armazenar arquivos de mídia)
+   - **Source**: `./uploads` (caminho no host)
+   - **Target**: `/app/uploads` (caminho absoluto no container - **DEVE começar com /**)
+   - **Importante**: O Target (Mount Path) deve ser um caminho absoluto começando com `/`
+   - **No Easypanel**:
+     - Source: `./uploads`
+     - Mount Path: `/app/uploads` (obrigatoriamente absoluto)
 
 5. **Comando de inicialização**:
    ```bash
@@ -81,8 +86,15 @@ Este guia descreve como fazer o deploy do B2X CRM em produção usando **Easypan
    - Porta: `3001`
 
 2. **Configurar build**:
-   - Dockerfile: `./frontend/Dockerfile`
-   - Context: `./frontend`
+   - **⚠️ IMPORTANTE**: O Dockerfile Path é relativo ao Context
+   - **Context**: `./frontend` (caminho relativo à raiz do projeto)
+   - **Dockerfile Path**: `Dockerfile` (relativo ao Context, não `frontend/Dockerfile`)
+   - **✅ Configuração Correta**:
+     - Context: `./frontend`
+     - Dockerfile Path: `Dockerfile` (apenas o nome do arquivo)
+   - **❌ Configuração Incorreta**:
+     - Context: `./frontend`
+     - Dockerfile Path: `frontend/Dockerfile` (NÃO funciona - duplica o path)
 
 3. **Build Args**:
    ```env

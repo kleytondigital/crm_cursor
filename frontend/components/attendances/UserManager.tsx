@@ -22,7 +22,7 @@ const defaultUserForm = {
   name: '',
   email: '',
   password: '',
-  role: 'USER' as 'ADMIN' | 'USER' | 'MANAGER',
+  role: 'USER' as 'ADMIN' | 'USER' | 'MANAGER' | 'SUPER_ADMIN',
 }
 
 export default function UserManager() {

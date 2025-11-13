@@ -63,11 +63,23 @@ APP_URL=https://seu-dominio.com
 MEDIA_BASE_URL=https://seu-dominio.com
 ```
 
+**Volumes** (⚠️ IMPORTANTE):
+- **Source**: `./uploads` (caminho no host)
+- **Mount Path**: `/app/uploads` (**DEVE ser caminho absoluto começando com /**)
+- **❌ NÃO use**: `./app/uploads` ou `app/uploads`
+- **✅ Use**: `/app/uploads`
+
 #### Frontend
 - **Type**: Docker
-- **Dockerfile**: `frontend/Dockerfile`
-- **Context**: `./frontend`
+- **Context**: `./frontend` (caminho relativo à raiz)
+- **Dockerfile Path**: `Dockerfile` ⚠️ **Relativo ao Context, não `frontend/Dockerfile`**
 - **Port**: `3001`
+- **✅ Configuração Correta**:
+  - Context: `./frontend`
+  - Dockerfile Path: `Dockerfile` (apenas o nome do arquivo)
+- **❌ Configuração Incorreta**:
+  - Context: `./frontend`
+  - Dockerfile Path: `frontend/Dockerfile` (NÃO funciona)
 - **Build Args**:
   ```env
   NEXT_PUBLIC_API_URL=https://seu-dominio.com/api

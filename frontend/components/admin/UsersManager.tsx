@@ -239,12 +239,14 @@ export default function UsersManager() {
     ADMIN: 'Administrador',
     MANAGER: 'Gerente',
     USER: 'Usuário',
+    SUPER_ADMIN: 'Super Administrador',
   }
 
   const roleColors = {
     ADMIN: 'text-rose-300 bg-rose-500/10',
     MANAGER: 'text-blue-300 bg-blue-500/10',
     USER: 'text-text-muted bg-white/5',
+    SUPER_ADMIN: 'text-red-300 bg-red-500/10',
   }
 
   return (
