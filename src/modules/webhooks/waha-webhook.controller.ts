@@ -433,12 +433,30 @@ export class WahaWebhookController {
       conversation: updatedConversation,
     };
 
+    this.logger.log(
+      `Mensagem criada com sucesso. ID: ${message.id}, emitindo via WebSocket para tenant: ${connection.tenantId}, conversationId: ${updatedConversation.id}`,
+    );
+
     const server = this.messagesGateway.server;
     if (server) {
-      this.messagesGateway.emitNewMessage(
-        connection.tenantId,
-        updatedConversation,
-        messageWithConversation,
+      try {
+        this.messagesGateway.emitNewMessage(
+          connection.tenantId,
+          updatedConversation,
+          messageWithConversation,
+        );
+        this.logger.log(
+          `Mensagem emitida via WebSocket com sucesso. tenantId: ${connection.tenantId}, messageId: ${message.id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Erro ao emitir mensagem via WebSocket: ${error?.message || error}`,
+          error?.stack,
+        );
+      }
+    } else {
+      this.logger.warn(
+        `Servidor WebSocket não disponível. Mensagem criada mas não emitida. messageId: ${message.id}`,
       );
     }
 
