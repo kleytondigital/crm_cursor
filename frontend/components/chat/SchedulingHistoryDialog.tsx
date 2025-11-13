@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ScheduledMessage, ScheduledMessageStatus } from '@/types'
 import { schedulerAPI } from '@/lib/api'
 import { format, formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import ptBR from 'date-fns/locale/pt-BR'
 import { useSchedulerSocket } from '@/hooks/useSchedulerSocket'
 
 interface SchedulingHistoryDialogProps {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale/pt-BR'
+import ptBR from 'date-fns/locale/pt-BR'
 import { LineChart, User, Calendar, Package } from 'lucide-react'
 
 export default function Footer() {

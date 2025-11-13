@@ -4,7 +4,7 @@ import { Draggable } from 'react-beautiful-dnd'
 import { Lead } from '@/types'
 import { Phone, Tag, Calendar, MessageSquare, FileText } from 'lucide-react'
 import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale/pt-BR'
+import ptBR from 'date-fns/locale/pt-BR'
 import { useRouter } from 'next/navigation'
 
 interface LeadCardProps {

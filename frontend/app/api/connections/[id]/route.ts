@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-function getAuthHeaders(req: NextRequest) {
+function getAuthHeaders(req: NextRequest): Record<string, string> {
   const authorization = req.headers.get('authorization');
-  return authorization ? { Authorization: authorization } : {};
+  if (authorization) {
+    return { Authorization: authorization };
+  }
+  return {};
 }
 
 export async function PATCH(
@@ -28,14 +31,17 @@ export async function PATCH(
     );
   }
 
+  const authHeaders = getAuthHeaders(req);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders,
+  };
+
   const response = await fetch(
     `${API_URL}/connections/${params.id}/actions/${action}`,
     {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(req),
-      },
+      headers,
       body: JSON.stringify(payload || {}),
     },
   );

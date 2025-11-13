@@ -4,9 +4,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WAHA_WEBHOOK =
   process.env.NEXT_PUBLIC_WAHA_WEBHOOK || process.env.WAHA_WEBHOOK || '';
 
-function getAuthHeaders(req: NextRequest) {
+function getAuthHeaders(req: NextRequest): Record<string, string> {
   const authorization = req.headers.get('authorization');
-  return authorization ? { Authorization: authorization } : {};
+  if (authorization) {
+    return { Authorization: authorization };
+  }
+  return {};
 }
 
 export async function GET(req: NextRequest) {
@@ -17,12 +20,15 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const authHeaders = getAuthHeaders(req);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders,
+  };
+
   const response = await fetch(`${API_URL}/connections`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(req),
-    },
+    headers,
     cache: 'no-store',
   });
 
@@ -66,12 +72,15 @@ export async function POST(req: NextRequest) {
     },
   };
 
+  const authHeaders = getAuthHeaders(req);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders,
+  };
+
   const response = await fetch(`${API_URL}/connections`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(req),
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 

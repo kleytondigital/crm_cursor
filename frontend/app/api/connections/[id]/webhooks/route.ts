@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-function getAuthHeaders(req: NextRequest) {
+function getAuthHeaders(req: NextRequest): Record<string, string> {
   const authorization = req.headers.get('authorization');
-  return authorization ? { Authorization: authorization } : {};
+  if (authorization) {
+    return { Authorization: authorization };
+  }
+  return {};
 }
 
 export async function GET(
@@ -18,14 +21,17 @@ export async function GET(
     );
   }
 
+  const authHeaders = getAuthHeaders(req);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders,
+  };
+
   const response = await fetch(
     `${API_URL}/connections/${params.id}/webhooks`,
     {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(req),
-      },
+      headers,
       cache: 'no-store',
     },
   );
@@ -47,14 +53,17 @@ export async function PATCH(
 
   const body = await req.json();
 
+  const authHeaders = getAuthHeaders(req);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders,
+  };
+
   const response = await fetch(
     `${API_URL}/connections/${params.id}/webhooks`,
     {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(req),
-      },
+      headers,
       body: JSON.stringify(body),
     },
   );

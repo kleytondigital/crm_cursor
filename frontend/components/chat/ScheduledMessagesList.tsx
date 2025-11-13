@@ -5,7 +5,7 @@ import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Trash2, Loader2, C
 import { ScheduledMessage, ScheduledMessageStatus } from '@/types'
 import { schedulerAPI } from '@/lib/api'
 import { format, formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import ptBR from 'date-fns/locale/pt-BR'
 import { Button } from '@/components/ui/button'
 import { useSchedulerSocket } from '@/hooks/useSchedulerSocket'
 
