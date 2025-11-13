@@ -149,6 +149,13 @@ export class WahaWebhookController {
     const replyToId = replyTo?.id ?? null;
     const replyToBody = replyTo?.body ?? null;
     
+    // Log detalhado para debug de reply
+    if (isReply) {
+      this.logger.log(
+        `[REPLY DEBUG] Mensagem é resposta. replyTo=${JSON.stringify(replyTo)} replyToId=${replyToId} replyToBody=${replyToBody}`,
+      );
+    }
+    
     // Extrair texto da mensagem (verificar múltiplas fontes incluindo 'conversation')
     const messageText = this.extractMessageText(payload, event);
     
@@ -273,37 +280,95 @@ export class WahaWebhookController {
     let replyMessageId: string | null = null;
     let replyText: string | null = null;
     
-    if (isReply && replyToId) {
-      // Tentar encontrar a mensagem original pelo messageId do WhatsApp
-      const quotedMessage = await this.prisma.message.findFirst({
-        where: {
-          messageId: replyToId,
-          tenantId: connection.tenantId,
-        },
-        select: { id: true, messageId: true, contentText: true },
-      });
+    if (isReply) {
+      // SEMPRE salvar replyText se disponível, mesmo que não encontre a mensagem original
+      replyText = replyToBody ?? null;
       
-      if (quotedMessage) {
-        // Mensagem original encontrada no banco - usar o ID interno
-        replyMessageId = quotedMessage.id;
-        replyText = replyToBody ?? quotedMessage.contentText ?? null;
-        
+      if (replyToId) {
+        // Tentar encontrar a mensagem original pelo messageId do WhatsApp
         this.logger.log(
-          `Mensagem é resposta (reply). Mensagem original encontrada: messageId=${replyToId} -> id=${quotedMessage.id}`,
+          `[REPLY DEBUG] Buscando mensagem original pelo messageId: ${replyToId} no tenant: ${connection.tenantId}`,
         );
-      } else {
-        // Mensagem original não encontrada no banco - usar o messageId do WhatsApp
-        replyMessageId = null; // Não temos ID interno, mas temos replyToId (messageId do WhatsApp)
-        replyText = replyToBody ?? null;
         
+        const quotedMessage = await this.prisma.message.findFirst({
+          where: {
+            messageId: replyToId,
+            tenantId: connection.tenantId,
+          },
+          select: { id: true, messageId: true, contentText: true },
+        });
+        
+        if (quotedMessage) {
+          // Mensagem original encontrada no banco - usar o ID interno
+          replyMessageId = quotedMessage.id;
+          // Usar replyToBody se disponível, senão usar o contentText da mensagem original
+          replyText = replyToBody ?? quotedMessage.contentText ?? null;
+          
+          this.logger.log(
+            `[REPLY DEBUG] Mensagem original encontrada: messageId=${replyToId} -> id interno=${quotedMessage.id} contentText=${quotedMessage.contentText?.substring(0, 50)}`,
+          );
+        } else {
+          // Mensagem original não encontrada no banco
+          // Isso pode acontecer se:
+          // 1. A mensagem original ainda não foi processada
+          // 2. A mensagem original foi enviada antes de implementar o rastreamento de messageId
+          // 3. O messageId não corresponde (pode ter variações)
+          
+          this.logger.warn(
+            `[REPLY DEBUG] Mensagem original não encontrada no banco: messageId=${replyToId}. replyToBody=${replyToBody}`,
+          );
+          
+          // Tentar buscar mensagens recentes da mesma conversa para debug
+          const recentMessages = await this.prisma.message.findMany({
+            where: {
+              tenantId: connection.tenantId,
+              conversationId: conversation.id,
+            },
+            select: { id: true, messageId: true, contentText: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          });
+          
+          this.logger.debug(
+            `[REPLY DEBUG] Mensagens recentes na conversa (últimas 10): ${JSON.stringify(recentMessages.map((m) => ({ id: m.id, messageId: m.messageId, contentText: m.contentText?.substring(0, 30), createdAt: m.createdAt })))}`,
+          );
+          
+          // Tentar buscar por qualquer parte do messageId (caso tenha variações)
+          if (replyToId && replyToId.length > 10) {
+            const partialMatch = await this.prisma.message.findFirst({
+              where: {
+                tenantId: connection.tenantId,
+                messageId: { contains: replyToId.substring(0, 10) },
+              },
+              select: { id: true, messageId: true, contentText: true },
+            });
+            
+            if (partialMatch) {
+              this.logger.log(
+                `[REPLY DEBUG] Mensagem encontrada por correspondência parcial: messageId buscado=${replyToId} messageId encontrado=${partialMatch.messageId} id=${partialMatch.id}`,
+              );
+              replyMessageId = partialMatch.id;
+              replyText = replyToBody ?? partialMatch.contentText ?? null;
+            }
+          }
+        }
+      } else {
+        // isReply é true mas replyToId é null
         this.logger.warn(
-          `Mensagem é resposta (reply) mas mensagem original não encontrada no banco: messageId=${replyToId}. replyToBody=${replyToBody}`,
+          `[REPLY DEBUG] Mensagem marcada como reply=true mas replyToId é null. replyTo=${JSON.stringify(replyTo)}. Salvando apenas replyText se disponível.`,
+        );
+      }
+      
+      // Garantir que sempre temos replyText se isReply é true
+      if (!replyText && isReply) {
+        this.logger.warn(
+          `[REPLY DEBUG] Mensagem é reply mas não temos replyText nem replyToBody. Tentando usar contentText da mensagem atual como fallback.`,
         );
       }
     }
 
     this.logger.log(
-      `Criando mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply} replyMessageId=${replyMessageId || 'N/A'}`,
+      `Criando mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply} replyMessageId=${replyMessageId || 'N/A'} replyText=${replyText ? replyText.substring(0, 50) : 'N/A'} replyToId=${replyToId || 'N/A'}`,
     );
 
     const message = await this.prisma.message.create({
