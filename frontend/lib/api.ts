@@ -48,6 +48,7 @@ export const messagesAPI = {
     contentText?: string
     contentUrl?: string
     replyTo?: string // messageId da mensagem que está sendo respondida
+    action?: 'reply' | 'edit' | 'delete'
   }) => {
     const response = await api.post('/messages', data)
     return response.data

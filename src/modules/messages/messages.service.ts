@@ -156,7 +156,7 @@ export class MessagesService {
     });
 
     if (createMessageDto.senderType === SenderType.USER) {
-      await this.forwardMessageToN8n(message, connection ?? null);
+      await this.forwardMessageToN8n(message, connection ?? null, createMessageDto.replyTo);
     }
 
     this.handleAttendanceSync(
@@ -400,7 +400,7 @@ export class MessagesService {
     return parts[parts.length - 1] || undefined;
   }
 
-  private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null) {
+  private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null, replyTo?: string) {
     try {
       if (!connection?.sessionName) {
         this.logger.warn(
@@ -443,18 +443,27 @@ export class MessagesService {
             : message.contentText || this.extractFilename(message.contentUrl) || undefined,
       };
       
-      // Adicionar replyTo se a mensagem for uma resposta
-      if (message.replyMessageId) {
-        // Buscar o messageId (WhatsApp) da mensagem original
-        const originalMessage = await this.prisma.message.findUnique({
-          where: { id: message.replyMessageId },
-          select: { messageId: true },
-        });
+      // Adicionar action=reply e replyTo se a mensagem for uma resposta
+      if (replyTo || message.replyMessageId) {
+        let replyToId = replyTo;
         
-        if (originalMessage?.messageId) {
-          payload.replyTo = originalMessage.messageId;
+        // Se não temos replyTo mas temos replyMessageId, buscar o messageId (WhatsApp) da mensagem original
+        if (!replyToId && message.replyMessageId) {
+          const originalMessage = await this.prisma.message.findUnique({
+            where: { id: message.replyMessageId },
+            select: { messageId: true },
+          });
+          
+          if (originalMessage?.messageId) {
+            replyToId = originalMessage.messageId;
+          }
+        }
+        
+        if (replyToId) {
+          payload.action = 'reply';
+          payload.replyTo = replyToId;
           this.logger.log(
-            `Mensagem é resposta. replyTo=${originalMessage.messageId}`,
+            `Mensagem é resposta. action=reply replyTo=${replyToId}`,
           );
         }
       }

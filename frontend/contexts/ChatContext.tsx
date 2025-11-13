@@ -25,7 +25,7 @@ interface ChatContextType {
   error: string | null
   selectConversation: (conversation: Conversation) => void
   selectConversationByLeadId: (leadId: string) => Promise<void>
-  sendMessage: (content: string, contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT', file?: File, replyTo?: string) => Promise<void>
+  sendMessage: (content: string, contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT', file?: File, replyTo?: string, action?: 'reply') => Promise<void>
   loadConversations: () => Promise<void>
   loadMessages: (conversationId: string) => Promise<void>
 }
@@ -338,7 +338,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     async (
       content: string,
       contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT',
-      file?: File
+      file?: File,
+      replyTo?: string,
+      action?: 'reply',
     ) => {
       if (!selectedConversation) return
 
@@ -376,6 +378,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           contentType,
           contentText,
           contentUrl,
+          replyTo: replyTo,
+          action: action,
         })
       } catch (err: any) {
         setError(err.response?.data?.message || 'Erro ao enviar mensagem')

@@ -448,7 +448,7 @@ export default function MessageBubble({
         )}
         
         {/* Menu de ações (botão de três pontos) */}
-        {isUser && (onReply || onEdit || onDelete) && (
+        {((isUser && (onReply || onEdit || onDelete)) || (!isUser && onReply)) && (
           <div className="absolute right-2 top-2" ref={menuRef}>
             <button
               onClick={(e) => {
@@ -462,7 +462,7 @@ export default function MessageBubble({
             </button>
             
             {showMenu && (
-              <div className="absolute right-0 top-8 z-50 min-w-[150px] rounded-lg border border-white/10 bg-background-card/95 shadow-lg backdrop-blur-sm">
+              <div className="absolute right-0 top-8 z-[9999] min-w-[150px] rounded-lg border border-white/10 bg-background-card/95 shadow-lg backdrop-blur-sm">
                 <div className="py-1">
                   {onReply && (
                     <button

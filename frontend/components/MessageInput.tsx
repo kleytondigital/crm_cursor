@@ -107,9 +107,9 @@ export default function MessageInput({
         return
       }
       
-      // Se for resposta, incluir replyTo
+      // Se for resposta, incluir replyTo e action=reply
       const replyToId = replyTo?.messageId || null
-      await sendMessage(text.trim(), 'TEXT', undefined, replyToId || undefined)
+      await sendMessage(text.trim(), 'TEXT', undefined, replyToId || undefined, replyToId ? 'reply' : undefined)
       setText('')
       onReplyCancel?.()
     }
