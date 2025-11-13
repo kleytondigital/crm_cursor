@@ -139,43 +139,37 @@ export class MinioService implements OnModuleInit {
         throw new Error(`Arquivo não encontrado: ${key}`);
       }
 
-      // No AWS SDK v3, response.Body é geralmente um Readable stream em Node.js
-      // Vamos tratar diferentes tipos de resposta
-      if (response.Body instanceof Readable) {
-        return response.Body;
+      // No AWS SDK v3 para Node.js, response.Body é um stream Readable
+      // Mas o TypeScript vê como uma união que inclui tipos do browser também
+      // No Node.js, sempre será um Readable stream, então fazemos uma conversão segura
+      
+      // Converter para unknown primeiro para evitar erro de tipo
+      const body = response.Body as unknown;
+      
+      // No Node.js, body sempre será um Readable stream
+      // Verificamos se tem as propriedades de um stream Node.js
+      if (body && typeof body === 'object') {
+        // Verificar se é um Readable stream (tem método pipe e read)
+        if ('pipe' in body && typeof (body as any).pipe === 'function') {
+          return body as Readable;
+        }
+        
+        // Se for um Uint8Array ou Buffer, converter para stream
+        if (body instanceof Uint8Array || Buffer.isBuffer(body)) {
+          return Readable.from(Buffer.from(body));
+        }
+        
+        // Se tiver método transformToByteArray, ler bytes e criar stream
+        if (typeof (body as any).transformToByteArray === 'function') {
+          const bytes = await (body as any).transformToByteArray();
+          return Readable.from(Buffer.from(bytes));
+        }
       }
       
-      // Se for um Blob ou Uint8Array, converter para stream
-      if (response.Body instanceof Uint8Array || Buffer.isBuffer(response.Body)) {
-        return Readable.from(Buffer.from(response.Body));
-      }
-      
-      // Se for um objeto com método transformToWebStream ou stream()
-      // Tentar usar como stream diretamente
-      if (response.Body && typeof (response.Body as any).transformToWebStream === 'function') {
-        // Converter Web Stream para Node.js Readable
-        const webStream = (response.Body as any).transformToWebStream();
-        const reader = webStream.getReader();
-        const stream = new Readable({
-          async read() {
-            try {
-              const { done, value } = await reader.read();
-              if (done) {
-                this.push(null);
-              } else {
-                this.push(Buffer.from(value));
-              }
-            } catch (error) {
-              this.destroy(error as Error);
-            }
-          },
-        });
-        return stream;
-      }
-      
-      // Fallback: tentar usar como stream diretamente
-      // O AWS SDK v3 geralmente retorna um Readable em Node.js
-      return response.Body as Readable;
+      // Fallback: no Node.js, o AWS SDK v3 sempre retorna um Readable
+      // Esta conversão deve funcionar em runtime, mesmo que o TypeScript reclame
+      // Usamos 'as unknown as Readable' para forçar a conversão de tipo
+      return body as unknown as Readable;
     } catch (error: any) {
       if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
         throw new Error(`Arquivo não encontrado: ${key}`);

@@ -12,6 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
+import { extname } from 'path';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
 import { MinioService } from '@/shared/minio/minio.service';
 
