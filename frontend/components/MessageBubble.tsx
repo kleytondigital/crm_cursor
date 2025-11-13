@@ -284,7 +284,8 @@ export default function MessageBubble({ message, conversation, allMessages = [] 
     }
 
     // Usar o texto da mensagem original se encontrada, senão usar replyText
-    const replyText = quotedMessage?.contentText || message.replyText || 'Mensagem original não encontrada'
+    const replyText = quotedMessage?.contentText || message.replyText || message.idMessage
+    // const replyText = quotedMessage?.contentText || message.replyText || 'Mensagem original não encontrada'
     const replySenderName = quotedMessage?.senderType === 'USER' 
       ? 'Você' 
       : (quotedMessage?.conversation?.lead?.name || message.conversation?.lead?.name || 'Lead')
