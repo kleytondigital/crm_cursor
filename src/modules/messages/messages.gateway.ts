@@ -267,10 +267,29 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
       timestamp: new Date().toISOString(),
     };
 
-    this.server
-      .to(`tenant:${tenantId}`)
-      .to(`conversation:${conversation?.id ?? message?.conversationId}`)
-      .emit('message:new', payload);
+    this.logger.debug(
+      `Emitindo mensagem via WebSocket: tenantId=${tenantId} conversationId=${conversation?.id ?? message?.conversationId} messageId=${message?.id} direction=${message?.direction} senderType=${message?.senderType}`,
+    );
+
+    try {
+      // Emitir para todos os clientes do tenant
+      this.server.to(`tenant:${tenantId}`).emit('message:new', payload);
+      
+      // Também emitir para a sala específica da conversa
+      const conversationId = conversation?.id ?? message?.conversationId;
+      if (conversationId) {
+        this.server.to(`conversation:${conversationId}`).emit('message:new', payload);
+      }
+
+      this.logger.log(
+        `Mensagem emitida via WebSocket com sucesso. tenantId=${tenantId} conversationId=${conversationId} messageId=${message?.id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao emitir mensagem via WebSocket: ${error?.message || error}`,
+        error?.stack,
+      );
+    }
   }
 }
 

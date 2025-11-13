@@ -304,6 +304,10 @@ export class WahaWebhookController {
       }
     }
 
+    this.logger.log(
+      `Criando mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply}`,
+    );
+
     const message = await this.prisma.message.create({
       data: {
         tenantId: connection.tenantId,
