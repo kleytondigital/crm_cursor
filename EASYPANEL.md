@@ -211,12 +211,18 @@ Se você realmente precisa de um Nginx separado:
    - O Easypanel irá construir as imagens Docker automaticamente
    - Aguarde o build completar
 
-2. **Execute as migrações**:
+2. **⚠️ IMPORTANTE: Execute as migrações PRIMEIRO**:
+   - **Verifique se as migrações estão no repositório Git** (devem estar em `prisma/migrations/`)
+   - **Verifique se as migrações foram copiadas para o container** (execute `ls -la prisma/migrations/` no terminal)
    - No serviço `backend`, abra o terminal
    - Execute: `npx prisma migrate deploy`
+   - **Se aparecer "No migration found"**, veja a seção de troubleshooting abaixo
+   - **Aguarde as migrações completarem** (todas as tabelas serão criadas)
    - Ou adicione ao comando de inicialização (já incluído no exemplo acima)
+   - **Verifique se não há erros** nos logs
 
-3. **Execute o seed (opcional)**:
+3. **⚠️ DEPOIS execute o seed (após as migrações)**:
+   - **NÃO execute o seed antes das migrações!**
    - No serviço `backend`, abra o terminal
    - Execute: `npx prisma db seed` ou `node prisma/seed.js`
    - Isso criará o usuário super admin e outros usuários de exemplo
@@ -224,6 +230,7 @@ Se você realmente precisa de um Nginx separado:
      - **Super Admin**: `superadmin@exemplo.com` / `superadmin123`
      - **Admin**: `admin@exemplo.com` / `123456`
      - **Usuário**: `user@exemplo.com` / `123456`
+   - **Se der erro "table does not exist"**, execute as migrações primeiro (passo 2)
 
 4. **Verifique os logs**:
    - Verifique os logs de cada serviço
@@ -297,12 +304,62 @@ app.enableCors({
 
 ### Migrações não executam
 
-1. Execute manualmente no terminal do backend:
+1. **Execute manualmente no terminal do backend**:
    ```bash
    npx prisma migrate deploy
    ```
-2. Verifique a conexão com o banco de dados
-3. Verifique as permissões do usuário do banco
+2. **Verifique a conexão com o banco de dados**:
+   - Verifique se a variável `DATABASE_URL` está configurada corretamente
+   - Verifique se o serviço PostgreSQL está rodando
+   - Verifique se o nome do banco de dados está correto
+3. **Verifique as permissões do usuário do banco**:
+   - O usuário do banco precisa ter permissões para criar tabelas
+   - Verifique os logs do PostgreSQL para erros de permissão
+
+### Erro "No migration found in prisma/migrations"
+
+**⚠️ IMPORTANTE: As migrações devem estar no repositório Git e serem copiadas para o container!**
+
+1. **Verifique se as migrações estão no repositório Git**:
+   ```bash
+   git ls-files prisma/migrations/
+   ```
+2. **Se não estiverem, adicione-as**:
+   ```bash
+   git add prisma/migrations/
+   git commit -m "Add Prisma migrations"
+   git push
+   ```
+3. **Verifique se as migrações foram copiadas para o container**:
+   ```bash
+   # No terminal do backend no Easypanel
+   ls -la prisma/migrations/
+   ```
+4. **Se não estiverem no container, faça rebuild da imagem Docker no Easypanel**
+5. **Veja `EASYPANEL-MIGRATIONS.md` para mais detalhes**
+
+### Erro "table does not exist" ao executar seed
+
+**⚠️ IMPORTANTE: As migrações DEVEM ser executadas ANTES do seed!**
+
+1. **Execute as migrações primeiro**:
+   ```bash
+   npx prisma migrate deploy
+   ```
+2. **Se aparecer "No migration found"**, veja a seção acima
+3. **Aguarde as migrações completarem** (todas as tabelas serão criadas)
+4. **Depois execute o seed**:
+   ```bash
+   npx prisma db seed
+   # ou
+   node prisma/seed.js
+   ```
+
+**Ordem correta de execução**:
+1. ✅ Verificar se as migrações estão no repositório Git
+2. ✅ Verificar se as migrações foram copiadas para o container
+3. ✅ Executar migrações: `npx prisma migrate deploy`
+4. ✅ Executar seed: `npx prisma db seed` ou `node prisma/seed.js`
 
 ## 📚 Recursos Adicionais
 

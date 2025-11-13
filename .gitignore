@@ -42,4 +42,5 @@ coverage
 Thumbs.db
 
 # Prisma
-prisma/migrations/**/migration.sql
+# NÃO ignorar migrações - elas são necessárias para o deploy
+# prisma/migrations/**/migration.sql
