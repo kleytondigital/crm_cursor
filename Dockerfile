@@ -30,6 +30,25 @@ COPY src ./src
 # Build da aplicação NestJS
 RUN npm run build
 
+# Compilar seed para JavaScript (para executar em produção sem ts-node)
+# Se o seed.js já existir (commitado), usar ele; caso contrário, compilar do TypeScript
+RUN if [ -f prisma/seed.js ]; then \
+      echo "Usando seed.js existente"; \
+    else \
+      echo "Compilando seed.ts para JavaScript..."; \
+      npx tsc prisma/seed.ts \
+        --outDir prisma \
+        --module commonjs \
+        --target es2020 \
+        --lib es2020 \
+        --esModuleInterop \
+        --resolveJsonModule \
+        --skipLibCheck \
+        --moduleResolution node \
+        --allowSyntheticDefaultImports || \
+      echo "Aviso: Não foi possível compilar seed.ts"; \
+    fi
+
 # Stage de produção
 FROM node:20-alpine AS production
 
@@ -56,6 +75,10 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copiar build da aplicação
 COPY --from=builder /app/dist ./dist
+
+# Copiar seed compilado do builder (garantir que o seed.js esteja disponível)
+# Se o seed.js já foi copiado com prisma ./prisma/, esta linha garante que o compilado do builder seja usado
+COPY --from=builder /app/prisma/seed.js ./prisma/seed.js
 
 # Criar diretório para uploads com permissões corretas (antes de mudar usuário)
 RUN mkdir -p /app/uploads

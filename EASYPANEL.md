@@ -218,8 +218,12 @@ Se você realmente precisa de um Nginx separado:
 
 3. **Execute o seed (opcional)**:
    - No serviço `backend`, abra o terminal
-   - Execute: `npm run prisma:seed`
-   - Isso criará o usuário super admin
+   - Execute: `npx prisma db seed` ou `node prisma/seed.js`
+   - Isso criará o usuário super admin e outros usuários de exemplo
+   - **Credenciais criadas**:
+     - **Super Admin**: `superadmin@exemplo.com` / `superadmin123`
+     - **Admin**: `admin@exemplo.com` / `123456`
+     - **Usuário**: `user@exemplo.com` / `123456`
 
 4. **Verifique os logs**:
    - Verifique os logs de cada serviço
