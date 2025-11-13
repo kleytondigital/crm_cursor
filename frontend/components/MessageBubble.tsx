@@ -238,9 +238,57 @@ export default function MessageBubble({ message, conversation, allMessages = [],
               </div>
             </div>
             <div className="px-3 pb-3">
+              {/* Exibir nome do local se disponível no contentText */}
+              {message.contentText && (
+                <div className="mb-2">
+                  {/* O contentText pode conter: nome\nlatitude, longitude\nURL */}
+                  {message.contentText.includes('\n') ? (
+                    <div className="space-y-1">
+                      {message.contentText.split('\n').map((line, index) => {
+                        // Primeira linha é o nome
+                        if (index === 0) {
+                          return (
+                            <p key={index} className="text-sm font-medium text-white">
+                              {line}
+                            </p>
+                          )
+                        }
+                        // Segunda linha são as coordenadas
+                        if (index === 1 && line.includes(',')) {
+                          return (
+                            <p key={index} className="text-xs text-text-muted">
+                              {line}
+                            </p>
+                          )
+                        }
+                        // Terceira linha pode ser a URL
+                        if (index === 2 && (line.startsWith('http://') || line.startsWith('https://'))) {
+                          return (
+                            <a
+                              key={index}
+                              href={line}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-brand-secondary hover:underline break-all"
+                            >
+                              {line}
+                            </a>
+                          )
+                        }
+                        return null
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white">{message.contentText}</p>
+                  )}
+                </div>
+              )}
+              
+              {/* Coordenadas sempre visíveis */}
               <p className="mb-2 text-xs text-text-muted">
                 {lat.toFixed(6)}, {lng.toFixed(6)}
               </p>
+              
               <div className="flex flex-wrap gap-2">
                 <a
                   href={googleMapsUrl}

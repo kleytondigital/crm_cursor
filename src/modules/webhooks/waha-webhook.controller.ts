@@ -115,9 +115,14 @@ export class WahaWebhookController {
     const media = payload?.media ?? event?.media ?? null;
     const hasMedia = payload?.hasMedia ?? event?.hasMedia ?? !!media;
 
-    // Extrair latitude e longitude para mensagens de localização
-    const latitude = payload?.latitude ?? event?.latitude ?? null;
-    const longitude = payload?.longitude ?? event?.longitude ?? null;
+    // Extrair informações de localização
+    // A localização pode vir em locationMessage (novo formato) ou diretamente como latitude/longitude (formato antigo)
+    const locationMessage = payload?.locationMessage ?? event?.locationMessage ?? null;
+    const latitude = locationMessage?.latitude ?? payload?.latitude ?? event?.latitude ?? null;
+    const longitude = locationMessage?.longitude ?? payload?.longitude ?? event?.longitude ?? null;
+    const locationName = locationMessage?.name ?? payload?.locationName ?? event?.locationName ?? null;
+    const locationUrl = locationMessage?.URL ?? locationMessage?.url ?? payload?.locationUrl ?? event?.locationUrl ?? null;
+    const locationThumbnail = locationMessage?.JPEGThumbnail ?? locationMessage?.thumbnail ?? null;
     const hasLocation = latitude !== null && longitude !== null && 
                         typeof latitude === 'number' && typeof longitude === 'number';
 
@@ -257,11 +262,24 @@ export class WahaWebhookController {
       contentType = this.resolveContentType(type, media?.mimetype, hasMedia);
     }
 
-    let resolvedContentText =
-      hasLocation
-        ? `Localização: ${latitude}, ${longitude}`
-        : messageText ??
-          (hasMedia ? this.describeMediaText(media?.mimetype) : null);
+    let resolvedContentText: string | null = null;
+    
+    if (hasLocation) {
+      // Formatar texto da localização com nome (se disponível) e coordenadas
+      if (locationName) {
+        resolvedContentText = `${locationName}\n${latitude}, ${longitude}`;
+        if (locationUrl) {
+          resolvedContentText += `\n${locationUrl}`;
+        }
+      } else {
+        resolvedContentText = `Localização: ${latitude}, ${longitude}`;
+        if (locationUrl) {
+          resolvedContentText += `\n${locationUrl}`;
+        }
+      }
+    } else {
+      resolvedContentText = messageText ?? (hasMedia ? this.describeMediaText(media?.mimetype) : null);
+    }
 
     let contentUrl: string | null = hasMedia ? media?.url ?? null : null;
 
