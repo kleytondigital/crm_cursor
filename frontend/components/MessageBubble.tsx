@@ -3,7 +3,7 @@
 import { Message, Conversation } from '@/types'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
-import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink } from 'lucide-react'
+import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import AudioPlayer from './AudioPlayer'
 
@@ -12,11 +12,20 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 interface MessageBubbleProps {
   message: Message
   conversation?: Conversation | null
+  allMessages?: Message[] // Lista de todas as mensagens para buscar a mensagem original
 }
 
-export default function MessageBubble({ message, conversation }: MessageBubbleProps) {
+export default function MessageBubble({ message, conversation, allMessages = [] }: MessageBubbleProps) {
   const isUser = message.senderType === 'USER'
   const [imageError, setImageError] = useState(false)
+  
+  // Buscar mensagem original se for uma resposta
+  const quotedMessage = useMemo(() => {
+    if (message.reply && message.replyMessageId && allMessages.length > 0) {
+      return allMessages.find((m) => m.id === message.replyMessageId) || null
+    }
+    return null
+  }, [message.reply, message.replyMessageId, allMessages])
 
   const formatTime = (dateString: string | undefined) => {
     if (!dateString) return ''
@@ -268,6 +277,41 @@ export default function MessageBubble({ message, conversation }: MessageBubblePr
     }
   }
 
+  // Renderizar seção de resposta (reply) se a mensagem for uma resposta
+  const renderReply = () => {
+    if (!message.reply) {
+      return null
+    }
+
+    // Usar o texto da mensagem original se encontrada, senão usar replyText
+    const replyText = quotedMessage?.contentText || message.replyText || 'Mensagem original não encontrada'
+    const replySenderName = quotedMessage?.senderType === 'USER' 
+      ? 'Você' 
+      : (quotedMessage?.conversation?.lead?.name || message.conversation?.lead?.name || 'Lead')
+
+    return (
+      <div className={`mb-2 border-l-3 ${
+        isUser 
+          ? 'border-blue-400 bg-blue-500/10 pl-3 pr-2 py-1.5 rounded-l-sm' 
+          : 'border-gray-400 bg-gray-500/10 pl-3 pr-2 py-1.5 rounded-l-sm'
+      }`}>
+        <div className="flex items-center gap-1.5 mb-1">
+          <Reply className={`h-3 w-3 ${isUser ? 'text-blue-300' : 'text-gray-400'}`} />
+          <span className={`text-xs font-medium ${
+            isUser ? 'text-blue-200' : 'text-gray-400'
+          }`}>
+            {replySenderName}
+          </span>
+        </div>
+        <p className={`text-xs leading-tight line-clamp-2 ${
+          isUser ? 'text-blue-100' : 'text-gray-300'
+        }`}>
+          {replyText.length > 100 ? `${replyText.substring(0, 100)}...` : replyText}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -283,6 +327,7 @@ export default function MessageBubble({ message, conversation }: MessageBubblePr
           </p>
         )}
         <div className="space-y-2">
+          {renderReply()}
           {renderContent()}
           {message.contentType !== 'TEXT' && (
             <div className="flex justify-end">{metaInfo}</div>

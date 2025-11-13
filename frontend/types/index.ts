@@ -11,6 +11,10 @@ export interface Message {
   createdAt: string
   direction?: 'INCOMING' | 'OUTGOING'
   timestamp?: string
+  messageId?: string | null
+  reply?: boolean
+  replyText?: string | null
+  replyMessageId?: string | null
   conversation?: Conversation
   sender?: {
     id: string

@@ -169,8 +169,11 @@ export class WahaWebhookController {
         : timestampValue
         ? new Date(timestampValue)
         : new Date();
-    const messageId =
-      this.extractMessageId(payload) ?? this.extractMessageId(event);
+    
+    // Extrair idMessage (prioritário sobre extractMessageId)
+    // idMessage vem direto do JSON da API
+    const idMessage = payload?.idMessage ?? event?.idMessage ?? null;
+    const messageId = idMessage ?? this.extractMessageId(payload) ?? this.extractMessageId(event);
 
     const explicitContact =
       event?.senderFinal ?? payload?.senderFinal ?? payload?.chatId ?? payload?.to;
@@ -266,8 +269,10 @@ export class WahaWebhookController {
     }
 
     // Buscar mensagem original se for uma resposta (reply)
-    // Nota: O schema atual não tem campo quotedMessageId, então por enquanto
-    // vamos adicionar a informação da resposta no contentText se necessário
+    // Agora temos campos específicos no schema para armazenar informações de reply
+    let replyMessageId: string | null = null;
+    let replyText: string | null = null;
+    
     if (isReply && replyToId) {
       // Tentar encontrar a mensagem original pelo messageId do WhatsApp
       const quotedMessage = await this.prisma.message.findFirst({
@@ -275,37 +280,30 @@ export class WahaWebhookController {
           messageId: replyToId,
           tenantId: connection.tenantId,
         },
-        select: { id: true, contentText: true },
+        select: { id: true, messageId: true, contentText: true },
       });
       
       if (quotedMessage) {
+        // Mensagem original encontrada no banco - usar o ID interno
+        replyMessageId = quotedMessage.id;
+        replyText = replyToBody ?? quotedMessage.contentText ?? null;
+        
         this.logger.log(
           `Mensagem é resposta (reply). Mensagem original encontrada: messageId=${replyToId} -> id=${quotedMessage.id}`,
         );
-        // Se não encontramos a mensagem original no banco, adicionar informação no texto
-        // (em uma futura atualização do schema, podemos adicionar quotedMessageId)
-        if (replyToBody && !resolvedContentText?.includes('↪') && !resolvedContentText?.includes('Resposta:')) {
-          const quotedText = replyToBody.length > 50 
-            ? `${replyToBody.substring(0, 50)}...` 
-            : replyToBody;
-          resolvedContentText = `↪ ${quotedText}\n\n${resolvedContentText || ''}`.trim();
-        }
       } else {
+        // Mensagem original não encontrada no banco - usar o messageId do WhatsApp
+        replyMessageId = null; // Não temos ID interno, mas temos replyToId (messageId do WhatsApp)
+        replyText = replyToBody ?? null;
+        
         this.logger.warn(
-          `Mensagem é resposta (reply) mas mensagem original não encontrada: messageId=${replyToId}. replyToBody=${replyToBody}`,
+          `Mensagem é resposta (reply) mas mensagem original não encontrada no banco: messageId=${replyToId}. replyToBody=${replyToBody}`,
         );
-        // Adicionar informação da resposta no texto da mensagem se não encontrar a original
-        if (replyToBody && !resolvedContentText?.includes('↪') && !resolvedContentText?.includes('Resposta:')) {
-          const quotedText = replyToBody.length > 50 
-            ? `${replyToBody.substring(0, 50)}...` 
-            : replyToBody;
-          resolvedContentText = `↪ ${quotedText}\n\n${resolvedContentText || ''}`.trim();
-        }
       }
     }
 
     this.logger.log(
-      `Criando mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply}`,
+      `Criando mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply} replyMessageId=${replyMessageId || 'N/A'}`,
     );
 
     const message = await this.prisma.message.create({
@@ -324,6 +322,9 @@ export class WahaWebhookController {
         direction,
         messageId,
         timestamp,
+        reply: isReply,
+        replyText: replyText,
+        replyMessageId: replyMessageId, // ID interno da mensagem original (se encontrada)
       },
       include: {
         conversation: {

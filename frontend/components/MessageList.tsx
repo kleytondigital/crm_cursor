@@ -59,6 +59,7 @@ export default function MessageList() {
                 key={message.id} 
                 message={message} 
                 conversation={selectedConversation}
+                allMessages={messages}
               />
             ))
           )}

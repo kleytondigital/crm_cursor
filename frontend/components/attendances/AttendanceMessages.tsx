@@ -62,7 +62,13 @@ export default function AttendanceMessages({ messages }: AttendanceMessagesProps
               <p className="text-sm">Nenhuma mensagem ainda.</p>
             </div>
           ) : (
-            filteredMessages.map((message) => <MessageBubble key={message.id} message={message} />)
+            filteredMessages.map((message) => (
+              <MessageBubble 
+                key={message.id} 
+                message={message} 
+                allMessages={messages}
+              />
+            ))
           )}
           <div ref={messagesEndRef} />
         </div>
