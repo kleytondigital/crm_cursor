@@ -25,6 +25,13 @@ MINIO_API_ENDPOINT="https://dietazap-minio.h3ag2x.easypanel.host"
 2. Vá em **"Domain"** ou **"Networking"**
 3. Procure pelo endpoint da **API** (não o da console)
 4. Geralmente é o mesmo hostname sem o prefixo "console-"
+5. **IMPORTANTE**: Se o endpoint da API for diferente, você DEVE configurar `MINIO_API_ENDPOINT` explicitamente
+
+**Dica**: No Easypanel, o MinIO pode expor múltiplos domínios:
+- Um para a console (gerenciamento web)
+- Um para a API S3 (requisições de upload/download)
+
+Verifique na seção **"Domains"** do serviço MinIO quais domínios estão configurados.
 
 #### Opção 2: Usar MINIO_ENDPOINT (Automático)
 

@@ -36,9 +36,15 @@ export class MinioService implements OnModuleInit {
       
       // Se o hostname começa com "console-", remover para obter o endpoint da API
       // Ex: console-dietazap-minio.h3ag2x.easypanel.host -> dietazap-minio.h3ag2x.easypanel.host
-      if (endpointWithoutProtocol.startsWith('console-')) {
-        endpointWithoutProtocol = endpointWithoutProtocol.replace(/^console-/, '');
-        this.logger.log(`Endpoint da console detectado, removendo prefixo "console-": ${endpointWithoutProtocol}`);
+      // No Easypanel, o MinIO geralmente expõe:
+      // - Console: console-{nome}.{host}
+      // - API: {nome}.{host} (sem prefixo console-)
+      if (endpointWithoutProtocol.match(/^console-/i)) {
+        endpointWithoutProtocol = endpointWithoutProtocol.replace(/^console-/i, '');
+        this.logger.log(`✅ Endpoint da console detectado, removendo prefixo "console-": ${endpointWithoutProtocol}`);
+        this.logger.log(`📡 Endpoint da API será: https://${endpointWithoutProtocol}`);
+      } else {
+        this.logger.warn(`⚠️ Endpoint não parece ser da console. Se o erro persistir, configure MINIO_API_ENDPOINT explicitamente.`);
       }
       
       // Determinar se deve usar SSL
