@@ -166,14 +166,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []) // Remover selectedConversation das dependências para evitar reconexões
 
-  // Carregar mensagens quando a conversa selecionada mudar
-  useEffect(() => {
-    if (selectedConversation?.id) {
-      console.log('[ChatContext] Carregando mensagens para conversa:', selectedConversation.id)
-      loadMessages(selectedConversation.id)
-    }
-  }, [selectedConversation?.id, loadMessages]) // Apenas quando o ID da conversa mudar
-
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true)
@@ -211,6 +203,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       isLoadingMessagesRef.current = false
     }
   }, [])
+
+  // Carregar mensagens quando a conversa selecionada mudar
+  useEffect(() => {
+    if (selectedConversation?.id) {
+      console.log('[ChatContext] Carregando mensagens para conversa:', selectedConversation.id)
+      loadMessages(selectedConversation.id)
+    }
+  }, [selectedConversation?.id, loadMessages]) // Apenas quando o ID da conversa mudar
 
   const selectConversation = useCallback((conversation: Conversation) => {
     // Se já está selecionada, não fazer nada
