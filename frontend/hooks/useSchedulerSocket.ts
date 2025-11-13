@@ -39,6 +39,9 @@ export function useSchedulerSocket(options: UseSchedulerSocketOptions = {}) {
 
     console.log(`[scheduler] Conectando ao WebSocket: ${wsUrl}/scheduler`)
 
+    // Configuração do Socket.IO otimizada para Easypanel
+    // No Easypanel, o proxy reverso pode ter problemas com WebSocket puro
+    // Vamos usar polling primeiro e depois tentar upgrade para websocket
     const socket = io(`${wsUrl}/scheduler`, {
       auth: {
         token: bearerToken,
@@ -46,12 +49,20 @@ export function useSchedulerSocket(options: UseSchedulerSocketOptions = {}) {
       extraHeaders: {
         Authorization: bearerToken,
       },
-      transports: ['websocket', 'polling'], // Fallback para polling se websocket falhar
+      // No Easypanel, pode ser necessário usar polling primeiro
+      // O Socket.IO tentará fazer upgrade para websocket automaticamente
+      transports: ['polling', 'websocket'], // Polling primeiro, depois websocket
+      upgrade: true, // Permitir upgrade de polling para websocket
+      rememberUpgrade: true, // Lembrar upgrade para próximas conexões
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      timeout: 20000, // Timeout de 20 segundos
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: Infinity, // Tentar reconectar indefinidamente
+      timeout: 10000, // Timeout de 10 segundos (mais curto para detectar problemas mais rápido)
+      forceNew: false, // Reutilizar conexão se possível
+      // Configurações adicionais para proxy reverso
+      path: '/socket.io/', // Caminho padrão do Socket.IO
+      withCredentials: false, // Não enviar credenciais (pode causar problemas com CORS)
     })
 
     socketRef.current = socket

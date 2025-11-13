@@ -22,10 +22,18 @@ export const connectSocket = (token: string): Socket => {
     extraHeaders: {
       Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
     },
-    transports: ['websocket', 'polling'],
+    // No Easypanel, pode ser necessário usar polling primeiro
+    transports: ['polling', 'websocket'], // Polling primeiro, depois websocket
+    upgrade: true, // Permitir upgrade de polling para websocket
+    rememberUpgrade: true, // Lembrar upgrade para próximas conexões
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 5,
+    reconnectionDelayMax: 10000,
+    reconnectionAttempts: Infinity, // Tentar reconectar indefinidamente
+    timeout: 10000, // Timeout de 10 segundos
+    forceNew: false, // Reutilizar conexão se possível
+    path: '/socket.io/', // Caminho padrão do Socket.IO
+    withCredentials: false, // Não enviar credenciais
   })
 
   socket.on('connect', () => {

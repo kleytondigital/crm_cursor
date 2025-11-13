@@ -105,10 +105,34 @@ Após deploy, verifique:
 **Causa**: O WebSocket não consegue conectar ao backend.
 
 **Soluções**:
-1. Verifique se `NEXT_PUBLIC_WS_URL` está configurado corretamente
-2. Verifique se o backend está rodando e acessível
-3. Verifique se o proxy reverso do Easypanel está configurado para WebSocket
-4. Tente usar `polling` transport (já configurado como fallback)
+1. **Configurar polling primeiro**: No Easypanel, o proxy reverso pode ter problemas com WebSocket puro. Configure `transports: ['polling', 'websocket']` para usar polling primeiro e depois fazer upgrade para websocket.
+
+2. **Verificar variáveis de ambiente**: Certifique-se de que `NEXT_PUBLIC_WS_URL` está configurado corretamente no Easypanel:
+   ```env
+   NEXT_PUBLIC_WS_URL=https://api.seu-dominio.com
+   ```
+   **⚠️ IMPORTANTE**: A URL deve ser HTTPS e apontar para o mesmo domínio do backend.
+
+3. **Verificar proxy reverso**: O Easypanel usa Traefik como proxy reverso. Verifique se:
+   - O domínio do backend está configurado corretamente
+   - O SSL/TLS está ativado
+   - O proxy está fazendo upgrade para WebSocket corretamente
+
+4. **Testar conexão manualmente**: Teste se o backend está acessível:
+   ```bash
+   curl https://api.seu-dominio.com/socket.io/?EIO=4&transport=polling
+   ```
+   Deve retornar uma resposta do Socket.IO.
+
+5. **Verificar logs do backend**: Verifique os logs do backend para ver se há tentativas de conexão:
+   ```
+   [MessagesGateway] Cliente conectado: <socket-id> - Usuário: <email> - Tenant: <tenant-id>
+   ```
+
+6. **Usar polling como transporte primário**: Se o problema persistir, force o uso de polling:
+   ```typescript
+   transports: ['polling'], // Apenas polling
+   ```
 
 ### Erro: "Invalid namespace"
 

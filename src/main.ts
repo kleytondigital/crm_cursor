@@ -12,8 +12,10 @@ async function bootstrap() {
   // Habilitar CORS
   app.enableCors({
     origin: true,
-    credentials: true,
+    credentials: false, // Não enviar credenciais (pode causar problemas com WebSocket)
     exposedHeaders: ['Content-Range', 'Accept-Ranges'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
   });
 
   // Guard JWT global (rotas públicas usam @Public() decorator)

@@ -12,8 +12,13 @@ import { Logger } from '@nestjs/common';
 @WebSocketGateway({
   cors: {
     origin: '*',
+    credentials: false, // Não enviar credenciais (pode causar problemas com CORS)
   },
   namespace: '/attendances',
+  transports: ['polling', 'websocket'], // Permitir polling e websocket
+  allowEIO3: true, // Permitir cliente Socket.IO v3
+  pingTimeout: 60000, // Timeout de ping (60 segundos)
+  pingInterval: 25000, // Intervalo de ping (25 segundos)
 })
 export class AttendancesGateway
   implements OnGatewayConnection, OnGatewayDisconnect
