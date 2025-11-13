@@ -66,13 +66,38 @@ export class WahaWebhookController {
       return false;
     }
 
-    const connection = await this.prisma.connection.findFirst({
+    // Buscar conexão por sessionName (case-sensitive primeiro)
+    let connection = await this.prisma.connection.findFirst({
       where: { sessionName: session },
     });
 
+    // Se não encontrou, tentar case-insensitive (para compatibilidade)
+    if (!connection) {
+      const allConnections = await this.prisma.connection.findMany({
+        where: {},
+        select: { id: true, sessionName: true, tenantId: true, name: true, status: true },
+      });
+      connection = allConnections.find(
+        (c) => c.sessionName.toLowerCase() === session.toLowerCase(),
+      ) as any;
+      
+      if (connection) {
+        this.logger.log(
+          `Conexão encontrada com case-insensitive: session=${session} -> sessionName=${connection.sessionName}`,
+        );
+      }
+    }
+
     if (!connection) {
       this.logger.warn(
-        `Sessão WAHA não registrada, evento ignorado. session=${session}`,
+        `Sessão WAHA não registrada, evento ignorado. session=${session}. Verifique se a conexão foi criada no sistema.`,
+      );
+      // Log adicional para debug: listar todas as sessões disponíveis
+      const allSessions = await this.prisma.connection.findMany({
+        select: { sessionName: true },
+      });
+      this.logger.debug(
+        `Sessões registradas no sistema: ${allSessions.map((c) => c.sessionName).join(', ')}`,
       );
       return false;
     }
@@ -111,12 +136,18 @@ export class WahaWebhookController {
     const type = info?.Type ?? payload?.type ?? event?.type ?? media?.mimetype ?? '';
     const fromMe = payload?.fromMe ?? event?.fromMe ?? false;
     
+    // Extrair informações de resposta (reply)
+    const isReply = payload?.reply ?? event?.reply ?? false;
+    const replyTo = payload?.replyTo ?? event?.replyTo ?? null;
+    const replyToId = replyTo?.id ?? null;
+    const replyToBody = replyTo?.body ?? null;
+    
     // Extrair texto da mensagem (verificar múltiplas fontes incluindo 'conversation')
     const messageText = this.extractMessageText(payload, event);
     
     // Log detalhado para debug
     this.logger.log(
-      `Processando evento WAHA: session=${session} fromMe=${fromMe} sender=${sender} senderFinal=${event?.senderFinal ?? payload?.senderFinal ?? 'N/A'} messageText=${messageText ? messageText.substring(0, 50) : 'N/A'}...`,
+      `Processando evento WAHA: session=${session} fromMe=${fromMe} reply=${isReply} sender=${sender} senderFinal=${event?.senderFinal ?? payload?.senderFinal ?? 'N/A'} messageText=${messageText ? messageText.substring(0, 50) : 'N/A'}...`,
     );
 
     const timestampValue =
@@ -224,6 +255,45 @@ export class WahaWebhookController {
       );
       if (downloadedUrl) {
         contentUrl = downloadedUrl;
+      }
+    }
+
+    // Buscar mensagem original se for uma resposta (reply)
+    // Nota: O schema atual não tem campo quotedMessageId, então por enquanto
+    // vamos adicionar a informação da resposta no contentText se necessário
+    if (isReply && replyToId) {
+      // Tentar encontrar a mensagem original pelo messageId do WhatsApp
+      const quotedMessage = await this.prisma.message.findFirst({
+        where: {
+          messageId: replyToId,
+          tenantId: connection.tenantId,
+        },
+        select: { id: true, contentText: true },
+      });
+      
+      if (quotedMessage) {
+        this.logger.log(
+          `Mensagem é resposta (reply). Mensagem original encontrada: messageId=${replyToId} -> id=${quotedMessage.id}`,
+        );
+        // Se não encontramos a mensagem original no banco, adicionar informação no texto
+        // (em uma futura atualização do schema, podemos adicionar quotedMessageId)
+        if (replyToBody && !resolvedContentText?.includes('↪') && !resolvedContentText?.includes('Resposta:')) {
+          const quotedText = replyToBody.length > 50 
+            ? `${replyToBody.substring(0, 50)}...` 
+            : replyToBody;
+          resolvedContentText = `↪ ${quotedText}\n\n${resolvedContentText || ''}`.trim();
+        }
+      } else {
+        this.logger.warn(
+          `Mensagem é resposta (reply) mas mensagem original não encontrada: messageId=${replyToId}. replyToBody=${replyToBody}`,
+        );
+        // Adicionar informação da resposta no texto da mensagem se não encontrar a original
+        if (replyToBody && !resolvedContentText?.includes('↪') && !resolvedContentText?.includes('Resposta:')) {
+          const quotedText = replyToBody.length > 50 
+            ? `${replyToBody.substring(0, 50)}...` 
+            : replyToBody;
+          resolvedContentText = `↪ ${quotedText}\n\n${resolvedContentText || ''}`.trim();
+        }
       }
     }
 
