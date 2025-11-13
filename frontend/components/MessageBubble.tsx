@@ -33,6 +33,10 @@ export default function MessageBubble({
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   
+  // Verificar se a mensagem foi editada ou excluída
+  const isEdited = !!message.editedAt
+  const isDeleted = !!message.deletedAt
+  
   // Buscar mensagem original se for uma resposta
   const quotedMessage = useMemo(() => {
     if (message.reply && message.replyMessageId && allMessages.length > 0) {
@@ -400,13 +404,13 @@ export default function MessageBubble({
   }
 
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} group`}>
       <div
-        className={`max-w-[90%] rounded-2xl border px-5 py-3 text-sm shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] sm:max-w-[80%] lg:max-w-[70%] ${
+        className={`max-w-[90%] rounded-2xl border px-5 py-3 text-sm shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] sm:max-w-[80%] lg:max-w-[70%] relative ${
           isUser
             ? 'rounded-br-md border-brand-primary/40 bg-gradient-to-br from-brand-primary/25 via-brand-primary/10 to-transparent text-white backdrop-blur-sm'
             : 'rounded-bl-md border-white/10 bg-background-card/85 text-text-primary backdrop-blur-sm'
-        }`}
+        } ${isDeleted ? 'opacity-40 grayscale' : isEdited ? 'opacity-75' : ''}`}
       >
         {!isUser && message.sender && (
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
