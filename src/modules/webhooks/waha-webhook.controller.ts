@@ -77,9 +77,11 @@ export class WahaWebhookController {
       return false;
     }
 
+    // Processar payload: pode estar em event.payload ou diretamente em event
     const payload = event?.payload ?? event ?? {};
     const info = payload?._data?.Info ?? {};
 
+    // Extrair informações de mídia
     const media = payload?.media ?? event?.media ?? null;
     const hasMedia = payload?.hasMedia ?? event?.hasMedia ?? !!media;
 
@@ -89,12 +91,14 @@ export class WahaWebhookController {
     const hasLocation = latitude !== null && longitude !== null && 
                         typeof latitude === 'number' && typeof longitude === 'number';
 
+    // Extrair informações do remetente (múltiplas fontes possíveis)
     const from = payload?.from ?? event?.from ?? '';
     const sender =
       info?.Sender ??
       payload?.sender ??
       event?.sender ??
       event?.senderFinal ??
+      payload?.senderFinal ??
       '';
     const senderAlt =
       info?.SenderAlt ?? payload?.senderAlt ?? event?.senderAlt ?? '';
@@ -102,9 +106,18 @@ export class WahaWebhookController {
       info?.PushName ?? payload?.pushName ?? event?.pushName ?? sender ?? '';
     const profilePictureURL =
       payload?.profilePictureURL ?? event?.profilePictureURL ?? null;
-    const type = info?.Type ?? payload?.type ?? media?.mimetype ?? '';
+    
+    // Extrair tipo de mensagem e conteúdo
+    const type = info?.Type ?? payload?.type ?? event?.type ?? media?.mimetype ?? '';
     const fromMe = payload?.fromMe ?? event?.fromMe ?? false;
-    const messageText = this.extractMessageText(payload);
+    
+    // Extrair texto da mensagem (verificar múltiplas fontes incluindo 'conversation')
+    const messageText = this.extractMessageText(payload, event);
+    
+    // Log detalhado para debug
+    this.logger.log(
+      `Processando evento WAHA: session=${session} fromMe=${fromMe} sender=${sender} senderFinal=${event?.senderFinal ?? payload?.senderFinal ?? 'N/A'} messageText=${messageText ? messageText.substring(0, 50) : 'N/A'}...`,
+    );
 
     const timestampValue =
       info?.Timestamp ??
@@ -138,16 +151,34 @@ export class WahaWebhookController {
 
     let senderFinal = this.resolveSender(from, sender, senderAlt);
 
+    // Para mensagens com fromMe=true, o senderFinal geralmente está em senderFinal ou explicitContact
+    // Isso é importante porque mensagens enviadas do celular/WhatsApp Web têm fromMe=true
+    // IMPORTANTE: Para mensagens com fromMe=true, o senderFinal deve ser o DESTINATÁRIO (lead),
+    // não o remetente, pois são mensagens que o USUÁRIO enviou para o LEAD
     if ((!senderFinal || fromMe) && explicitContact) {
       senderFinal = explicitContact;
+      this.logger.debug(`Usando explicitContact como senderFinal: ${senderFinal} (fromMe=${fromMe})`);
+    }
+
+    // Se ainda não tiver senderFinal e fromMe=true, tentar usar campos alternativos
+    if (!senderFinal && fromMe) {
+      // Para mensagens enviadas do celular/WhatsApp Web com fromMe=true,
+      // o senderFinal (destinatário/lead) pode estar em 'to' ou 'chatId'
+      const fallbackSender = event?.to ?? payload?.to ?? event?.chatId ?? payload?.chatId;
+      if (fallbackSender && WA_REGEX.test(fallbackSender)) {
+        senderFinal = fallbackSender;
+        this.logger.log(`Usando fallback senderFinal para mensagem fromMe=true: ${senderFinal}`);
+      }
     }
 
     if (!senderFinal) {
       this.logger.warn(
-        `Não foi possível determinar senderFinal. session=${session}`,
+        `Não foi possível determinar senderFinal. session=${session} fromMe=${fromMe} event=${JSON.stringify(event).substring(0, 200)}...`,
       );
       return false;
     }
+    
+    this.logger.log(`senderFinal determinado: ${senderFinal} (fromMe=${fromMe})`);
 
     this.logger.log(
       `Evento WAHA processado. session=${session} senderFinal=${senderFinal} hasLocation=${hasLocation} body =${JSON.stringify(payload)}`,
@@ -629,8 +660,10 @@ export class WahaWebhookController {
     return 'bin';
   }
 
-  private extractMessageText(payload: any): string | null {
+  private extractMessageText(payload: any, event?: any): string | null {
+    // Lista completa de possíveis campos onde o texto pode estar
     const candidates = [
+      // Campos no payload
       payload?.body,
       payload?.text,
       payload?.message,
@@ -638,13 +671,23 @@ export class WahaWebhookController {
       payload?.caption,
       payload?.value,
       payload?.description,
-      payload?.conversation,
+      payload?.conversation, // Campo importante para mensagens com fromMe
+      // Campos aninhados no payload
       payload?.message?.text,
       payload?.message?.conversation,
+      payload?.message?.body,
+      // Campos no event (caso não esteja no payload)
+      event?.body,
+      event?.text,
+      event?.message,
+      event?.content,
+      event?.conversation, // Campo importante para mensagens com fromMe
+      // Campos em _data
       payload?._data?.body,
       payload?._data?.Body,
       payload?._data?.message,
       payload?._data?.text,
+      payload?._data?.conversation,
       payload?._data?.Message?.conversation,
       payload?._data?.Message?.text,
       payload?._data?.Message?.body,
@@ -652,23 +695,41 @@ export class WahaWebhookController {
       payload?._data?.Message?.templateMessage?.Format?.InteractiveMessageTemplate?.body?.text,
     ];
 
+    // Procurar primeiro valor válido (string não vazia)
     for (const value of candidates) {
       if (typeof value === 'string' && value.trim().length > 0) {
-        return value.trim();
+        const trimmed = value.trim();
+        this.logger.debug(`Texto da mensagem extraído de: ${value} -> ${trimmed.substring(0, 50)}...`);
+        return trimmed;
       }
     }
 
+    // Fallback: buscar recursivamente em objetos aninhados
     const fallback = this.findStringValue(payload, [
       'body',
       'text',
       'message',
-      'conversation',
+      'conversation', // Incluir 'conversation' na busca recursiva
+      'content',
       'value',
+      'caption',
+    ]) || this.findStringValue(event, [
+      'body',
+      'text',
+      'message',
+      'conversation',
+      'content',
+      'value',
+      'caption',
     ]);
 
-    return typeof fallback === 'string' && fallback.trim().length > 0
-      ? fallback.trim()
-      : null;
+    if (typeof fallback === 'string' && fallback.trim().length > 0) {
+      this.logger.debug(`Texto da mensagem extraído (fallback): ${fallback.substring(0, 50)}...`);
+      return fallback.trim();
+    }
+
+    this.logger.debug('Nenhum texto encontrado na mensagem');
+    return null;
   }
 
   private extractMessageId(payload: any): string | null {
