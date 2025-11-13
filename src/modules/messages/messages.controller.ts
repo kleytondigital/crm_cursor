@@ -15,15 +15,16 @@ import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { File as MulterFile } from 'multer';
-import { diskStorage } from 'multer';
-import { existsSync, mkdirSync } from 'fs';
-import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
+import { MinioService } from '@/shared/minio/minio.service';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly minioService: MinioService,
+  ) {}
 
   @Get('conversation/:conversationId')
   findByConversation(
@@ -46,33 +47,6 @@ export class MessagesController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const now = new Date();
-          const yearMonth = `${now.getFullYear()}-${String(
-            now.getMonth() + 1,
-          ).padStart(2, '0')}`;
-          const uploadPath = join(
-            process.cwd(),
-            'uploads',
-            'chats',
-            yearMonth,
-          );
-          if (!existsSync(uploadPath)) {
-            mkdirSync(uploadPath, { recursive: true });
-          }
-          (req as any).uploadYearMonth = yearMonth;
-          cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-          const extension =
-            extname(file.originalname) ||
-            MessagesController.inferExtension(file.mimetype);
-          const unique = `${randomUUID()}${extension}`;
-          (req as any).storedFileName = unique;
-          cb(null, unique);
-        },
-      }),
       limits: {
         fileSize: 25 * 1024 * 1024, // 25MB
       },
@@ -85,18 +59,42 @@ export class MessagesController {
       throw new BadRequestException('Arquivo não encontrado no upload.');
     }
 
-    const relativePath = file.path
-      .replace(process.cwd(), '')
-      .replace(/\\/g, '/');
-    const url = relativePath.startsWith('/')
-      ? relativePath
-      : `/${relativePath}`;
+    try {
+      // Gerar nome único do arquivo
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(
+        now.getMonth() + 1,
+      ).padStart(2, '0')}`;
+      const extension =
+        MessagesController.getExtension(file.originalname) ||
+        MessagesController.inferExtension(file.mimetype);
+      const fileName = `${randomUUID()}${extension}`;
+      
+      // Chave (caminho) do arquivo no MinIO
+      const key = `chats/${yearMonth}/${fileName}`;
+      
+      // Upload para MinIO
+      const publicUrl = await this.minioService.uploadFile(
+        file.buffer,
+        key,
+        file.mimetype || 'application/octet-stream',
+      );
 
-    return {
-      url,
-      mimetype: file.mimetype,
-      filename: file.originalname,
-    };
+      return {
+        url: publicUrl,
+        mimetype: file.mimetype,
+        filename: file.originalname,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Erro ao fazer upload do arquivo: ${error.message}`,
+      );
+    }
+  }
+
+  private static getExtension(filename: string): string {
+    const lastDot = filename.lastIndexOf('.');
+    return lastDot !== -1 ? filename.substring(lastDot) : '';
   }
 
   private static inferExtension(mimetype: string): string {

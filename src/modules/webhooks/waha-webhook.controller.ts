@@ -11,10 +11,9 @@ import {
 } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { promises as fs } from 'fs';
-import { join, extname } from 'path';
 import { randomUUID } from 'crypto';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
+import { MinioService } from '@/shared/minio/minio.service';
 
 const WA_REGEX = /@(c\.us|s\.whatsapp\.net)$/;
 
@@ -27,6 +26,7 @@ export class WahaWebhookController {
     private readonly messagesGateway: MessagesGateway,
     private readonly configService: ConfigService,
     private readonly attendancesService: AttendancesService,
+    private readonly minioService: MinioService,
   ) {}
 
   @Public()
@@ -580,17 +580,19 @@ export class WahaWebhookController {
         now.getMonth() + 1,
       ).padStart(2, '0')}`;
 
-      const uploadDir = join(process.cwd(), 'uploads', 'chats', yearMonth);
-      await fs.mkdir(uploadDir, { recursive: true });
-
       const fileName = `${randomUUID()}.${extension}`;
-      const filePath = join(uploadDir, fileName);
+      
+      // Chave (caminho) do arquivo no MinIO
+      const key = `chats/${yearMonth}/${fileName}`;
+      
+      // Upload para MinIO
+      const publicUrl = await this.minioService.uploadFile(
+        Buffer.from(response.data),
+        key,
+        contentType,
+      );
 
-      await fs.writeFile(filePath, Buffer.from(response.data));
-
-      const publicPath = `/uploads/chats/${yearMonth}/${fileName}`;
-
-      return publicPath;
+      return publicUrl;
     } catch (error) {
       this.logger.warn(
         `Falha ao baixar mídia ${mediaUrl}: ${error?.message || error}`,

@@ -17,6 +17,7 @@ import { ConnectionsModule } from './modules/connections/connections.module';
 import { AttendancesModule } from './modules/attendances/attendances.module';
 import { FilesModule } from './modules/files/files.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { MinioModule } from './shared/minio/minio.module';
 import { TenantMiddleware } from './shared/middleware/tenant.middleware';
 
 @Module({
@@ -50,6 +51,7 @@ import { TenantMiddleware } from './shared/middleware/tenant.middleware';
     AttendancesModule,
     FilesModule,
     SchedulerModule,
+    MinioModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

@@ -1,16 +1,17 @@
 import { Controller, Get, Param, Res, NotFoundException, Headers, Req, Logger, BadRequestException } from '@nestjs/common';
 import { Response, Request } from 'express';
-import { join } from 'path';
-import { existsSync, statSync, createReadStream } from 'fs';
 import { Public } from '@/shared/decorators/public.decorator';
+import { MinioService } from '@/shared/minio/minio.service';
 
 @Controller('uploads')
 export class FilesController {
   private readonly logger = new Logger(FilesController.name);
 
+  constructor(private readonly minioService: MinioService) {}
+
   @Get('*')
   @Public()
-  serveFile(
+  async serveFile(
     @Param('0') filePath: string,
     @Res({ passthrough: false }) res: Response,
     @Req() req: Request,
@@ -32,23 +33,28 @@ export class FilesController {
         cleanPath = cleanPath.replace(/^uploads\//, '');
       }
       
-      const fullPath = join(process.cwd(), 'uploads', cleanPath);
-
-      if (!existsSync(fullPath)) {
-        this.logger.warn(`Arquivo não encontrado: ${cleanPath}`);
+      // Converter caminho para key do MinIO
+      // Se não começar com chats/, adicionar
+      const key = cleanPath.startsWith('chats/') ? cleanPath : `chats/${cleanPath}`;
+      
+      // Verificar se o arquivo existe no MinIO
+      const fileExists = await this.minioService.fileExists(key);
+      if (!fileExists) {
+        this.logger.warn(`Arquivo não encontrado no MinIO: ${key}`);
         res.status(404).json({ error: `Arquivo não encontrado: ${cleanPath}` });
         return;
       }
 
-      const stats = statSync(fullPath);
+      // Obter metadados do arquivo
+      const metadata = await this.minioService.getFileMetadata(key);
       const ext = filePath.split('.').pop()?.toLowerCase();
       
       // Determinar Content-Type
-      let contentType = 'application/octet-stream';
+      let contentType = metadata.contentType || 'application/octet-stream';
       const isAudio = ext && ['ogg', 'mp3', 'wav', 'webm', 'm4a', 'aac', 'flac', 'opus'].includes(ext);
       const isVideo = ext && ['mp4', 'avi', 'mov', 'webm', 'mkv', 'flv', 'wmv'].includes(ext);
       
-      if (isAudio) {
+      if (isAudio && !contentType.startsWith('audio/')) {
         contentType =
           ext === 'ogg' ? 'audio/ogg' :
           ext === 'mp3' ? 'audio/mpeg' :
@@ -58,7 +64,7 @@ export class FilesController {
           ext === 'aac' ? 'audio/aac' :
           ext === 'flac' ? 'audio/flac' :
           'audio/ogg';
-      } else if (isVideo) {
+      } else if (isVideo && !contentType.startsWith('video/')) {
         contentType =
           ext === 'mp4' ? 'video/mp4' :
           ext === 'webm' ? 'video/webm' :
@@ -80,87 +86,67 @@ export class FilesController {
         contentType = 'application/pdf';
       }
       
-      this.logger.log(`Servindo: ${cleanPath}, tipo: ${contentType}, tamanho: ${stats.size}, range: ${range || 'none'}`);
+      const contentLength = metadata.contentLength || 0;
+      this.logger.log(`Servindo do MinIO: ${key}, tipo: ${contentType}, tamanho: ${contentLength}, range: ${range || 'none'}`);
       
       // Headers básicos
       res.setHeader('Content-Type', contentType);
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=31536000');
       
+      // Obter arquivo do MinIO
+      const fileStream = await this.minioService.getFile(key);
+      
       // Para áudio/vídeo: suportar range requests (necessário para streaming)
-      if (isAudio || isVideo) {
-        if (range) {
-          const rangeMatch = range.match(/bytes=(\d*)-(\d*)/);
-          if (rangeMatch) {
-            const start = parseInt(rangeMatch[1] || '0', 10);
-            const end = parseInt(rangeMatch[2] || String(stats.size - 1), 10);
-            const actualEnd = Math.min(end, stats.size - 1);
-            const actualStart = Math.max(0, Math.min(start, actualEnd));
-            
-            if (actualStart >= stats.size || actualStart > actualEnd) {
-              res.setHeader('Content-Range', `bytes */${stats.size}`);
-              res.status(416).end();
-              return;
-            }
-            
-            const chunkSize = (actualEnd - actualStart) + 1;
-            
-            res.status(206);
-            res.setHeader('Content-Range', `bytes ${actualStart}-${actualEnd}/${stats.size}`);
-            res.setHeader('Content-Length', chunkSize.toString());
-            
-            const fileStream = createReadStream(fullPath, { start: actualStart, end: actualEnd });
-            
-            fileStream.on('error', (err) => {
-              this.logger.error(`Erro no stream: ${cleanPath}`, err);
-              if (!res.headersSent) {
-                res.status(500).json({ error: 'Erro ao ler arquivo' });
-              } else {
-                res.destroy();
-              }
-            });
-            
-            fileStream.pipe(res);
+      if ((isAudio || isVideo) && range && contentLength > 0) {
+        const rangeMatch = range.match(/bytes=(\d*)-(\d*)/);
+        if (rangeMatch) {
+          const start = parseInt(rangeMatch[1] || '0', 10);
+          const end = parseInt(rangeMatch[2] || String(contentLength - 1), 10);
+          const actualEnd = Math.min(end, contentLength - 1);
+          const actualStart = Math.max(0, Math.min(start, actualEnd));
+          
+          if (actualStart >= contentLength || actualStart > actualEnd) {
+            res.setHeader('Content-Range', `bytes */${contentLength}`);
+            res.status(416).end();
             return;
           }
+          
+          const chunkSize = (actualEnd - actualStart) + 1;
+          
+          res.status(206);
+          res.setHeader('Content-Range', `bytes ${actualStart}-${actualEnd}/${contentLength}`);
+          res.setHeader('Content-Length', chunkSize.toString());
+          
+          // Para range requests, precisamos ler apenas a parte solicitada
+          // MinIO não suporta range nativo via SDK, então vamos redirecionar para URL assinada
+          // ou ler o arquivo completo e fazer o range manualmente
+          // Por simplicidade, vamos gerar uma URL assinada para o arquivo
+          const signedUrl = await this.minioService.getSignedUrl(key, 3600);
+          res.redirect(signedUrl);
+          return;
         }
-        
-        // Sem range: servir arquivo completo
-        res.setHeader('Content-Length', stats.size.toString());
-        const fileStream = createReadStream(fullPath);
-        
-        fileStream.on('error', (err) => {
-          this.logger.error(`Erro no stream: ${cleanPath}`, err);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Erro ao ler arquivo' });
-          } else {
-            res.destroy();
-          }
-        });
-        
-        fileStream.pipe(res);
-        return;
       }
       
-      // Para outros arquivos: usar sendFile
-      res.sendFile(fullPath, (err: any) => {
-        if (err) {
-          this.logger.error(`Erro ao enviar arquivo ${cleanPath}: ${err.message}`);
-          if (!res.headersSent) {
-            if (err.code === 'ENOENT') {
-              res.status(404).json({ error: 'Arquivo não encontrado' });
-            } else if (err.status) {
-              res.status(err.status).end();
-            } else {
-              res.status(500).json({ error: 'Erro ao servir arquivo', message: err.message });
-            }
-          }
+      // Sem range ou não é áudio/vídeo: servir arquivo completo
+      if (contentLength > 0) {
+        res.setHeader('Content-Length', contentLength.toString());
+      }
+      
+      fileStream.on('error', (err) => {
+        this.logger.error(`Erro no stream do MinIO: ${key}`, err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Erro ao ler arquivo' });
+        } else {
+          res.destroy();
         }
       });
+      
+      fileStream.pipe(res);
     } catch (error) {
       this.logger.error(`Erro ao processar arquivo: ${error.message}`, error.stack);
       if (!res.headersSent) {
-        if (error instanceof NotFoundException) {
+        if (error instanceof NotFoundException || error.message.includes('não encontrado')) {
           res.status(404).json({ error: error.message });
         } else {
           res.status(500).json({ error: 'Erro interno do servidor', message: error.message });
