@@ -3,8 +3,8 @@
 import { Message, Conversation } from '@/types'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
-import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply, MoreVertical, Edit2, Trash2 } from 'lucide-react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import AudioPlayer from './AudioPlayer'
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -14,11 +14,24 @@ interface MessageBubbleProps {
   conversation?: Conversation | null
   allMessages?: Message[] // Lista de todas as mensagens para buscar a mensagem original
   onScrollToMessage?: (messageId: string) => void // Função para fazer scroll até uma mensagem específica
+  onReply?: (message: Message) => void // Função para responder uma mensagem
+  onEdit?: (message: Message) => void // Função para editar uma mensagem
+  onDelete?: (message: Message) => void // Função para excluir uma mensagem
 }
 
-export default function MessageBubble({ message, conversation, allMessages = [], onScrollToMessage }: MessageBubbleProps) {
+export default function MessageBubble({ 
+  message, 
+  conversation, 
+  allMessages = [], 
+  onScrollToMessage,
+  onReply,
+  onEdit,
+  onDelete,
+}: MessageBubbleProps) {
   const isUser = message.senderType === 'USER'
   const [imageError, setImageError] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   
   // Buscar mensagem original se for uma resposta
   const quotedMessage = useMemo(() => {
@@ -400,6 +413,19 @@ export default function MessageBubble({ message, conversation, allMessages = [],
             {message.sender.name || message.sender.email}
           </p>
         )}
+        
+        {/* Indicadores de edição/exclusão */}
+        {(isEdited || isDeleted) && (
+          <div className="mb-1 flex items-center gap-1 text-[10px] text-text-muted">
+            {isDeleted && (
+              <span className="text-red-400">🗑️ Esta mensagem foi excluída</span>
+            )}
+            {isEdited && !isDeleted && (
+              <span className="text-yellow-400">✏️ Editada</span>
+            )}
+          </div>
+        )}
+        
         <div className="space-y-2">
           {renderReply()}
           {renderContent()}

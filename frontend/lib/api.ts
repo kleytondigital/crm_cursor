@@ -47,6 +47,7 @@ export const messagesAPI = {
     contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT'
     contentText?: string
     contentUrl?: string
+    replyTo?: string // messageId da mensagem que está sendo respondida
   }) => {
     const response = await api.post('/messages', data)
     return response.data
@@ -62,6 +63,23 @@ export const messagesAPI = {
     })
 
     return response.data as { url: string; mimetype: string; filename: string }
+  },
+  edit: async (data: {
+    idMessage: string
+    phone: string
+    session: string
+    Texto: string
+  }) => {
+    const response = await api.post('/messages/edit', data)
+    return response.data
+  },
+  delete: async (data: {
+    idMessage: string
+    phone: string
+    session: string
+  }) => {
+    const response = await api.post('/messages/delete', data)
+    return response.data
   },
 }
 

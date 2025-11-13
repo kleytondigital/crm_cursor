@@ -5,12 +5,14 @@ import {
   Get,
   Param,
   Post,
+  Delete,
+  Patch,
   UseGuards,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
+import { CreateMessageDto, EditMessageDto, DeleteMessageDto } from './dto/create-message.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -116,6 +118,16 @@ export class MessagesController {
     if (mimetype.includes('presentation')) return '.ppt';
     if (mimetype.includes('text')) return '.txt';
     return '';
+  }
+
+  @Post('edit')
+  async editMessage(@Body() editMessageDto: EditMessageDto, @CurrentUser() user: any) {
+    return this.messagesService.editMessage(editMessageDto, user.companyId, user.sub);
+  }
+
+  @Post('delete')
+  async deleteMessage(@Body() deleteMessageDto: DeleteMessageDto, @CurrentUser() user: any) {
+    return this.messagesService.deleteMessage(deleteMessageDto, user.companyId, user.sub);
   }
 }
 

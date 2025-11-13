@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,7 +8,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { CreateMessageDto } from './dto/create-message.dto';
+import { CreateMessageDto, EditMessageDto, DeleteMessageDto } from './dto/create-message.dto';
 import {
   ContentType,
   SenderType,
@@ -93,6 +94,33 @@ export class MessagesService {
     // Criar a mensagem
     const connection = await this.resolveConversationConnection(conversation.id, tenantId);
 
+    // Buscar mensagem original se for uma resposta (reply)
+    let replyMessageId: string | null = null;
+    let replyText: string | null = null;
+    
+    if (createMessageDto.replyTo) {
+      // Tentar encontrar a mensagem original pelo messageId do WhatsApp
+      const quotedMessage = await this.prisma.message.findFirst({
+        where: {
+          messageId: createMessageDto.replyTo,
+          tenantId: tenantId,
+        },
+        select: { id: true, messageId: true, contentText: true },
+      });
+      
+      if (quotedMessage) {
+        replyMessageId = quotedMessage.id;
+        replyText = quotedMessage.contentText ?? null;
+        this.logger.log(
+          `Mensagem de resposta encontrada. messageId=${createMessageDto.replyTo} -> id interno=${quotedMessage.id}`,
+        );
+      } else {
+        this.logger.warn(
+          `Mensagem original não encontrada para replyTo=${createMessageDto.replyTo}`,
+        );
+      }
+    }
+
     const message = await this.prisma.message.create({
       data: {
         conversationId: createMessageDto.conversationId,
@@ -107,6 +135,9 @@ export class MessagesService {
           createMessageDto.senderType === SenderType.USER
             ? MessageDirection.OUTGOING
             : MessageDirection.INCOMING,
+        reply: !!createMessageDto.replyTo,
+        replyMessageId: replyMessageId,
+        replyText: replyText,
       },
       include: {
         conversation: {
@@ -399,7 +430,7 @@ export class MessagesService {
         return;
       }
 
-      const payload = {
+      const payload: any = {
         session: connection.sessionName,
         phone: leadPhone,
         type: this.mapContentTypeToWebhook(message.contentType),
@@ -411,6 +442,22 @@ export class MessagesService {
             ? undefined
             : message.contentText || this.extractFilename(message.contentUrl) || undefined,
       };
+      
+      // Adicionar replyTo se a mensagem for uma resposta
+      if (message.replyMessageId) {
+        // Buscar o messageId (WhatsApp) da mensagem original
+        const originalMessage = await this.prisma.message.findUnique({
+          where: { id: message.replyMessageId },
+          select: { messageId: true },
+        });
+        
+        if (originalMessage?.messageId) {
+          payload.replyTo = originalMessage.messageId;
+          this.logger.log(
+            `Mensagem é resposta. replyTo=${originalMessage.messageId}`,
+          );
+        }
+      }
 
       const webhookUrl =
         this.configService.get<string>('N8N_WEBHOOK_URL_MESSAGES_SEND') ??
@@ -430,6 +477,209 @@ export class MessagesService {
         `Erro ao encaminhar mensagem ao N8N: ${error?.message || error}`,
       );
     }
+  }
+
+  async editMessage(editMessageDto: EditMessageDto, tenantId: string, userId?: string) {
+    // Buscar a mensagem pelo messageId do WhatsApp
+    const message = await this.prisma.message.findFirst({
+      where: {
+        messageId: editMessageDto.idMessage,
+        tenantId: tenantId,
+      },
+      include: {
+        conversation: {
+          include: {
+            lead: true,
+          },
+        },
+        connection: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Mensagem não encontrada');
+    }
+
+    // Verificar se a mensagem é do tipo TEXT (apenas mensagens de texto podem ser editadas)
+    if (message.contentType !== ContentType.TEXT) {
+      throw new BadRequestException('Apenas mensagens de texto podem ser editadas');
+    }
+
+    // Verificar se a mensagem foi enviada pelo usuário (apenas mensagens enviadas podem ser editadas)
+    if (message.direction !== MessageDirection.OUTGOING) {
+      throw new ForbiddenException('Apenas mensagens enviadas podem ser editadas');
+    }
+
+    // Salvar histórico da edição antes de atualizar
+    // Se é a primeira edição, salvar o texto original
+    const isFirstEdit = !message.editedAt;
+    const originalText = isFirstEdit ? message.contentText : message.originalText;
+
+    // Criar registro de histórico
+    await this.prisma.messageEditHistory.create({
+      data: {
+        messageId: message.id,
+        oldText: message.contentText,
+        newText: editMessageDto.Texto,
+        editedBy: userId || undefined,
+        tenantId: tenantId,
+      },
+    });
+
+    // Atualizar o conteúdo da mensagem no banco
+    const updatedMessage = await this.prisma.message.update({
+      where: { id: message.id },
+      data: {
+        contentText: editMessageDto.Texto,
+        editedAt: new Date(),
+        editedBy: userId || undefined,
+        originalText: originalText || message.contentText, // Preservar texto original na primeira edição
+      },
+      include: {
+        conversation: {
+          include: {
+            lead: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Enviar comando de edição para o N8N/WAHA
+    const connection = await this.resolveConversationConnection(message.conversationId, tenantId);
+
+    if (!connection?.sessionName) {
+      throw new BadRequestException('Conexão não encontrada');
+    }
+
+    const webhookUrl =
+      this.configService.get<string>('N8N_WEBHOOK_URL_MESSAGES_SEND') ??
+      this.configService.get<string>('N8N_MESSAGES_WEBHOOK_URL');
+
+    if (!webhookUrl) {
+      throw new BadRequestException('N8N_WEBHOOK_URL_MESSAGES_SEND não configurado');
+    }
+
+    // Obter o telefone do lead da conversa (se não foi fornecido)
+    const leadPhone = editMessageDto.phone || message.conversation?.lead?.phone;
+    
+    if (!leadPhone) {
+      throw new BadRequestException('Telefone do destinatário não encontrado');
+    }
+
+    const payload = {
+      action: 'edit',
+      session: connection.sessionName,
+      phone: leadPhone,
+      idMessage: editMessageDto.idMessage,
+      Texto: editMessageDto.Texto,
+    };
+
+    await this.n8nService.postToUrl(webhookUrl, payload);
+    this.logger.log(
+      `Mensagem editada. messageId=${editMessageDto.idMessage} session=${connection.sessionName} phone=${leadPhone}`,
+    );
+
+    return {
+      ...updatedMessage,
+      contentUrl: this.buildAbsoluteMediaUrl(updatedMessage.contentUrl),
+    };
+  }
+
+  async deleteMessage(deleteMessageDto: DeleteMessageDto, tenantId: string, userId?: string) {
+    // Buscar a mensagem pelo messageId do WhatsApp
+    const message = await this.prisma.message.findFirst({
+      where: {
+        messageId: deleteMessageDto.idMessage,
+        tenantId: tenantId,
+      },
+      include: {
+        conversation: {
+          include: {
+            lead: true,
+          },
+        },
+        connection: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Mensagem não encontrada');
+    }
+
+    // Verificar se a mensagem foi enviada pelo usuário (apenas mensagens enviadas podem ser excluídas)
+    if (message.direction !== MessageDirection.OUTGOING) {
+      throw new ForbiddenException('Apenas mensagens enviadas podem ser excluídas');
+    }
+
+    // Enviar comando de exclusão para o N8N/WAHA
+    const connection = await this.resolveConversationConnection(message.conversationId, tenantId);
+
+    if (!connection?.sessionName) {
+      throw new BadRequestException('Conexão não encontrada');
+    }
+
+    const webhookUrl =
+      this.configService.get<string>('N8N_WEBHOOK_URL_MESSAGES_SEND') ??
+      this.configService.get<string>('N8N_MESSAGES_WEBHOOK_URL');
+
+    if (!webhookUrl) {
+      throw new BadRequestException('N8N_WEBHOOK_URL_MESSAGES_SEND não configurado');
+    }
+
+    // Obter o telefone do lead da conversa (se não foi fornecido)
+    const leadPhone = deleteMessageDto.phone || message.conversation?.lead?.phone;
+    
+    if (!leadPhone) {
+      throw new BadRequestException('Telefone do destinatário não encontrado');
+    }
+
+    const payload = {
+      action: 'delete',
+      session: connection.sessionName,
+      phone: leadPhone,
+      idMessage: deleteMessageDto.idMessage,
+    };
+
+    await this.n8nService.postToUrl(webhookUrl, payload);
+    this.logger.log(
+      `Mensagem excluída. messageId=${deleteMessageDto.idMessage} session=${connection.sessionName} phone=${leadPhone}`,
+    );
+
+    // Marcar mensagem como excluída (soft delete) em vez de excluir fisicamente
+    // Isso preserva o histórico para auditoria
+    const deletedMessage = await this.prisma.message.update({
+      where: { id: message.id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: userId || undefined,
+      },
+      include: {
+        conversation: {
+          include: {
+            lead: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      ...deletedMessage,
+      contentUrl: this.buildAbsoluteMediaUrl(deletedMessage.contentUrl),
+    };
   }
 }
 

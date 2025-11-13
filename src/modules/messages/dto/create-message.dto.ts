@@ -25,5 +25,34 @@ export class CreateMessageDto {
     o.contentType === 'DOCUMENT'
   )
   contentUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  replyTo?: string; // messageId da mensagem que está sendo respondida
+}
+
+export class EditMessageDto {
+  @IsString()
+  idMessage: string; // messageId da mensagem a ser editada
+
+  @IsString()
+  phone: string; // telefone do destinatário
+
+  @IsString()
+  session: string; // sessionName da conexão
+
+  @IsString()
+  Texto: string; // novo texto da mensagem
+}
+
+export class DeleteMessageDto {
+  @IsString()
+  idMessage: string; // messageId da mensagem a ser excluída
+
+  @IsString()
+  phone: string; // telefone do destinatário
+
+  @IsString()
+  session: string; // sessionName da conexão
 }
 

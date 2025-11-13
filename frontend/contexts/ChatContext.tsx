@@ -25,7 +25,7 @@ interface ChatContextType {
   error: string | null
   selectConversation: (conversation: Conversation) => void
   selectConversationByLeadId: (leadId: string) => Promise<void>
-  sendMessage: (content: string, contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT', file?: File) => Promise<void>
+  sendMessage: (content: string, contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT', file?: File, replyTo?: string) => Promise<void>
   loadConversations: () => Promise<void>
   loadMessages: (conversationId: string) => Promise<void>
 }

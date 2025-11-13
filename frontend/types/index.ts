@@ -1,3 +1,13 @@
+export interface MessageEditHistory {
+  id: string
+  messageId: string
+  oldText?: string | null
+  newText?: string | null
+  editedBy?: string | null
+  editedAt: string
+  tenantId: string
+}
+
 export interface Message {
   id: string
   conversationId: string
@@ -15,6 +25,13 @@ export interface Message {
   reply?: boolean
   replyText?: string | null
   replyMessageId?: string | null
+  // Campos para histórico de edições/exclusões
+  editedAt?: string | null
+  deletedAt?: string | null
+  editedBy?: string | null
+  deletedBy?: string | null
+  originalText?: string | null
+  editHistory?: MessageEditHistory[]
   conversation?: Conversation
   sender?: {
     id: string

@@ -10,10 +10,12 @@ import ScheduledMessagesList from './chat/ScheduledMessagesList'
 import SchedulingHistoryDialog from './chat/SchedulingHistoryDialog'
 
 export default function ChatArea() {
-  const { selectedConversation, loading } = useChat()
+  const { selectedConversation, loading, loadMessages } = useChat()
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [replyToMessage, setReplyToMessage] = useState<any>(null)
+  const [editMessage, setEditMessage] = useState<any>(null)
 
   if (!selectedConversation) {
     return null
@@ -40,7 +42,12 @@ export default function ChatArea() {
         ) : (
           <>
             <div className="flex-1 overflow-y-auto">
-              <MessageList />
+              <MessageList
+                replyToMessage={replyToMessage}
+                setReplyToMessage={setReplyToMessage}
+                editMessage={editMessage}
+                setEditMessage={setEditMessage}
+              />
             </div>
             <ScheduledMessagesList
               key={refreshKey}
@@ -53,7 +60,19 @@ export default function ChatArea() {
       </div>
 
       <div className="border-t border-white/5 bg-background-muted/60 px-6 py-4">
-        <MessageInput onScheduleClick={() => setScheduleDialogOpen(true)} />
+        <MessageInput 
+          onScheduleClick={() => setScheduleDialogOpen(true)}
+          replyTo={replyToMessage}
+          onReplyCancel={() => setReplyToMessage(null)}
+          editMessage={editMessage}
+          onEditCancel={() => setEditMessage(null)}
+          onEditSuccess={() => {
+            setEditMessage(null)
+            if (selectedConversation?.id) {
+              loadMessages(selectedConversation.id)
+            }
+          }}
+        />
       </div>
 
       <ScheduleMessageDialog

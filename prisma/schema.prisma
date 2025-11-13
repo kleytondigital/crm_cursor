@@ -149,10 +149,18 @@ model Message {
   replyText      String?
   replyMessageId String?
 
-  company      Company       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
-  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  connection   Connection?   @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  // Campos para histórico de edições/exclusões
+  editedAt     DateTime?
+  deletedAt    DateTime?
+  editedBy     String? // ID do usuário que editou
+  deletedBy    String? // ID do usuário que excluiu
+  originalText String? // Texto original antes da primeira edição
+
+  company      Company              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  lead         Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  connection   Connection?          @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  editHistory  MessageEditHistory[]
 
   @@index([tenantId])
   @@index([conversationId])
@@ -161,7 +169,24 @@ model Message {
   @@index([createdAt])
   @@index([senderType])
   @@index([tenantId, createdAt])
+  @@index([deletedAt])
   @@map("messages")
+}
+
+model MessageEditHistory {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  oldText   String? // Texto anterior à edição
+  newText   String? // Novo texto após a edição
+  editedBy  String? // ID do usuário que editou
+  editedAt  DateTime @default(now())
+  tenantId  String
+
+  @@index([messageId])
+  @@index([tenantId])
+  @@index([editedAt])
+  @@map("message_edit_history")
 }
 
 enum ConversationStatus {

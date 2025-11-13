@@ -13,6 +13,9 @@ import {
   FileText,
   Camera,
   Calendar,
+  X,
+  Reply,
+  Edit2,
 } from 'lucide-react'
 import {
   useState,
@@ -22,6 +25,8 @@ import {
   useEffect,
 } from 'react'
 import type { ComponentType } from 'react'
+import { Message } from '@/types'
+import { messagesAPI } from '@/lib/api'
 
 const AUDIO_MIME_OPTIONS = [
   { mime: 'audio/ogg; codecs=opus', extension: '.ogg' },
@@ -32,9 +37,21 @@ const AUDIO_FALLBACK = { mime: 'audio/webm', extension: '.webm' }
 
 interface MessageInputProps {
   onScheduleClick?: () => void
+  replyTo?: Message | null
+  onReplyCancel?: () => void
+  editMessage?: Message | null
+  onEditCancel?: () => void
+  onEditSuccess?: () => void
 }
 
-export default function MessageInput({ onScheduleClick }: MessageInputProps) {
+export default function MessageInput({ 
+  onScheduleClick, 
+  replyTo, 
+  onReplyCancel,
+  editMessage,
+  onEditCancel,
+  onEditSuccess,
+}: MessageInputProps) {
   const { selectedConversation, sendMessage } = useChat()
   const [text, setText] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -56,12 +73,47 @@ export default function MessageInput({ onScheduleClick }: MessageInputProps) {
     return null
   }
 
-  const handleSend = useCallback(async () => {
-    if (text.trim()) {
-      await sendMessage(text.trim(), 'TEXT')
+  // Atualizar texto quando editMessage mudar
+  useEffect(() => {
+    if (editMessage) {
+      setText(editMessage.contentText || '')
+    } else if (!replyTo) {
+      // Limpar texto apenas se não for resposta e não for edição
       setText('')
     }
-  }, [sendMessage, text])
+  }, [editMessage, replyTo])
+
+  const handleSend = useCallback(async () => {
+    if (text.trim()) {
+      // Se estiver editando, enviar edição
+      if (editMessage && editMessage.messageId && selectedConversation) {
+        try {
+          const leadPhone = selectedConversation.lead.phone
+          
+          await messagesAPI.edit({
+            idMessage: editMessage.messageId,
+            phone: leadPhone,
+            session: '', // Será obtido automaticamente pelo backend
+            Texto: text.trim(),
+          })
+
+          setText('')
+          onEditCancel?.()
+          onEditSuccess?.()
+        } catch (error: any) {
+          console.error('Erro ao editar mensagem:', error)
+          alert(error.response?.data?.message || 'Erro ao editar mensagem')
+        }
+        return
+      }
+      
+      // Se for resposta, incluir replyTo
+      const replyToId = replyTo?.messageId || null
+      await sendMessage(text.trim(), 'TEXT', undefined, replyToId || undefined)
+      setText('')
+      onReplyCancel?.()
+    }
+  }, [sendMessage, text, replyTo, editMessage, selectedConversation, onReplyCancel, onEditCancel, onEditSuccess])
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {

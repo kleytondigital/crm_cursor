@@ -148,16 +148,23 @@ export class WahaWebhookController {
     
     // Extrair informações de resposta (reply)
     // reply pode vir como boolean true/false ou string "true"/"false"
+    // IMPORTANTE: replyTo pode vir como "replyTo" (camelCase) ou "replyto" (lowercase)
     const replyValue = payload?.reply ?? event?.reply ?? false;
     const isReply = replyValue === true || replyValue === 'true' || replyValue === 'TRUE';
-    const replyTo = payload?.replyTo ?? event?.replyTo ?? null;
+    const replyTo = payload?.replyTo ?? payload?.replyto ?? event?.replyTo ?? event?.replyto ?? null;
     const replyToId = replyTo?.id ?? null;
     const replyToBody = replyTo?.body ?? null;
     
-    // Log detalhado para debug de reply
+    // Log detalhado para debug de reply - log completo do evento se for reply
     if (isReply) {
       this.logger.log(
         `[REPLY DEBUG] Mensagem é resposta. replyTo=${JSON.stringify(replyTo)} replyToId=${replyToId} replyToBody=${replyToBody}`,
+      );
+      this.logger.debug(
+        `[REPLY DEBUG] Payload completo: ${JSON.stringify(payload, null, 2)}`,
+      );
+      this.logger.debug(
+        `[REPLY DEBUG] Event completo: ${JSON.stringify(event, null, 2)}`,
       );
     }
     

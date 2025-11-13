@@ -2,10 +2,24 @@
 
 import { useChat } from '@/contexts/ChatContext'
 import MessageBubble from './MessageBubble'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Message } from '@/types'
+import { messagesAPI } from '@/lib/api'
 
-export default function MessageList() {
-  const { messages, selectedConversation } = useChat()
+interface MessageListProps {
+  replyToMessage?: Message | null
+  setReplyToMessage?: (message: Message | null) => void
+  editMessage?: Message | null
+  setEditMessage?: (message: Message | null) => void
+}
+
+export default function MessageList({ 
+  replyToMessage, 
+  setReplyToMessage,
+  editMessage,
+  setEditMessage,
+}: MessageListProps = {}) {
+  const { messages, selectedConversation, loadMessages } = useChat()
   const containerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageRefsRef = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -74,6 +88,38 @@ export default function MessageList() {
     }
   }
 
+  // Handler para excluir mensagem
+  const handleDeleteMessage = async (message: Message) => {
+    if (!message.messageId || !selectedConversation) {
+      console.error('Mensagem ou conversa não encontrada')
+      return
+    }
+
+    if (!confirm('Tem certeza que deseja excluir esta mensagem?')) {
+      return
+    }
+
+    try {
+      // Buscar connection e phone da conversa
+      const leadPhone = selectedConversation.lead.phone
+      
+      // Enviar para o backend que vai buscar a connection automaticamente
+      await messagesAPI.delete({
+        idMessage: message.messageId,
+        phone: leadPhone,
+        session: '', // Será obtido automaticamente pelo backend
+      })
+
+      // Recarregar mensagens para atualizar a lista (mostrar como excluída)
+      if (selectedConversation.id) {
+        await loadMessages(selectedConversation.id)
+      }
+    } catch (error: any) {
+      console.error('Erro ao excluir mensagem:', error)
+      alert(error.response?.data?.message || 'Erro ao excluir mensagem')
+    }
+  }
+
   useEffect(() => {
     // Se a conversa mudou, sempre fazer scroll
     if (selectedConversation?.id !== lastConversationIdRef.current) {
@@ -120,6 +166,9 @@ export default function MessageList() {
                   conversation={selectedConversation}
                   allMessages={messages}
                   onScrollToMessage={scrollToMessage}
+                  onReply={(msg) => setReplyToMessage?.(msg)}
+                  onEdit={(msg) => setEditMessage?.(msg)}
+                  onDelete={handleDeleteMessage}
                 />
               </div>
             ))
