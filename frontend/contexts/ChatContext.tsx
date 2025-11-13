@@ -40,6 +40,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const selectedLeadIdRef = useRef<string | null>(null)
   const isLoadingMessagesRef = useRef(false)
+  // Ref para manter o valor atual de selectedConversation no closure do WebSocket
+  const selectedConversationRef = useRef<Conversation | null>(null)
+
+  // Atualizar a ref quando selectedConversation mudar
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation
+  }, [selectedConversation])
 
   // Conectar ao WebSocket quando o componente monta
   // IMPORTANTE: Não incluir selectedConversation como dependência para evitar reconexões desnecessárias
@@ -57,9 +64,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       console.log('[ChatContext] Nova mensagem recebida via WebSocket:', data)
       const { message, conversation } = data
       
+      // Usar ref para obter o valor atual de selectedConversation
+      const currentSelectedConversation = selectedConversationRef.current
+      
       // Sempre adicionar mensagem se for da conversa selecionada
-      if (selectedConversation && message.conversationId === selectedConversation.id) {
-        console.log('[ChatContext] Adicionando mensagem à conversa selecionada:', message.id)
+      if (currentSelectedConversation && message.conversationId === currentSelectedConversation.id) {
+        console.log('[ChatContext] Adicionando mensagem à conversa selecionada:', message.id, 'Conversa:', currentSelectedConversation.id)
         setMessages((prev) => {
           const exists = prev.some((item) => item.id === message.id)
           if (exists) {
@@ -70,7 +80,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return [...prev, message]
         })
       } else {
-        console.log('[ChatContext] Mensagem não é da conversa selecionada, apenas atualizando lista de conversas')
+        console.log('[ChatContext] Mensagem não é da conversa selecionada. Conversa atual:', currentSelectedConversation?.id, 'Mensagem:', message.conversationId)
       }
 
       // Sempre atualizar última mensagem na lista de conversas
@@ -113,10 +123,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return prev
       })
 
-      // Atualizar conversa selecionada se for a mesma
+      // Atualizar conversa selecionada se for a mesma (usar ref para obter valor atual)
       if (
-        selectedConversation &&
-        message.conversationId === selectedConversation.id
+        currentSelectedConversation &&
+        message.conversationId === currentSelectedConversation.id
       ) {
         setSelectedConversation((prev) =>
           prev
@@ -195,7 +205,50 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setLoading(true)
       setError(null)
       const data = await messagesAPI.getByConversation(conversationId)
-      setMessages(data)
+      
+      // Verificar se há mensagens novas recebidas via WebSocket que não estão no servidor
+      // Mesclar as mensagens do servidor com as mensagens locais (recebidas via WebSocket)
+      const currentSelectedConversation = selectedConversationRef.current
+      const serverMessages = Array.isArray(data) ? data : []
+      
+      setMessages((prevMessages) => {
+        // Se não é a conversa selecionada, usar dados do servidor
+        if (!currentSelectedConversation || currentSelectedConversation.id !== conversationId) {
+          return serverMessages
+        }
+        
+        // Se há mensagens locais, mesclar com as do servidor
+        // Manter mensagens locais que não estão no servidor (mais recentes recebidas via WebSocket)
+        const serverMessageIds = new Set(serverMessages.map((msg: Message) => msg.id))
+        const localMessagesNotInServer = prevMessages.filter((msg) => 
+          msg.conversationId === conversationId && !serverMessageIds.has(msg.id)
+        )
+        
+        // Combinar mensagens do servidor com mensagens locais não presentes no servidor
+        const allMessages = [...serverMessages, ...localMessagesNotInServer]
+        
+        // Remover duplicatas usando Map (última ocorrência vence)
+        const messageMap = new Map<string, Message>()
+        allMessages.forEach((msg) => {
+          messageMap.set(msg.id, msg)
+        })
+        
+        // Converter de volta para array e ordenar por timestamp
+        const uniqueMessages = Array.from(messageMap.values()).sort((a, b) => {
+          const aTime = new Date(a.timestamp || a.createdAt || 0).getTime()
+          const bTime = new Date(b.timestamp || b.createdAt || 0).getTime()
+          return aTime - bTime
+        })
+        
+        console.log('[ChatContext] Mensagens mescladas:', {
+          servidor: serverMessages.length,
+          locais: localMessagesNotInServer.length,
+          total: uniqueMessages.length,
+          conversationId,
+        })
+        
+        return uniqueMessages
+      })
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao carregar mensagens')
     } finally {
