@@ -42,104 +42,137 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const isLoadingMessagesRef = useRef(false)
 
   // Conectar ao WebSocket quando o componente monta
+  // IMPORTANTE: Não incluir selectedConversation como dependência para evitar reconexões desnecessárias
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (token) {
-      const socket = connectSocket(token)
+    if (!token) {
+      console.warn('[ChatContext] Token não encontrado, não conectando ao WebSocket')
+      return
+    }
 
-      const handleNewMessage = (data: { message: Message; conversation?: Conversation }) => {
-        const { message, conversation } = data
-        if (selectedConversation && message.conversationId === selectedConversation.id) {
-          setMessages((prev) => {
-            const exists = prev.some((item) => item.id === message.id)
-            if (exists) {
-              return prev
-            }
-            return [...prev, message]
-          })
-        }
-        // Atualizar última mensagem na lista de conversas
-        setConversations((prev) => {
-          const exists = prev.some((conv) => conv.id === message.conversationId)
-          const lastMessage = message
-          const updatedAt =
-            message.timestamp ||
-            message.createdAt ||
-            new Date().toISOString()
+    console.log('[ChatContext] Conectando ao WebSocket de mensagens')
+    const socket = connectSocket(token)
 
+    const handleNewMessage = (data: { message: Message; conversation?: Conversation }) => {
+      console.log('[ChatContext] Nova mensagem recebida via WebSocket:', data)
+      const { message, conversation } = data
+      
+      // Sempre adicionar mensagem se for da conversa selecionada
+      if (selectedConversation && message.conversationId === selectedConversation.id) {
+        console.log('[ChatContext] Adicionando mensagem à conversa selecionada:', message.id)
+        setMessages((prev) => {
+          const exists = prev.some((item) => item.id === message.id)
           if (exists) {
-            const updatedList = prev.map((conv) =>
-              conv.id === message.conversationId
-                ? {
-                    ...conv,
-                    ...(conversation ? { ...conversation } : {}),
-                    lastMessage,
-                    updatedAt,
-                  }
-                : conv
-            )
-
-            return updatedList.sort(
-              (a, b) =>
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-            )
+            console.log('[ChatContext] Mensagem já existe, ignorando:', message.id)
+            return prev
           }
-
-          if (conversation) {
-            const newConversation: Conversation = {
-              ...conversation,
-              lastMessage,
-              updatedAt,
-            }
-
-            return [newConversation, ...prev]
-          }
-
-          return prev
+          console.log('[ChatContext] Mensagem adicionada à lista:', message.id)
+          return [...prev, message]
         })
+      } else {
+        console.log('[ChatContext] Mensagem não é da conversa selecionada, apenas atualizando lista de conversas')
+      }
 
-        if (
-          selectedConversation &&
-          message.conversationId === selectedConversation.id
-        ) {
-          setSelectedConversation((prev) =>
-            prev
+      // Sempre atualizar última mensagem na lista de conversas
+      setConversations((prev) => {
+        const exists = prev.some((conv) => conv.id === message.conversationId)
+        const lastMessage = message
+        const updatedAt =
+          message.timestamp ||
+          message.createdAt ||
+          new Date().toISOString()
+
+        if (exists) {
+          const updatedList = prev.map((conv) =>
+            conv.id === message.conversationId
               ? {
-                  ...prev,
+                  ...conv,
                   ...(conversation ? { ...conversation } : {}),
-                  lastMessage: message,
-                  updatedAt:
-                    message.timestamp ||
-                    message.createdAt ||
-                    new Date().toISOString(),
+                  lastMessage,
+                  updatedAt,
                 }
-              : prev,
+              : conv
+          )
+
+          return updatedList.sort(
+            (a, b) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           )
         }
-      }
 
-      const handleMessageSent = (data: { success: boolean; message: Message }) => {
-        if (data.success) {
-          setMessages((prev) => [...prev, data.message])
+        if (conversation) {
+          const newConversation: Conversation = {
+            ...conversation,
+            lastMessage,
+            updatedAt,
+          }
+
+          return [newConversation, ...prev]
         }
-      }
 
-      const handleMessageError = (error: { success: boolean; error: string }) => {
-        setError(error.error)
-      }
+        return prev
+      })
 
-      onNewMessage(handleNewMessage)
-      onMessageSent(handleMessageSent)
-      onMessageError(handleMessageError)
-
-      return () => {
-        offNewMessage(handleNewMessage)
-        offMessageSent(handleMessageSent)
-        offMessageError(handleMessageError)
-        disconnectSocket()
+      // Atualizar conversa selecionada se for a mesma
+      if (
+        selectedConversation &&
+        message.conversationId === selectedConversation.id
+      ) {
+        setSelectedConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...(conversation ? { ...conversation } : {}),
+                lastMessage: message,
+                updatedAt:
+                  message.timestamp ||
+                  message.createdAt ||
+                  new Date().toISOString(),
+              }
+            : prev,
+        )
       }
     }
-  }, [selectedConversation])
+
+    const handleMessageSent = (data: { success: boolean; message: Message }) => {
+      console.log('[ChatContext] Mensagem enviada via WebSocket:', data)
+      if (data.success) {
+        setMessages((prev) => {
+          const exists = prev.some((item) => item.id === data.message.id)
+          if (exists) {
+            return prev
+          }
+          return [...prev, data.message]
+        })
+      }
+    }
+
+    const handleMessageError = (error: { success: boolean; error: string }) => {
+      console.error('[ChatContext] Erro ao enviar mensagem:', error)
+      setError(error.error)
+    }
+
+    onNewMessage(handleNewMessage)
+    onMessageSent(handleMessageSent)
+    onMessageError(handleMessageError)
+
+    return () => {
+      console.log('[ChatContext] Limpando listeners do WebSocket')
+      offNewMessage(handleNewMessage)
+      offMessageSent(handleMessageSent)
+      offMessageError(handleMessageError)
+      // NÃO desconectar o socket aqui, pois pode estar sendo usado por outros componentes
+      // disconnectSocket()
+    }
+  }, []) // Remover selectedConversation das dependências para evitar reconexões
+
+  // Carregar mensagens quando a conversa selecionada mudar
+  useEffect(() => {
+    if (selectedConversation?.id) {
+      console.log('[ChatContext] Carregando mensagens para conversa:', selectedConversation.id)
+      loadMessages(selectedConversation.id)
+    }
+  }, [selectedConversation?.id, loadMessages]) // Apenas quando o ID da conversa mudar
 
   const loadConversations = useCallback(async () => {
     try {

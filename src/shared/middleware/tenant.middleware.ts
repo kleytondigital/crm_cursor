@@ -16,6 +16,12 @@ export class TenantMiddleware implements NestMiddleware {
       return next();
     }
 
+    // Pular middleware para Socket.IO (WebSocket não usa middleware HTTP)
+    // O Socket.IO gerencia suas próprias conexões via handshake
+    if (req.path.startsWith('/socket.io/')) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
