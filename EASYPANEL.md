@@ -138,45 +138,74 @@ Guia passo a passo para fazer deploy do B2X CRM no **Easypanel**.
    **Dependências**:
    - `backend` (deve estar saudável)
 
-### 6. Configurar Nginx (Reverse Proxy)
+### 6. Configurar Domínio e SSL (⚠️ IMPORTANTE: Não precisa de Nginx separado!)
 
-1. No projeto, clique em **"Add Service"**
-2. Selecione **"Docker"**
-3. Configure:
+**⚠️ RECOMENDADO: Use o proxy reverso automático do Easypanel!**
 
-   **Geral**:
+O Easypanel já faz proxy reverso automaticamente através do domínio configurado. **Não é necessário criar um serviço Nginx separado!**
+
+#### Opção 1: Usar Proxy Reverso Automático do Easypanel (Recomendado)
+
+1. **Configurar domínio no Backend**:
+   - No serviço `backend`, vá em **"Domain"**
+   - Adicione seu domínio: `api.seu-dominio.com` ou `backcrm.seu-dominio.com`
+   - Ative **SSL/TLS** (Let's Encrypt)
+   - O Easypanel irá fazer proxy reverso automaticamente
+
+2. **Configurar domínio no Frontend**:
+   - No serviço `frontend`, vá em **"Domain"**
+   - Adicione seu domínio: `crm.seu-dominio.com` ou `seu-dominio.com`
+   - Ative **SSL/TLS** (Let's Encrypt)
+   - O Easypanel irá fazer proxy reverso automaticamente
+
+3. **Atualizar variáveis de ambiente do Frontend**:
+   ```env
+   NEXT_PUBLIC_API_URL=https://api.seu-dominio.com
+   NEXT_PUBLIC_WS_URL=https://api.seu-dominio.com
+   ```
+
+#### Opção 2: Usar Nginx como Serviço Separado (Avançado - NÃO RECOMENDADO)
+
+Se você realmente precisa de um Nginx separado:
+
+1. **Criar ConfigMap no Easypanel**:
+   - Vá em **"Configs"** ou **"Storage"**
+   - Crie um novo ConfigMap: `nginx-config`
+   - Key: `nginx.conf`
+   - Value: Cole o conteúdo do arquivo `nginx/nginx.conf`
+
+2. **Configurar Serviço Nginx**:
    - **Name**: `nginx`
-   - **Port**: `80`
-
-   **Build**:
    - **Image**: `nginx:alpine`
-   - **No build needed** (use imagem pré-construída)
+   - **Port**: `80`
+   - **Volumes**:
+     - **Source**: `nginx-config` (ConfigMap)
+     - **Mount Path**: `/etc/nginx/conf.d/default.conf` ⚠️ **Caminho absoluto**
+     - **Sub Path**: `nginx.conf`
 
-   **Volumes**:
-   - `./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro`
+3. **Configurar Domínio**:
+   - No serviço `nginx`, vá em **"Domain"**
+   - Adicione seu domínio
+   - Ative **SSL/TLS**
 
-   **Dependências**:
-   - `backend` (deve estar saudável)
-   - `frontend` (deve estar saudável)
+**⚠️ NOTA**: Se você criar um serviço Nginx separado, precisará configurar os nomes dos serviços corretamente no `nginx.conf` (backend e frontend).
 
-### 7. Configurar Domínio e SSL
+### 7. Configurar Variáveis de Ambiente
 
-1. No serviço `nginx`, vá em **"Domain"**
-2. Adicione seu domínio: `seu-dominio.com`
-3. Ative **SSL/TLS** (Let's Encrypt)
-4. O Easypanel irá gerar o certificado SSL automaticamente
+**Importante**: Atualize as seguintes variáveis:
 
-### 8. Configurar Variáveis de Ambiente
-
-**Importante**: Atualize as seguintes variáveis no backend:
-
+#### Backend:
 - `DATABASE_URL`: Use o nome do serviço PostgreSQL (`postgres`) como host
 - `REDIS_HOST`: Use o nome do serviço Redis (`redis`) como host
-- `APP_URL`: Use seu domínio com HTTPS
-- `MEDIA_BASE_URL`: Use seu domínio com HTTPS
+- `APP_URL`: Use seu domínio do frontend com HTTPS (ex: `https://crm.seu-dominio.com`)
+- `MEDIA_BASE_URL`: Use seu domínio do backend com HTTPS (ex: `https://api.seu-dominio.com`)
 - `JWT_SECRET`: Gere uma chave secreta segura (use `openssl rand -base64 32`)
 
-### 9. Primeira Execução
+#### Frontend:
+- `NEXT_PUBLIC_API_URL`: Use o domínio do backend com HTTPS (ex: `https://api.seu-dominio.com`)
+- `NEXT_PUBLIC_WS_URL`: Use o domínio do backend com HTTPS (ex: `https://api.seu-dominio.com`)
+
+### 8. Primeira Execução
 
 1. **Faça o deploy**:
    - O Easypanel irá construir as imagens Docker automaticamente
@@ -196,11 +225,30 @@ Guia passo a passo para fazer deploy do B2X CRM no **Easypanel**.
    - Verifique os logs de cada serviço
    - Certifique-se de que não há erros
 
+### 9. Configurar CORS no Backend (Se necessário)
+
+Se o backend e frontend estiverem em domínios diferentes, configure CORS no backend:
+
+**Arquivo**: `src/main.ts`
+
+```typescript
+app.enableCors({
+  origin: [
+    'https://crm.seu-dominio.com', // Domínio do frontend
+    'http://localhost:3001', // Para desenvolvimento local
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+```
+
 ### 10. Testar a Aplicação
 
-1. Acesse seu domínio: `https://seu-dominio.com`
-2. Verifique o health check: `https://seu-dominio.com/health`
-3. Teste o login com as credenciais do seed
+1. **Acesse o domínio do frontend**: `https://crm.seu-dominio.com` (ou o domínio configurado)
+2. **Verifique o health check do backend**: `https://api.seu-dominio.com/health`
+3. **Teste o login** com as credenciais do seed
+4. **Verifique se não está mostrando a página padrão do Nginx**
 
 ## 🔄 Atualizações
 
@@ -219,15 +267,29 @@ Guia passo a passo para fazer deploy do B2X CRM no **Easypanel**.
 
 ### Frontend não carrega
 
-1. Verifique os logs: `docker logs b2x-crm-frontend`
+1. Verifique os logs do serviço `frontend` no Easypanel
 2. Verifique se `NEXT_PUBLIC_API_URL` está correto
 3. Verifique se o backend está rodando
+4. Verifique se o domínio está configurado corretamente no serviço Frontend
 
 ### WebSocket não funciona
 
-1. Verifique a configuração do Nginx para WebSocket
-2. Verifique se `NEXT_PUBLIC_WS_URL` está correto
-3. Verifique os logs do Nginx
+1. Verifique se `NEXT_PUBLIC_WS_URL` está apontando para o domínio do backend
+2. Verifique os logs do backend para erros de WebSocket
+3. Verifique se o domínio do backend está configurado corretamente
+4. O Easypanel suporta WebSocket automaticamente através do domínio configurado
+
+### Página padrão do Nginx aparece
+
+1. **⚠️ IMPORTANTE: Remova o serviço Nginx** (se existir)
+2. **Configure o domínio no serviço Frontend**, não no Nginx
+3. **Use o proxy reverso automático do Easypanel** - não crie um serviço Nginx separado
+4. Veja `EASYPANEL-FIX-NGINX.md` para mais detalhes
+
+### Erro "invalid mount target" no Nginx
+
+1. **⚠️ IMPORTANTE: Não use um serviço Nginx separado** - use o proxy reverso automático do Easypanel
+2. Se realmente precisar de Nginx, use ConfigMaps (veja Opção 2 na seção 6)
 
 ### Migrações não executam
 
