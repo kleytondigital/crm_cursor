@@ -10,32 +10,65 @@ export class MinioService implements OnModuleInit {
   private s3Client: S3Client;
   private bucketName: string;
   private readonly endpoint: string;
+  private readonly apiEndpoint: string; // Endpoint da API S3
   private readonly accessKey: string;
   private readonly secretKey: string;
   private readonly useSSL: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    this.endpoint = this.configService.get<string>('MINIO_ENDPOINT') || '';
+    // Primeiro, tentar obter o endpoint da API diretamente
+    let apiEndpoint = this.configService.get<string>('MINIO_API_ENDPOINT') || '';
+    
+    // Se não houver endpoint da API, usar o endpoint geral e tentar inferir
+    if (!apiEndpoint) {
+      this.endpoint = this.configService.get<string>('MINIO_ENDPOINT') || '';
+      
+      if (!this.endpoint) {
+        this.logger.error('MINIO_ENDPOINT ou MINIO_API_ENDPOINT deve ser configurado');
+        throw new Error('MINIO_ENDPOINT ou MINIO_API_ENDPOINT deve ser configurado');
+      }
+
+      // Remover protocolo e barra final do endpoint
+      let endpointWithoutProtocol = this.endpoint
+        .replace(/^https?:\/\//, '')
+        .replace(/\/$/, '')
+        .replace(/\/console$/, ''); // Remover /console se existir no caminho
+      
+      // Se o hostname começa com "console-", remover para obter o endpoint da API
+      // Ex: console-dietazap-minio.h3ag2x.easypanel.host -> dietazap-minio.h3ag2x.easypanel.host
+      if (endpointWithoutProtocol.startsWith('console-')) {
+        endpointWithoutProtocol = endpointWithoutProtocol.replace(/^console-/, '');
+        this.logger.log(`Endpoint da console detectado, removendo prefixo "console-": ${endpointWithoutProtocol}`);
+      }
+      
+      // Determinar se deve usar SSL
+      this.useSSL = this.configService.get<string>('MINIO_USE_SSL') !== 'false' && 
+                    (this.endpoint.startsWith('https://') || !this.endpoint.includes('http://'));
+      
+      // Construir endpoint da API
+      // No Easypanel, geralmente não precisa de porta explícita (usa o proxy reverso)
+      // Usar o mesmo protocolo do endpoint original
+      apiEndpoint = `${this.useSSL ? 'https' : 'http'}://${endpointWithoutProtocol}`;
+    } else {
+      // Se MINIO_API_ENDPOINT foi fornecido, usar diretamente
+      this.endpoint = apiEndpoint;
+      this.useSSL = this.configService.get<string>('MINIO_USE_SSL') !== 'false' && 
+                    (apiEndpoint.startsWith('https://') || !apiEndpoint.includes('http://'));
+      
+      // Garantir que o endpoint tenha o protocolo correto
+      if (!apiEndpoint.startsWith('http://') && !apiEndpoint.startsWith('https://')) {
+        apiEndpoint = `http${this.useSSL ? 's' : ''}://${apiEndpoint}`;
+      }
+    }
+    
+    // Salvar o endpoint da API
+    this.apiEndpoint = apiEndpoint;
+    
     this.accessKey = this.configService.get<string>('MINIO_ACCESS_KEY') || '';
     this.secretKey = this.configService.get<string>('MINIO_SECRET_KEY') || '';
     this.bucketName = this.configService.get<string>('MINIO_BUCKET') || 'crm';
-    this.useSSL = this.configService.get<string>('MINIO_USE_SSL') !== 'false' && (this.endpoint.startsWith('https://') || !this.endpoint.includes('http://'));
-
-    // Remover protocolo e barra final do endpoint
-    // O endpoint pode ser a console ou a API, vamos remover /console se existir
-    let endpointWithoutProtocol = this.endpoint
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '')
-      .replace(/\/console$/, ''); // Remover /console se for o endpoint do console
-
-    // Se o endpoint termina com /console, assumir que a API está na raiz
-    // Caso contrário, usar o endpoint como está
-
-    // Configurar cliente S3 para MinIO
-    // MinIO geralmente usa a porta 9000 para API, mas pode estar configurado diferente
-    // Vamos usar o endpoint fornecido e assumir que a API está disponível
-    const apiEndpoint = `http${this.useSSL ? 's' : ''}://${endpointWithoutProtocol}`;
     
+    // Configurar cliente S3 para MinIO
     this.s3Client = new S3Client({
       endpoint: apiEndpoint,
       region: 'us-east-1', // MinIO não precisa de região, mas o SDK requer
@@ -46,7 +79,7 @@ export class MinioService implements OnModuleInit {
       forcePathStyle: true, // Necessário para MinIO (usa formato: endpoint/bucket/key)
     });
 
-    this.logger.log(`MinIO configurado: ${apiEndpoint}, bucket: ${this.bucketName}`);
+    this.logger.log(`MinIO API configurado: ${apiEndpoint}, bucket: ${this.bucketName}`);
   }
 
   async onModuleInit() {
@@ -263,15 +296,13 @@ export class MinioService implements OnModuleInit {
     // Remover barra inicial se houver
     const cleanKey = key.startsWith('/') ? key.substring(1) : key;
     
-    // Construir URL pública
-    // Para MinIO com forcePathStyle, a URL é: https://endpoint/bucket/key
-    let endpointWithoutProtocol = this.endpoint
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '')
-      .replace(/\/console$/, ''); // Remover /console se existir
+    // Usar o endpoint da API (já configurado corretamente)
+    // Remover barra final se existir
+    const endpoint = this.apiEndpoint.replace(/\/$/, '');
     
     // Construir URL pública usando o endpoint de API
-    return `${this.useSSL ? 'https' : 'http'}://${endpointWithoutProtocol}/${this.bucketName}/${cleanKey}`;
+    // Para MinIO com forcePathStyle, a URL é: https://endpoint/bucket/key
+    return `${endpoint}/${this.bucketName}/${cleanKey}`;
   }
 
   /**
@@ -292,15 +323,19 @@ export class MinioService implements OnModuleInit {
     try {
       // Se a URL já contém o bucket, extrair a key diretamente
       if (url.includes(`/${this.bucketName}/`)) {
-        // Remover protocolo e endpoint, deixando apenas bucket/key
+        // Remover protocolo da URL
         const urlWithoutProtocol = url.replace(/^https?:\/\//, '');
-        let endpointWithoutProtocol = this.endpoint
-          .replace(/^https?:\/\//, '')
-          .replace(/\/$/, '')
-          .replace(/\/console$/, ''); // Remover /console se existir
         
-        // Remover endpoint da URL
-        const urlWithoutEndpoint = urlWithoutProtocol.replace(endpointWithoutProtocol, '');
+        // Usar o endpoint da API (sem protocolo) para extrair a key
+        let endpointWithoutProtocol = this.apiEndpoint
+          .replace(/^https?:\/\//, '')
+          .replace(/\/$/, '');
+        
+        // Remover endpoint da URL (pode estar no início)
+        let urlWithoutEndpoint = urlWithoutProtocol;
+        if (urlWithoutProtocol.startsWith(endpointWithoutProtocol)) {
+          urlWithoutEndpoint = urlWithoutProtocol.substring(endpointWithoutProtocol.length);
+        }
         
         // Remover bucket da URL
         const key = urlWithoutEndpoint.replace(`/${this.bucketName}/`, '').replace(/^\/+/, '');
