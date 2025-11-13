@@ -45,6 +45,23 @@ export default function MessageBubble({
     return null
   }, [message.reply, message.replyMessageId, allMessages])
 
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMenu])
+
   const formatTime = (dateString: string | undefined) => {
     if (!dateString) return ''
     return format(new Date(dateString), 'HH:mm', { locale: ptBR })
@@ -426,6 +443,70 @@ export default function MessageBubble({
             )}
             {isEdited && !isDeleted && (
               <span className="text-yellow-400">✏️ Editada</span>
+            )}
+          </div>
+        )}
+        
+        {/* Menu de ações (botão de três pontos) */}
+        {isUser && (onReply || onEdit || onDelete) && (
+          <div className="absolute right-2 top-2" ref={menuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowMenu(!showMenu)
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded-full hover:bg-white/10"
+              title="Mais opções"
+            >
+              <MoreVertical className="h-4 w-4 text-text-muted" />
+            </button>
+            
+            {showMenu && (
+              <div className="absolute right-0 top-8 z-50 min-w-[150px] rounded-lg border border-white/10 bg-background-card/95 shadow-lg backdrop-blur-sm">
+                <div className="py-1">
+                  {onReply && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onReply(message)
+                        setShowMenu(false)
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-text-primary hover:bg-white/10 transition-colors"
+                    >
+                      <Reply className="h-4 w-4" />
+                      <span>Responder</span>
+                    </button>
+                  )}
+                  {onEdit && isUser && message.contentType === 'TEXT' && !isDeleted && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(message)
+                        setShowMenu(false)
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-text-primary hover:bg-white/10 transition-colors"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      <span>Editar</span>
+                    </button>
+                  )}
+                  {onDelete && isUser && !isDeleted && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm('Tem certeza que deseja excluir esta mensagem?')) {
+                          onDelete(message)
+                        }
+                        setShowMenu(false)
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Excluir</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}

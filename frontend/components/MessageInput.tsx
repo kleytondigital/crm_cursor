@@ -481,11 +481,46 @@ export default function MessageInput({
             <Smile className="h-5 w-5" />
           </button>
 
+          {/* Indicador de resposta/edição */}
+          {(replyTo || editMessage) && (
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-background-muted/60 px-3 py-2 text-xs">
+              {editMessage ? (
+                <>
+                  <Edit2 className="h-3 w-3 text-yellow-400" />
+                  <span className="flex-1 text-text-muted">
+                    Editando: {editMessage.contentText?.substring(0, 50)}
+                    {editMessage.contentText && editMessage.contentText.length > 50 ? '...' : ''}
+                  </span>
+                </>
+              ) : replyTo ? (
+                <>
+                  <Reply className="h-3 w-3 text-blue-400" />
+                  <span className="flex-1 text-text-muted">
+                    Respondendo: {replyTo.contentText?.substring(0, 50)}
+                    {replyTo.contentText && replyTo.contentText.length > 50 ? '...' : ''}
+                  </span>
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  onEditCancel?.()
+                  onReplyCancel?.()
+                  setText('')
+                }}
+                className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                title="Cancelar"
+              >
+                <X className="h-3 w-3 text-text-muted" />
+              </button>
+            </div>
+          )}
+
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Digite uma mensagem..."
+            placeholder={editMessage ? "Digite o novo texto da mensagem..." : replyTo ? "Digite sua resposta..." : "Digite uma mensagem..."}
             rows={1}
             className="flex-1 max-h-32 resize-none border-0 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
             disabled={isRecording}
