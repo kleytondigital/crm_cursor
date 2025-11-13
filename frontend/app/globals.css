@@ -41,3 +41,30 @@ body {
   background: rgba(148, 163, 184, 0.55);
 }
 
+/* Animação de destaque para mensagens quando clicadas via reply */
+.message-item {
+  transition: all 0.3s ease;
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  margin: -0.25rem;
+}
+
+.message-item.highlight-message {
+  animation: highlightPulse 2s ease-in-out;
+}
+
+@keyframes highlightPulse {
+  0% {
+    background-color: rgba(59, 130, 246, 0.1);
+    transform: scale(1);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+

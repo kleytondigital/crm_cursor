@@ -8,6 +8,7 @@ export default function MessageList() {
   const { messages, selectedConversation } = useChat()
   const containerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messageRefsRef = useRef<Map<string, HTMLDivElement>>(new Map())
   const lastMessageCountRef = useRef(0)
   const lastConversationIdRef = useRef<string | null>(null)
 
@@ -19,6 +20,57 @@ export default function MessageList() {
       })
     } else {
       messagesEndRef.current?.scrollIntoView({ behavior })
+    }
+  }
+
+  // Função para fazer scroll até uma mensagem específica pelo ID
+  const scrollToMessage = (messageId: string) => {
+    // Tentar encontrar pelo ID interno primeiro
+    let messageElement = messageRefsRef.current.get(messageId)
+    
+    // Se não encontrou pelo ID interno, tentar encontrar pelo messageId do WhatsApp
+    if (!messageElement) {
+      // Buscar na lista de mensagens para encontrar o ID interno correspondente
+      const foundMessage = messages.find((m) => m.messageId === messageId || m.id === messageId)
+      if (foundMessage) {
+        messageElement = messageRefsRef.current.get(foundMessage.id)
+      }
+    }
+    
+    if (messageElement && containerRef.current) {
+      // Calcular a posição da mensagem dentro do container
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const messageRect = messageElement.getBoundingClientRect()
+      const scrollTop = containerRef.current.scrollTop
+      
+      // Posição relativa da mensagem no container
+      const messageTop = messageRect.top - containerRect.top + scrollTop
+      
+      // Scroll com offset para mostrar a mensagem um pouco acima do centro
+      const offset = containerRef.current.clientHeight * 0.3 // 30% do viewport acima
+      const targetScrollTop = messageTop - offset
+      
+      containerRef.current.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: 'smooth',
+      })
+
+      // Adicionar um highlight temporário na mensagem
+      messageElement.classList.add('highlight-message')
+      setTimeout(() => {
+        messageElement.classList.remove('highlight-message')
+      }, 2000)
+    } else {
+      console.warn(`Mensagem não encontrada para scroll: ${messageId}`)
+    }
+  }
+
+  // Callback para registrar referências de mensagens
+  const setMessageRef = (messageId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      messageRefsRef.current.set(messageId, element)
+    } else {
+      messageRefsRef.current.delete(messageId)
     }
   }
 
@@ -55,12 +107,21 @@ export default function MessageList() {
             </div>
           ) : (
             messages.map((message) => (
-              <MessageBubble 
-                key={message.id} 
-                message={message} 
-                conversation={selectedConversation}
-                allMessages={messages}
-              />
+              <div
+                key={message.id}
+                ref={(el) => setMessageRef(message.id, el)}
+                id={`message-${message.id}`}
+                data-message-id={message.id}
+                data-message-whatsapp-id={message.messageId || undefined}
+                className="message-item"
+              >
+                <MessageBubble 
+                  message={message} 
+                  conversation={selectedConversation}
+                  allMessages={messages}
+                  onScrollToMessage={scrollToMessage}
+                />
+              </div>
             ))
           )}
           <div ref={messagesEndRef} />

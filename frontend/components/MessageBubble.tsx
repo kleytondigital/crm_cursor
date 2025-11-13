@@ -13,9 +13,10 @@ interface MessageBubbleProps {
   message: Message
   conversation?: Conversation | null
   allMessages?: Message[] // Lista de todas as mensagens para buscar a mensagem original
+  onScrollToMessage?: (messageId: string) => void // Função para fazer scroll até uma mensagem específica
 }
 
-export default function MessageBubble({ message, conversation, allMessages = [] }: MessageBubbleProps) {
+export default function MessageBubble({ message, conversation, allMessages = [], onScrollToMessage }: MessageBubbleProps) {
   const isUser = message.senderType === 'USER'
   const [imageError, setImageError] = useState(false)
   
@@ -284,18 +285,37 @@ export default function MessageBubble({ message, conversation, allMessages = [] 
     }
 
     // Usar o texto da mensagem original se encontrada, senão usar replyText
-    const replyText = quotedMessage?.contentText || message.replyText || message.idMessage
-    // const replyText = quotedMessage?.contentText || message.replyText || 'Mensagem original não encontrada'
+    const replyText = quotedMessage?.contentText || message.replyText || 'Mensagem original não encontrada'
     const replySenderName = quotedMessage?.senderType === 'USER' 
       ? 'Você' 
       : (quotedMessage?.conversation?.lead?.name || message.conversation?.lead?.name || 'Lead')
+    
+    // Verificar se temos um ID da mensagem original para fazer scroll
+    // Priorizar o ID interno (replyMessageId), mas também tentar pelo messageId do WhatsApp se necessário
+    const originalMessageId = quotedMessage?.id || message.replyMessageId || null
+    const originalWhatsAppMessageId = quotedMessage?.messageId || null
+    const canScrollToOriginal = (originalMessageId || originalWhatsAppMessageId) && onScrollToMessage
+
+    const handleReplyClick = () => {
+      if (canScrollToOriginal && onScrollToMessage) {
+        // Tentar primeiro pelo ID interno, depois pelo messageId do WhatsApp
+        const idToScroll = originalMessageId || originalWhatsAppMessageId
+        if (idToScroll) {
+          onScrollToMessage(idToScroll)
+        }
+      }
+    }
 
     return (
-      <div className={`mb-2 border-l-3 ${
-        isUser 
-          ? 'border-blue-400 bg-blue-500/10 pl-3 pr-2 py-1.5 rounded-l-sm' 
-          : 'border-gray-400 bg-gray-500/10 pl-3 pr-2 py-1.5 rounded-l-sm'
-      }`}>
+      <div 
+        className={`mb-2 border-l-3 ${
+          isUser 
+            ? 'border-blue-400 bg-blue-500/10 pl-3 pr-2 py-1.5 rounded-l-sm' 
+            : 'border-gray-400 bg-gray-500/10 pl-3 pr-2 py-1.5 rounded-l-sm'
+        } ${canScrollToOriginal ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+        onClick={canScrollToOriginal ? handleReplyClick : undefined}
+        title={canScrollToOriginal ? 'Clique para ver a mensagem original' : undefined}
+      >
         <div className="flex items-center gap-1.5 mb-1">
           <Reply className={`h-3 w-3 ${isUser ? 'text-blue-300' : 'text-gray-400'}`} />
           <span className={`text-xs font-medium ${
@@ -303,6 +323,11 @@ export default function MessageBubble({ message, conversation, allMessages = [] 
           }`}>
             {replySenderName}
           </span>
+          {canScrollToOriginal && (
+            <span className={`text-[10px] ${isUser ? 'text-blue-300' : 'text-gray-400'}`}>
+              (clique para ver)
+            </span>
+          )}
         </div>
         <p className={`text-xs leading-tight line-clamp-2 ${
           isUser ? 'text-blue-100' : 'text-gray-300'
