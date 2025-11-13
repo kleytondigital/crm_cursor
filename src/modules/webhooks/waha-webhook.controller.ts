@@ -240,7 +240,7 @@ export class WahaWebhookController {
       contentType = this.resolveContentType(type, media?.mimetype, hasMedia);
     }
 
-    const resolvedContentText =
+    let resolvedContentText =
       hasLocation
         ? `Localização: ${latitude}, ${longitude}`
         : messageText ??
