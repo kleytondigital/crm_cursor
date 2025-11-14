@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsUUID, IsOptional, ValidateIf } from 'class-validator';
+import { IsEnum, IsString, IsUUID, IsOptional, ValidateIf, IsIn } from 'class-validator';
 import { ContentType, SenderType } from '@prisma/client';
 
 export class CreateMessageDto {
@@ -29,6 +29,11 @@ export class CreateMessageDto {
   @IsOptional()
   @IsString()
   replyTo?: string; // messageId da mensagem que está sendo respondida
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['reply', 'edit', 'delete'])
+  action?: string; // action para o webhook (reply, edit, delete)
 }
 
 export class EditMessageDto {

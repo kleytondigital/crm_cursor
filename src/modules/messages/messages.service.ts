@@ -156,7 +156,10 @@ export class MessagesService {
     });
 
     if (createMessageDto.senderType === SenderType.USER) {
-      await this.forwardMessageToN8n(message, connection ?? null, createMessageDto.replyTo);
+      // Passar replyTo e action para o forwardMessageToN8n
+      // Se action não foi especificado mas temos replyTo, assumir action=reply
+      const action = createMessageDto.action || (createMessageDto.replyTo ? 'reply' : undefined);
+      await this.forwardMessageToN8n(message, connection ?? null, createMessageDto.replyTo, action);
     }
 
     this.handleAttendanceSync(
@@ -400,7 +403,7 @@ export class MessagesService {
     return parts[parts.length - 1] || undefined;
   }
 
-  private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null, replyTo?: string) {
+  private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null, replyTo?: string, action?: string) {
     try {
       if (!connection?.sessionName) {
         this.logger.warn(
@@ -443,8 +446,8 @@ export class MessagesService {
             : message.contentText || this.extractFilename(message.contentUrl) || undefined,
       };
       
-      // Adicionar action=reply e replyTo se a mensagem for uma resposta
-      if (replyTo || message.replyMessageId) {
+      // Adicionar action e replyTo se for uma resposta ou se action foi especificado
+      if (action === 'reply' || replyTo || message.replyMessageId) {
         let replyToId = replyTo;
         
         // Se não temos replyTo mas temos replyMessageId, buscar o messageId (WhatsApp) da mensagem original
@@ -459,11 +462,14 @@ export class MessagesService {
           }
         }
         
-        if (replyToId) {
-          payload.action = 'reply';
-          payload.replyTo = replyToId;
+        // Se temos replyTo ou action=reply, adicionar ao payload
+        if (replyToId || action === 'reply') {
+          payload.action = action || 'reply';
+          if (replyToId) {
+            payload.replyTo = replyToId;
+          }
           this.logger.log(
-            `Mensagem é resposta. action=reply replyTo=${replyToId}`,
+            `Mensagem é resposta. action=${payload.action} replyTo=${replyToId || 'N/A'}`,
           );
         }
       }
