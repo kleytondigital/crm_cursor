@@ -61,7 +61,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const socket = connectSocket(token)
 
     const handleNewMessage = (data: { message: Message; conversation?: Conversation }) => {
-      console.log('[ChatContext] Nova mensagem recebida via WebSocket:', data)
+      console.log('[ChatContext] Nova mensagem recebida via WebSocket (message:new):', data)
       const { message, conversation } = data
       
       // Usar ref para obter o valor atual de selectedConversation
@@ -74,9 +74,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // Verificar se a mensagem já existe pelo ID interno
           const existsById = prev.some((item) => item.id === message.id)
           if (existsById) {
-            console.log('[ChatContext] Mensagem já existe pelo ID, substituindo:', message.id)
-            // Substituir a mensagem existente (pode ser otimista ou do servidor)
-            return prev.map((item) => (item.id === message.id ? message : item))
+            console.log('[ChatContext] Mensagem já existe pelo ID (handleNewMessage), ignorando:', message.id)
+            // Mensagem já existe, não adicionar novamente
+            return prev
+          }
+          
+          // Verificar também pelo messageId se a mensagem já existe com outro ID
+          if (message.messageId) {
+            const existsByMessageId = prev.some((item) => item.messageId === message.messageId && item.id !== message.id)
+            if (existsByMessageId) {
+              console.log('[ChatContext] Mensagem já existe pelo messageId (handleNewMessage), substituindo:', message.messageId)
+              return prev.map((item) => (item.messageId === message.messageId && item.id !== message.id ? message : item))
+            }
           }
           
           // Verificar se há uma mensagem otimista que corresponde a esta mensagem do servidor
@@ -88,21 +97,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // Buscar mensagem otimista correspondente
           const optimisticIndex = prev.findIndex(
             (item) => {
-              // Mensagem otimista não tem messageId e não tem id interno (é gerada localmente)
-              // Ou tem id mas é diferente (otimista tem UUID gerado localmente)
-              const isOptimistic = !item.messageId && item.conversationId === message.conversationId
+              // Mensagem otimista não tem messageId (é gerada localmente antes de ser salva no servidor)
+              // E não tem o mesmo ID interno (otimista tem UUID gerado localmente)
+              const isOptimistic = !item.messageId && 
+                                   item.id !== message.id &&
+                                   item.conversationId === message.conversationId
               
               if (!isOptimistic) return false
               
-              // Para mensagens de texto, comparar contentText
+              // Para mensagens de texto, comparar contentText exato
               if (isTextMessage && item.contentType === 'TEXT') {
                 const textMatch = item.contentText === message.contentText
                 const timeMatch = Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                   new Date(message.timestamp || message.createdAt).getTime()
-                ) < 10000 // Dentro de 10 segundos
+                ) < 15000 // Dentro de 15 segundos para dar mais margem
+                const senderMatch = item.senderType === message.senderType
                 
-                return textMatch && timeMatch && item.senderType === message.senderType
+                if (textMatch && timeMatch && senderMatch) {
+                  console.log('[ChatContext] Mensagem otimista encontrada (handleNewMessage):', {
+                    optimisticId: item.id,
+                    realId: message.id,
+                    text: message.contentText?.substring(0, 30),
+                  })
+                }
+                
+                return textMatch && timeMatch && senderMatch
               }
               
               // Para mensagens de mídia, comparar contentUrl (quando disponível)
@@ -112,7 +132,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 const timeMatch = Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                   new Date(message.timestamp || message.createdAt).getTime()
-                ) < 10000
+                ) < 15000
                 
                 return urlMatch && timeMatch && item.senderType === message.senderType
               }
@@ -122,23 +142,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           )
           
           if (optimisticIndex !== -1) {
-            console.log('[ChatContext] Substituindo mensagem otimista pela mensagem real:', message.id)
+            console.log('[ChatContext] Substituindo mensagem otimista pela mensagem real (handleNewMessage):', {
+              optimisticIndex,
+              optimisticId: prev[optimisticIndex].id,
+              realId: message.id,
+            })
             // Substituir a mensagem otimista pela mensagem real do servidor
             const updated = [...prev]
             updated[optimisticIndex] = message
             return updated
           }
           
-          // Verificar também pelo messageId se a mensagem já existe com outro ID
-          if (message.messageId) {
-            const existsByMessageId = prev.some((item) => item.messageId === message.messageId)
-            if (existsByMessageId) {
-              console.log('[ChatContext] Mensagem já existe pelo messageId, substituindo:', message.messageId)
-              return prev.map((item) => (item.messageId === message.messageId ? message : item))
-            }
-          }
-          
-          console.log('[ChatContext] Mensagem adicionada à lista:', message.id)
+          console.log('[ChatContext] Mensagem adicionada à lista (handleNewMessage):', message.id)
           return [...prev, message]
         })
       } else {
@@ -207,15 +222,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleMessageSent = (data: { success: boolean; message: Message }) => {
-      console.log('[ChatContext] Mensagem enviada via WebSocket:', data)
+      console.log('[ChatContext] Mensagem enviada via WebSocket (message:sent):', data)
       if (data.success) {
+        const currentSelectedConversation = selectedConversationRef.current
+        
+        // Só processar se for da conversa selecionada
+        if (!currentSelectedConversation || data.message.conversationId !== currentSelectedConversation.id) {
+          console.log('[ChatContext] Mensagem (message:sent) não é da conversa selecionada, ignorando')
+          return
+        }
+        
         setMessages((prev) => {
-          // Verificar se a mensagem já existe pelo ID interno
+          // Verificar PRIMEIRO se a mensagem já existe pelo ID interno (pode ter chegado via message:new primeiro)
+          // Esta é a verificação mais importante para evitar duplicação
           const existsById = prev.some((item) => item.id === data.message.id)
           if (existsById) {
-            console.log('[ChatContext] Mensagem já existe pelo ID (handleMessageSent), substituindo:', data.message.id)
-            // Substituir a mensagem existente (pode ser otimista ou do servidor)
-            return prev.map((item) => (item.id === data.message.id ? data.message : item))
+            console.log('[ChatContext] Mensagem já existe pelo ID (handleMessageSent), ignorando (já processada via message:new):', data.message.id)
+            // Mensagem já foi processada via message:new, não adicionar novamente
+            return prev
+          }
+          
+          // Verificar também pelo messageId se a mensagem já existe com outro ID
+          if (data.message.messageId) {
+            const existsByMessageId = prev.some((item) => item.messageId === data.message.messageId && item.id !== data.message.id)
+            if (existsByMessageId) {
+              console.log('[ChatContext] Mensagem já existe pelo messageId (handleMessageSent), substituindo:', data.message.messageId)
+              return prev.map((item) => (item.messageId === data.message.messageId && item.id !== data.message.id ? data.message : item))
+            }
           }
           
           // Verificar se há uma mensagem otimista que corresponde a esta mensagem do servidor
@@ -227,20 +260,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // Buscar mensagem otimista correspondente
           const optimisticIndex = prev.findIndex(
             (item) => {
-              // Mensagem otimista não tem messageId
-              const isOptimistic = !item.messageId && item.conversationId === data.message.conversationId
+              // Mensagem otimista não tem messageId (é gerada localmente antes de ser salva no servidor)
+              // E não tem o mesmo ID interno (otimista tem UUID gerado localmente)
+              const isOptimistic = !item.messageId && 
+                                   item.id !== data.message.id &&
+                                   item.conversationId === data.message.conversationId
               
               if (!isOptimistic) return false
               
-              // Para mensagens de texto, comparar contentText
+              // Para mensagens de texto, comparar contentText exato
               if (isTextMessage && item.contentType === 'TEXT') {
                 const textMatch = item.contentText === data.message.contentText
                 const timeMatch = Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                   new Date(data.message.timestamp || data.message.createdAt).getTime()
-                ) < 10000 // Dentro de 10 segundos
+                ) < 15000 // Dentro de 15 segundos para dar mais margem
+                const senderMatch = item.senderType === data.message.senderType
                 
-                return textMatch && timeMatch && item.senderType === data.message.senderType
+                if (textMatch && timeMatch && senderMatch) {
+                  console.log('[ChatContext] Mensagem otimista encontrada (handleMessageSent):', {
+                    optimisticId: item.id,
+                    realId: data.message.id,
+                    text: data.message.contentText?.substring(0, 30),
+                  })
+                }
+                
+                return textMatch && timeMatch && senderMatch
               }
               
               // Para mensagens de mídia, comparar contentUrl (quando disponível)
@@ -250,7 +295,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 const timeMatch = Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                   new Date(data.message.timestamp || data.message.createdAt).getTime()
-                ) < 10000
+                ) < 15000
                 
                 return urlMatch && timeMatch && item.senderType === data.message.senderType
               }
@@ -260,23 +305,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           )
           
           if (optimisticIndex !== -1) {
-            console.log('[ChatContext] Substituindo mensagem otimista pela mensagem real do servidor (handleMessageSent):', data.message.id)
+            console.log('[ChatContext] Substituindo mensagem otimista pela mensagem real (handleMessageSent):', {
+              optimisticIndex,
+              optimisticId: prev[optimisticIndex].id,
+              realId: data.message.id,
+            })
             // Substituir a mensagem otimista pela mensagem real do servidor
             const updated = [...prev]
             updated[optimisticIndex] = data.message
             return updated
           }
           
-          // Verificar também pelo messageId se a mensagem já existe com outro ID
-          if (data.message.messageId) {
-            const existsByMessageId = prev.some((item) => item.messageId === data.message.messageId)
-            if (existsByMessageId) {
-              console.log('[ChatContext] Mensagem já existe pelo messageId (handleMessageSent), substituindo:', data.message.messageId)
-              return prev.map((item) => (item.messageId === data.message.messageId ? data.message : item))
-            }
-          }
-          
-          console.log('[ChatContext] Mensagem adicionada à lista (handleMessageSent):', data.message.id)
+          // Se não encontrou correspondência e não existe, adicionar (caso raro - quando message:sent chega antes de message:new)
+          console.log('[ChatContext] Mensagem adicionada à lista (handleMessageSent - sem correspondência):', data.message.id)
           return [...prev, data.message]
         })
       }
@@ -495,8 +536,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
         // Criar mensagem otimista apenas para mensagens de texto (mídia será adicionada quando o upload terminar)
         // Para mídia, a mensagem otimista será criada após o upload ou quando chegar via WebSocket
+        let optimisticId: string | null = null
         if (contentType === 'TEXT' || !file) {
-          const optimisticId = crypto.randomUUID()
+          optimisticId = crypto.randomUUID()
           const optimisticMessage: Message = {
             id: optimisticId,
             conversationId: selectedConversation.id,
@@ -517,15 +559,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           setMessages((prev) => [...prev, optimisticMessage])
         }
 
-        await messagesAPI.send({
-          conversationId: selectedConversation.id,
-          senderType: 'USER',
-          contentType,
-          contentText,
-          contentUrl,
-          replyTo: replyTo,
-          action: action,
-        })
+        // Enviar mensagem via API REST
+        // A mensagem será emitida via WebSocket pelo backend quando for processada
+        // Não precisamos processar a resposta aqui, pois a mensagem virá via WebSocket
+        try {
+          await messagesAPI.send({
+            conversationId: selectedConversation.id,
+            senderType: 'USER',
+            contentType,
+            contentText,
+            contentUrl,
+            replyTo: replyTo,
+            action: action,
+          })
+        } catch (err) {
+          // Se houver erro, remover mensagem otimista
+          if (optimisticId) {
+            setMessages((prev) => prev.filter((item) => item.id !== optimisticId))
+          }
+          throw err
+        }
       } catch (err: any) {
         setError(err.response?.data?.message || 'Erro ao enviar mensagem')
       }
