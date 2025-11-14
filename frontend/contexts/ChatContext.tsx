@@ -38,6 +38,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Ref para rastrear mensagens já processadas via WebSocket para evitar duplicação
+  const processedMessageIdsRef = useRef<Set<string>>(new Set())
   const selectedLeadIdRef = useRef<string | null>(null)
   const isLoadingMessagesRef = useRef(false)
   // Ref para manter o valor atual de selectedConversation no closure do WebSocket
@@ -64,6 +66,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       console.log('[ChatContext] Nova mensagem recebida via WebSocket (message:new):', data)
       const { message, conversation } = data
       
+      // Verificar se esta mensagem já foi processada (evitar duplicação)
+      if (processedMessageIdsRef.current.has(message.id)) {
+        console.log('[ChatContext] Mensagem já foi processada anteriormente, ignorando:', message.id)
+        return
+      }
+      
       // Usar ref para obter o valor atual de selectedConversation
       const currentSelectedConversation = selectedConversationRef.current
       
@@ -76,6 +84,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           if (existsById) {
             console.log('[ChatContext] Mensagem já existe pelo ID (handleNewMessage), ignorando:', message.id)
             // Mensagem já existe, não adicionar novamente
+            processedMessageIdsRef.current.add(message.id)
             return prev
           }
           
@@ -84,6 +93,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             const existsByMessageId = prev.some((item) => item.messageId === message.messageId && item.id !== message.id)
             if (existsByMessageId) {
               console.log('[ChatContext] Mensagem já existe pelo messageId (handleNewMessage), substituindo:', message.messageId)
+              processedMessageIdsRef.current.add(message.id)
               return prev.map((item) => (item.messageId === message.messageId && item.id !== message.id ? message : item))
             }
           }
@@ -150,10 +160,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             // Substituir a mensagem otimista pela mensagem real do servidor
             const updated = [...prev]
             updated[optimisticIndex] = message
+            // Marcar mensagem como processada
+            processedMessageIdsRef.current.add(message.id)
             return updated
           }
           
           console.log('[ChatContext] Mensagem adicionada à lista (handleNewMessage):', message.id)
+          // Marcar mensagem como processada
+          processedMessageIdsRef.current.add(message.id)
           return [...prev, message]
         })
       } else {
@@ -224,6 +238,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const handleMessageSent = (data: { success: boolean; message: Message }) => {
       console.log('[ChatContext] Mensagem enviada via WebSocket (message:sent):', data)
       if (data.success) {
+        // Verificar se esta mensagem já foi processada via message:new (evitar duplicação)
+        if (processedMessageIdsRef.current.has(data.message.id)) {
+          console.log('[ChatContext] Mensagem já foi processada via message:new, ignorando (handleMessageSent):', data.message.id)
+          return
+        }
+        
         const currentSelectedConversation = selectedConversationRef.current
         
         // Só processar se for da conversa selecionada
@@ -239,6 +259,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           if (existsById) {
             console.log('[ChatContext] Mensagem já existe pelo ID (handleMessageSent), ignorando (já processada via message:new):', data.message.id)
             // Mensagem já foi processada via message:new, não adicionar novamente
+            processedMessageIdsRef.current.add(data.message.id)
             return prev
           }
           
@@ -247,6 +268,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             const existsByMessageId = prev.some((item) => item.messageId === data.message.messageId && item.id !== data.message.id)
             if (existsByMessageId) {
               console.log('[ChatContext] Mensagem já existe pelo messageId (handleMessageSent), substituindo:', data.message.messageId)
+              processedMessageIdsRef.current.add(data.message.id)
               return prev.map((item) => (item.messageId === data.message.messageId && item.id !== data.message.id ? data.message : item))
             }
           }
@@ -313,11 +335,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             // Substituir a mensagem otimista pela mensagem real do servidor
             const updated = [...prev]
             updated[optimisticIndex] = data.message
+            // Marcar mensagem como processada
+            processedMessageIdsRef.current.add(data.message.id)
             return updated
           }
           
           // Se não encontrou correspondência e não existe, adicionar (caso raro - quando message:sent chega antes de message:new)
           console.log('[ChatContext] Mensagem adicionada à lista (handleMessageSent - sem correspondência):', data.message.id)
+          // Marcar mensagem como processada
+          processedMessageIdsRef.current.add(data.message.id)
           return [...prev, data.message]
         })
       }
