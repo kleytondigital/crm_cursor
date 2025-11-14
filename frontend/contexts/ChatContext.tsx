@@ -88,12 +88,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               (item) =>
                 !item.messageId && // Mensagem otimista sem messageId
                 item.conversationId === message.conversationId &&
-                item.contentText === message.contentText &&
+                (item.contentText === message.contentText || 
+                 (item.contentUrl === message.contentUrl && message.contentUrl)) && // Considerar URL para mídia
                 item.senderType === message.senderType &&
                 Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                     new Date(message.timestamp || message.createdAt).getTime()
-                ) < 5000 // Dentro de 5 segundos
+                ) < 10000 // Dentro de 10 segundos para dar mais margem
             )
             
             if (optimisticIndex !== -1) {
@@ -102,6 +103,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               const updated = [...prev]
               updated[optimisticIndex] = message
               return updated
+            }
+          }
+          
+          // Verificar também pelo messageId se a mensagem já existe com outro ID
+          if (message.messageId) {
+            const existsByMessageId = prev.some((item) => item.messageId === message.messageId)
+            if (existsByMessageId) {
+              console.log('[ChatContext] Mensagem já existe pelo messageId, substituindo:', message.messageId)
+              return prev.map((item) => (item.messageId === message.messageId ? message : item))
             }
           }
           
@@ -193,12 +203,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               (item) =>
                 !item.messageId && // Mensagem otimista sem messageId
                 item.conversationId === data.message.conversationId &&
-                item.contentText === data.message.contentText &&
+                (item.contentText === data.message.contentText || 
+                 (item.contentUrl === data.message.contentUrl && data.message.contentUrl)) && // Considerar URL para mídia
                 item.senderType === data.message.senderType &&
                 Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                     new Date(data.message.timestamp || data.message.createdAt).getTime()
-                ) < 5000 // Dentro de 5 segundos
+                ) < 10000 // Dentro de 10 segundos para dar mais margem
             )
             
             if (optimisticIndex !== -1) {
@@ -208,9 +219,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               updated[optimisticIndex] = data.message
               return updated
             }
+            
+            // Verificar também pelo messageId se a mensagem já existe com outro ID
+            const existsByMessageId = prev.some((item) => item.messageId === data.message.messageId)
+            if (existsByMessageId) {
+              console.log('[ChatContext] Mensagem já existe pelo messageId (handleMessageSent), substituindo:', data.message.messageId)
+              return prev.map((item) => (item.messageId === data.message.messageId ? data.message : item))
+            }
           }
           
-          console.log('[ChatContext] Mensagem adicionada à lista:', data.message.id)
+          console.log('[ChatContext] Mensagem adicionada à lista (handleMessageSent):', data.message.id)
           return [...prev, data.message]
         })
       }
@@ -427,25 +445,29 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        const optimisticId = crypto.randomUUID()
-        const optimisticMessage: Message = {
-          id: optimisticId,
-          conversationId: selectedConversation.id,
-          senderType: 'USER' as const,
-          contentType,
-          contentText,
-          contentUrl,
-          tenantId: selectedConversation.tenantId,
-          createdAt: new Date().toISOString(),
-          timestamp: new Date().toISOString(),
-          direction: 'OUTGOING' as const,
-          sender: undefined,
-          reply: !!replyTo,
-          replyMessageId: replyMessageId,
-          replyText: replyText,
-        }
+        // Criar mensagem otimista apenas para mensagens de texto (mídia será adicionada quando o upload terminar)
+        // Para mídia, a mensagem otimista será criada após o upload ou quando chegar via WebSocket
+        if (contentType === 'TEXT' || !file) {
+          const optimisticId = crypto.randomUUID()
+          const optimisticMessage: Message = {
+            id: optimisticId,
+            conversationId: selectedConversation.id,
+            senderType: 'USER' as const,
+            contentType,
+            contentText,
+            contentUrl,
+            tenantId: selectedConversation.tenantId,
+            createdAt: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
+            direction: 'OUTGOING' as const,
+            sender: undefined,
+            reply: !!replyTo,
+            replyMessageId: replyMessageId,
+            replyText: replyText,
+          }
 
-        setMessages((prev) => [...prev, optimisticMessage])
+          setMessages((prev) => [...prev, optimisticMessage])
+        }
 
         await messagesAPI.send({
           conversationId: selectedConversation.id,

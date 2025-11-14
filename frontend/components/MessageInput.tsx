@@ -124,15 +124,23 @@ export default function MessageInput({
 
   const handleFileSelect = async (file: File) => {
     const fileType = file.type.split('/')[0]
+    
+    // Se estiver respondendo, incluir replyTo
+    const replyToId = replyTo?.messageId || null
 
     if (fileType === 'image') {
-      await sendMessage('', 'IMAGE', file)
+      await sendMessage('', 'IMAGE', file, replyToId || undefined, replyToId ? 'reply' : undefined)
     } else if (fileType === 'audio') {
-      await sendMessage('', 'AUDIO', file)
+      await sendMessage('', 'AUDIO', file, replyToId || undefined, replyToId ? 'reply' : undefined)
     } else if (fileType === 'video') {
-      await sendMessage('', 'VIDEO', file)
+      await sendMessage('', 'VIDEO', file, replyToId || undefined, replyToId ? 'reply' : undefined)
     } else {
-      await sendMessage(file.name, 'DOCUMENT', file)
+      await sendMessage(file.name, 'DOCUMENT', file, replyToId || undefined, replyToId ? 'reply' : undefined)
+    }
+    
+    // Limpar resposta após enviar mídia
+    if (replyToId) {
+      onReplyCancel?.()
     }
   }
 
@@ -322,9 +330,18 @@ export default function MessageInput({
     if (!audioPreview) {
       return
     }
-    await sendMessage('', 'AUDIO', audioPreview.file)
+    
+    // Se estiver respondendo, incluir replyTo
+    const replyToId = replyTo?.messageId || null
+    await sendMessage('', 'AUDIO', audioPreview.file, replyToId || undefined, replyToId ? 'reply' : undefined)
+    
     URL.revokeObjectURL(audioPreview.url)
     setAudioPreview(null)
+    
+    // Limpar resposta após enviar áudio
+    if (replyToId) {
+      onReplyCancel?.()
+    }
   }
 
   const handleDiscardRecording = () => {
