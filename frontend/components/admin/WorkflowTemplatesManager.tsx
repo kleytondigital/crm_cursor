@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Plus, Bot, Edit2, Trash2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import CreateTemplateModal from './CreateTemplateModal'
+import ViewTemplateModal from './ViewTemplateModal'
 
 interface WorkflowTemplate {
   id: string
@@ -12,6 +14,7 @@ interface WorkflowTemplate {
   icon?: string
   isGlobal: boolean
   variables: Record<string, any>
+  n8nWorkflowData?: any
   createdAt: string
 }
 
@@ -19,6 +22,8 @@ export default function WorkflowTemplatesManager() {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [viewTemplate, setViewTemplate] = useState<WorkflowTemplate | null>(null)
+  const [editTemplate, setEditTemplate] = useState<WorkflowTemplate | null>(null)
 
   useEffect(() => {
     loadTemplates()
@@ -65,6 +70,58 @@ export default function WorkflowTemplatesManager() {
       console.error('Erro ao remover template:', error)
       alert('Erro ao remover template')
     }
+  }
+
+  const handleView = async (template: WorkflowTemplate) => {
+    // Buscar template completo com n8nWorkflowData
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:3000/workflow-templates/${template.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const fullTemplate = await response.json()
+        setViewTemplate(fullTemplate)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar template:', error)
+      alert('Erro ao carregar template')
+    }
+  }
+
+  const handleEdit = async (template: WorkflowTemplate) => {
+    // Buscar template completo para edição
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:3000/workflow-templates/${template.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const fullTemplate = await response.json()
+        setEditTemplate(fullTemplate)
+        setViewTemplate(null) // Fechar modal de visualização se estiver aberto
+      }
+    } catch (error) {
+      console.error('Erro ao carregar template:', error)
+      alert('Erro ao carregar template')
+    }
+  }
+
+  const handleCloseModals = () => {
+    setShowCreateModal(false)
+    setViewTemplate(null)
+    setEditTemplate(null)
+  }
+
+  const handleSuccess = () => {
+    loadTemplates()
+    handleCloseModals()
   }
 
   if (loading) {
@@ -130,6 +187,7 @@ export default function WorkflowTemplatesManager() {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => handleView(template)}
                 className="flex-1 gap-2 text-text-muted hover:text-white"
               >
                 <Eye className="h-4 w-4" />
@@ -138,6 +196,7 @@ export default function WorkflowTemplatesManager() {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => handleEdit(template)}
                 className="flex-1 gap-2 text-text-muted hover:text-white"
               >
                 <Edit2 className="h-4 w-4" />
@@ -175,29 +234,28 @@ export default function WorkflowTemplatesManager() {
         </div>
       )}
 
-      {/* Modal de criação será implementado posteriormente */}
+      {/* Modais */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-background-card p-8">
-            <h3 className="mb-4 text-2xl font-bold text-white">Novo Template</h3>
-            <p className="text-text-muted">
-              A criação de templates requer conhecimento do JSON de workflows do n8n.
-              Consulte a documentação em N8N_INTEGRATION.md
-            </p>
-            <div className="mt-6 flex gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => setShowCreateModal(false)}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button className="flex-1 bg-brand-primary">
-                Criar
-              </Button>
-            </div>
-          </div>
-        </div>
+        <CreateTemplateModal
+          onClose={handleCloseModals}
+          onSuccess={handleSuccess}
+        />
+      )}
+
+      {editTemplate && (
+        <CreateTemplateModal
+          editTemplate={editTemplate}
+          onClose={handleCloseModals}
+          onSuccess={handleSuccess}
+        />
+      )}
+
+      {viewTemplate && (
+        <ViewTemplateModal
+          template={viewTemplate}
+          onClose={handleCloseModals}
+          onEdit={() => handleEdit(viewTemplate)}
+        />
       )}
     </div>
   )
