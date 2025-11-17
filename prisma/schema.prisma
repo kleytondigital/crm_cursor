@@ -33,6 +33,10 @@ model Company {
   attendances       Attendance[]
   scheduledMessages ScheduledMessage[]
   campaigns         Campaign[]
+  apiKeys           ApiKey[]
+  aiAgents          AIAgent[]
+  workflowTemplates WorkflowTemplate[]
+  workflowInstances WorkflowInstance[]
 
   @@map("companies")
 }
@@ -253,6 +257,7 @@ model Department {
   memberships       DepartmentUser[]
   attendances       Attendance[]
   scheduledMessages ScheduledMessage[]
+  aiAgents          AIAgent[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -443,4 +448,98 @@ enum CampaignStatus {
   RUNNING
   COMPLETED
   CANCELLED
+}
+
+// ============================================
+// N8N INTEGRATION & AI AGENTS
+// ============================================
+
+model ApiKey {
+  id        String    @id @default(uuid())
+  name      String
+  key       String    @unique // Hash da chave
+  tenantId  String?   // Null para Super Admin
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant Company? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([key])
+  @@map("api_keys")
+}
+
+model AIAgent {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  systemPrompt String   @db.Text
+  userPrompt   String?  @db.Text
+  model        String   @default("gpt-4")
+  temperature  Float    @default(0.7)
+  maxTokens    Int      @default(1000)
+  tenantId     String
+  departmentId String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant              Company             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department          Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  workflowInstances   WorkflowInstance[]
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([tenantId, isActive])
+  @@map("ai_agents")
+}
+
+model WorkflowTemplate {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?  @db.Text
+  category         String?  // Ex: "Atendimento", "Vendas", "Suporte"
+  n8nWorkflowData  Json     // JSON completo do workflow do n8n
+  variables        Json     // Variáveis editáveis: {systemPrompt: {type: "text", label: "...", default: "..."}}
+  icon             String?  // Nome do ícone para exibição
+  isGlobal         Boolean  @default(true) // true = criado por Super Admin, false = tenant específico
+  tenantId         String?  // Null se isGlobal = true
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant            Company?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workflowInstances WorkflowInstance[]
+
+  @@index([tenantId])
+  @@index([isGlobal, isActive])
+  @@index([category])
+  @@map("workflow_templates")
+}
+
+model WorkflowInstance {
+  id            String   @id @default(uuid())
+  templateId    String
+  n8nWorkflowId String?  // ID do workflow criado no n8n
+  webhookUrl    String?  // URL do webhook retornado pelo n8n
+  name          String
+  config        Json     // Configurações personalizadas pelo tenant (valores das variáveis)
+  aiAgentId     String?
+  tenantId      String
+  isActive      Boolean  @default(false) // false até ser ativado no n8n
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  template WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  aiAgent  AIAgent?         @relation(fields: [aiAgentId], references: [id], onDelete: SetNull)
+  tenant   Company          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([aiAgentId])
+  @@index([tenantId, isActive])
+  @@index([n8nWorkflowId])
+  @@map("workflow_instances")
 }

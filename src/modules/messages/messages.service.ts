@@ -18,7 +18,6 @@ import {
 import { N8nService } from '@/shared/n8n/n8n.service';
 import { ConfigService } from '@nestjs/config';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
-import { MessagesGateway } from './messages.gateway';
 
 @Injectable()
 export class MessagesService {
@@ -30,8 +29,6 @@ export class MessagesService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => AttendancesService))
     private readonly attendancesService: AttendancesService,
-    @Inject(forwardRef(() => MessagesGateway))
-    private readonly messagesGateway: MessagesGateway,
   ) {}
 
   async create(createMessageDto: CreateMessageDto, tenantId: string, userId?: string, userRole?: string) {
@@ -176,28 +173,9 @@ export class MessagesService {
       ),
     );
 
-    // Emitir mensagem via WebSocket quando criada via REST API
-    // Isso garante que a mensagem apareça em tempo real no frontend
-    // A mensagem otimista será substituída pela mensagem real do servidor
-    if (createMessageDto.senderType === SenderType.USER) {
-      try {
-        this.messagesGateway.emitNewMessage(
-          tenantId,
-          message.conversation,
-          {
-            ...message,
-            contentUrl: this.buildAbsoluteMediaUrl(message.contentUrl),
-          },
-        );
-        this.logger.log(
-          `Mensagem emitida via WebSocket após criação via REST API. messageId=${message.id}`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Erro ao emitir mensagem via WebSocket: ${error?.message || error}`,
-        );
-      }
-    }
+    // NÃO emitir via WebSocket aqui - deixar o webhook do WAHA emitir quando a mensagem retornar
+    // Isso evita duplicação: a mensagem é emitida apenas uma vez, quando confirmada pelo WhatsApp
+    // A mensagem otimista no frontend será substituída pela mensagem real quando o webhook chegar
 
     // Converter URL de mídia para URL absoluta antes de retornar
     return {

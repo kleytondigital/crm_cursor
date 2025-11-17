@@ -19,6 +19,11 @@ import { FilesModule } from './modules/files/files.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { MinioModule } from './shared/minio/minio.module';
 import { TenantMiddleware } from './shared/middleware/tenant.middleware';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { N8nWebhooksModule } from './modules/n8n-webhooks/n8n-webhooks.module';
+import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
+import { N8nApiModule } from './shared/n8n-api/n8n-api.module';
+import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 
 @Module({
   imports: [
@@ -52,6 +57,11 @@ import { TenantMiddleware } from './shared/middleware/tenant.middleware';
     FilesModule,
     SchedulerModule,
     MinioModule,
+    ApiKeysModule,
+    N8nWebhooksModule,
+    AIAgentsModule,
+    N8nApiModule,
+    WorkflowTemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

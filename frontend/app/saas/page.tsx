@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import CompaniesManager from '@/components/admin/CompaniesManager'
 import UsersManager from '@/components/admin/UsersManager'
-import { Building2, Users, LayoutDashboard, LogOut } from 'lucide-react'
+import WorkflowTemplatesManager from '@/components/admin/WorkflowTemplatesManager'
+import { Building2, Users, LayoutDashboard, LogOut, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type Section = 'companies' | 'users'
+type Section = 'companies' | 'users' | 'workflows'
 
 export default function SaasDashboardPage() {
   const router = useRouter()
@@ -64,6 +65,7 @@ export default function SaasDashboardPage() {
   const sections = [
     { id: 'companies' as Section, label: 'Empresas', icon: Building2 },
     { id: 'users' as Section, label: 'Usuários', icon: Users },
+    { id: 'workflows' as Section, label: 'Automações', icon: Bot },
   ]
 
   return (
@@ -124,6 +126,7 @@ export default function SaasDashboardPage() {
         <div className="rounded-3xl border border-white/5 bg-background-subtle/80 p-6 shadow-inner-glow">
           {selectedSection === 'companies' && <CompaniesManager />}
           {selectedSection === 'users' && <UsersManager />}
+          {selectedSection === 'workflows' && <WorkflowTemplatesManager />}
         </div>
       </main>
     </div>

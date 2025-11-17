@@ -251,6 +251,24 @@ export class WahaWebhookController {
       profilePictureURL: profilePictureURL || null,
     });
 
+    // Verificar se a mensagem já existe no banco de dados ANTES de criar a conversa (evitar duplicação)
+    // O WhatsApp pode enviar múltiplos webhooks para a mesma mensagem (ex: sent, delivered, read)
+    if (id) {
+      const existingMessage = await this.prisma.message.findFirst({
+        where: {
+          messageId: id,
+          tenantId: connection.tenantId,
+        },
+      });
+      
+      if (existingMessage) {
+        this.logger.log(
+          `Mensagem já existe no banco de dados, ignorando webhook duplicado. messageId=${id}`,
+        );
+        return true; // Retornar true para indicar que o webhook foi processado (mas a mensagem já existia)
+      }
+    }
+
     const conversation = await this.getOrCreateConversation({
       tenantId: connection.tenantId,
       leadId: lead.id,

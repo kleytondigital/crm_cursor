@@ -72,6 +72,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return
       }
       
+      // Marcar como processada IMEDIATAMENTE para evitar race conditions
+      processedMessageIdsRef.current.add(message.id)
+      
       // Usar ref para obter o valor atual de selectedConversation
       const currentSelectedConversation = selectedConversationRef.current
       
@@ -84,7 +87,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           if (existsById) {
             console.log('[ChatContext] Mensagem já existe pelo ID (handleNewMessage), ignorando:', message.id)
             // Mensagem já existe, não adicionar novamente
-            processedMessageIdsRef.current.add(message.id)
             return prev
           }
           
@@ -93,7 +95,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             const existsByMessageId = prev.some((item) => item.messageId === message.messageId && item.id !== message.id)
             if (existsByMessageId) {
               console.log('[ChatContext] Mensagem já existe pelo messageId (handleNewMessage), substituindo:', message.messageId)
-              processedMessageIdsRef.current.add(message.id)
               return prev.map((item) => (item.messageId === message.messageId && item.id !== message.id ? message : item))
             }
           }
@@ -121,10 +122,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 const timeMatch = Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                   new Date(message.timestamp || message.createdAt).getTime()
-                ) < 15000 // Dentro de 15 segundos para dar mais margem
+                ) < 30000 // Aumentado para 30 segundos para dar mais margem
                 const senderMatch = item.senderType === message.senderType
+                // Verificar também se o replyMessageId corresponde (importante para respostas)
+                const replyMatch = (!item.replyMessageId && !message.replyMessageId) || 
+                                  (item.replyMessageId === message.replyMessageId)
                 
-                if (textMatch && timeMatch && senderMatch) {
+                if (textMatch && timeMatch && senderMatch && replyMatch) {
                   console.log('[ChatContext] Mensagem otimista encontrada (handleNewMessage):', {
                     optimisticId: item.id,
                     realId: message.id,
@@ -132,7 +136,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                   })
                 }
                 
-                return textMatch && timeMatch && senderMatch
+                return textMatch && timeMatch && senderMatch && replyMatch
               }
               
               // Para mensagens de mídia, comparar contentUrl (quando disponível)
@@ -160,14 +164,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             // Substituir a mensagem otimista pela mensagem real do servidor
             const updated = [...prev]
             updated[optimisticIndex] = message
-            // Marcar mensagem como processada
-            processedMessageIdsRef.current.add(message.id)
             return updated
           }
           
           console.log('[ChatContext] Mensagem adicionada à lista (handleNewMessage):', message.id)
-          // Marcar mensagem como processada
-          processedMessageIdsRef.current.add(message.id)
           return [...prev, message]
         })
       } else {
@@ -244,6 +244,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return
         }
         
+        // Marcar como processada IMEDIATAMENTE para evitar race conditions
+        processedMessageIdsRef.current.add(data.message.id)
+        
         const currentSelectedConversation = selectedConversationRef.current
         
         // Só processar se for da conversa selecionada
@@ -259,7 +262,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           if (existsById) {
             console.log('[ChatContext] Mensagem já existe pelo ID (handleMessageSent), ignorando (já processada via message:new):', data.message.id)
             // Mensagem já foi processada via message:new, não adicionar novamente
-            processedMessageIdsRef.current.add(data.message.id)
             return prev
           }
           
@@ -268,7 +270,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             const existsByMessageId = prev.some((item) => item.messageId === data.message.messageId && item.id !== data.message.id)
             if (existsByMessageId) {
               console.log('[ChatContext] Mensagem já existe pelo messageId (handleMessageSent), substituindo:', data.message.messageId)
-              processedMessageIdsRef.current.add(data.message.id)
               return prev.map((item) => (item.messageId === data.message.messageId && item.id !== data.message.id ? data.message : item))
             }
           }
@@ -296,10 +297,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 const timeMatch = Math.abs(
                   new Date(item.timestamp || item.createdAt).getTime() -
                   new Date(data.message.timestamp || data.message.createdAt).getTime()
-                ) < 15000 // Dentro de 15 segundos para dar mais margem
+                ) < 30000 // Aumentado para 30 segundos para dar mais margem
                 const senderMatch = item.senderType === data.message.senderType
+                // Verificar também se o replyMessageId corresponde (importante para respostas)
+                const replyMatch = (!item.replyMessageId && !data.message.replyMessageId) || 
+                                  (item.replyMessageId === data.message.replyMessageId)
                 
-                if (textMatch && timeMatch && senderMatch) {
+                if (textMatch && timeMatch && senderMatch && replyMatch) {
                   console.log('[ChatContext] Mensagem otimista encontrada (handleMessageSent):', {
                     optimisticId: item.id,
                     realId: data.message.id,
@@ -307,7 +311,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                   })
                 }
                 
-                return textMatch && timeMatch && senderMatch
+                return textMatch && timeMatch && senderMatch && replyMatch
               }
               
               // Para mensagens de mídia, comparar contentUrl (quando disponível)
@@ -335,15 +339,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             // Substituir a mensagem otimista pela mensagem real do servidor
             const updated = [...prev]
             updated[optimisticIndex] = data.message
-            // Marcar mensagem como processada
-            processedMessageIdsRef.current.add(data.message.id)
             return updated
           }
           
           // Se não encontrou correspondência e não existe, adicionar (caso raro - quando message:sent chega antes de message:new)
           console.log('[ChatContext] Mensagem adicionada à lista (handleMessageSent - sem correspondência):', data.message.id)
-          // Marcar mensagem como processada
-          processedMessageIdsRef.current.add(data.message.id)
           return [...prev, data.message]
         })
       }

@@ -12,6 +12,7 @@ import {
   Headphones,
   LayoutDashboard,
   Calendar,
+  Bot,
 } from 'lucide-react'
 
 const navigationItems = [
@@ -20,6 +21,7 @@ const navigationItems = [
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
+  { href: '/automacoes', label: 'Automações', icon: Bot, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
 ]
 
