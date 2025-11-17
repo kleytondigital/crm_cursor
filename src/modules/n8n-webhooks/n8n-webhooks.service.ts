@@ -231,12 +231,6 @@ export class N8nWebhooksService {
     }
 
     // Enviar mensagem
-    const context = {
-      userId: 'n8n-system',
-      tenantId,
-      role: UserRole.ADMIN,
-    };
-
     return this.messagesService.create(
       {
         conversationId: conversation.id,
@@ -245,7 +239,9 @@ export class N8nWebhooksService {
         contentText: dto.message,
         contentUrl: dto.mediaUrl,
       },
-      context,
+      tenantId,
+      'n8n-system', // userId
+      'ADMIN', // userRole
     );
   }
 
