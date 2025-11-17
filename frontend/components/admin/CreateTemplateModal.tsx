@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { apiRequest } from '@/lib/api'
 
 interface Variable {
   name: string
@@ -113,8 +114,6 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
     setLoading(true)
 
     try {
-      const token = localStorage.getItem('token')
-
       // Converter variáveis para formato esperado
       const variablesConfig: Record<string, any> = {}
       variables.forEach((v) => {
@@ -138,23 +137,14 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
         variables: variablesConfig,
       }
 
-      const url = editTemplate
-        ? `http://localhost:3000/workflow-templates/${editTemplate.id}`
-        : 'http://localhost:3000/workflow-templates'
+      const endpoint = editTemplate
+        ? `/workflow-templates/${editTemplate.id}`
+        : '/workflow-templates'
 
-      const response = await fetch(url, {
+      await apiRequest(endpoint, {
         method: editTemplate ? 'PATCH' : 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(payload),
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Erro ao salvar template')
-      }
 
       onSuccess()
       onClose()

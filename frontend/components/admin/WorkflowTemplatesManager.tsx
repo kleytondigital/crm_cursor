@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Bot, Edit2, Trash2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { apiRequest } from '@/lib/api'
 import CreateTemplateModal from './CreateTemplateModal'
 import ViewTemplateModal from './ViewTemplateModal'
 
@@ -31,17 +32,8 @@ export default function WorkflowTemplatesManager() {
 
   const loadTemplates = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:3000/workflow-templates', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setTemplates(data)
-      }
+      const data = await apiRequest<WorkflowTemplate[]>('/workflow-templates')
+      setTemplates(data)
     } catch (error) {
       console.error('Erro ao carregar templates:', error)
     } finally {
@@ -55,17 +47,10 @@ export default function WorkflowTemplatesManager() {
     }
 
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3000/workflow-templates/${id}`, {
+      await apiRequest(`/workflow-templates/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
       })
-
-      if (response.ok) {
-        loadTemplates()
-      }
+      loadTemplates()
     } catch (error) {
       console.error('Erro ao remover template:', error)
       alert('Erro ao remover template')
@@ -75,17 +60,8 @@ export default function WorkflowTemplatesManager() {
   const handleView = async (template: WorkflowTemplate) => {
     // Buscar template completo com n8nWorkflowData
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3000/workflow-templates/${template.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const fullTemplate = await response.json()
-        setViewTemplate(fullTemplate)
-      }
+      const fullTemplate = await apiRequest<WorkflowTemplate>(`/workflow-templates/${template.id}`)
+      setViewTemplate(fullTemplate)
     } catch (error) {
       console.error('Erro ao carregar template:', error)
       alert('Erro ao carregar template')
@@ -95,18 +71,9 @@ export default function WorkflowTemplatesManager() {
   const handleEdit = async (template: WorkflowTemplate) => {
     // Buscar template completo para edição
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3000/workflow-templates/${template.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const fullTemplate = await response.json()
-        setEditTemplate(fullTemplate)
-        setViewTemplate(null) // Fechar modal de visualização se estiver aberto
-      }
+      const fullTemplate = await apiRequest<WorkflowTemplate>(`/workflow-templates/${template.id}`)
+      setEditTemplate(fullTemplate)
+      setViewTemplate(null) // Fechar modal de visualização se estiver aberto
     } catch (error) {
       console.error('Erro ao carregar template:', error)
       alert('Erro ao carregar template')

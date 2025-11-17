@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bot, Plus, Power, PowerOff, Settings, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { apiRequest } from '@/lib/api'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 
@@ -58,23 +59,13 @@ export default function AutomacoesPage() {
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem('token')
-      
       // Carregar templates
-      const templatesRes = await fetch('http://localhost:3000/workflow-templates', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-      if (templatesRes.ok) {
-        setTemplates(await templatesRes.json())
-      }
+      const templatesData = await apiRequest<WorkflowTemplate[]>('/workflow-templates')
+      setTemplates(templatesData)
 
       // Carregar instâncias
-      const instancesRes = await fetch('http://localhost:3000/workflow-templates/instances/all', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-      if (instancesRes.ok) {
-        setInstances(await instancesRes.json())
-      }
+      const instancesData = await apiRequest<WorkflowInstance[]>('/workflow-templates/instances/all')
+      setInstances(instancesData)
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
     } finally {
@@ -84,20 +75,13 @@ export default function AutomacoesPage() {
 
   const handleActivateInstance = async (id: string, activate: boolean) => {
     try {
-      const token = localStorage.getItem('token')
       const endpoint = activate ? 'activate' : 'deactivate'
       
-      const response = await fetch(
-        `http://localhost:3000/workflow-templates/instances/${id}/${endpoint}`,
-        {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      )
+      await apiRequest(`/workflow-templates/instances/${id}/${endpoint}`, {
+        method: 'POST',
+      })
 
-      if (response.ok) {
-        loadData()
-      }
+      loadData()
     } catch (error) {
       console.error('Erro ao ativar/desativar:', error)
       alert('Erro ao alterar status da automação')
@@ -110,18 +94,11 @@ export default function AutomacoesPage() {
     }
 
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(
-        `http://localhost:3000/workflow-templates/instances/${id}`,
-        {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      )
+      await apiRequest(`/workflow-templates/instances/${id}`, {
+        method: 'DELETE',
+      })
 
-      if (response.ok) {
-        loadData()
-      }
+      loadData()
     } catch (error) {
       console.error('Erro ao remover:', error)
       alert('Erro ao remover automação')
