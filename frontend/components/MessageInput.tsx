@@ -234,27 +234,56 @@ export default function MessageInput({
         return
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: formatToUse.mime })
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: formatToUse.mime,
+        audioBitsPerSecond: 128000 // 128kbps para qualidade adequada
+      })
       recordedChunksRef.current = []
       recordingFormatRef.current = formatToUse
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
+          console.log('Chunk de áudio capturado:', event.data.size, 'bytes')
           recordedChunksRef.current.push(event.data)
         }
       }
 
       mediaRecorder.onstop = () => {
+        console.log('Gravação finalizada. Total de chunks:', recordedChunksRef.current.length)
+        
         if (recordingIntervalRef.current) {
           clearInterval(recordingIntervalRef.current)
         }
 
+        if (recordedChunksRef.current.length === 0) {
+          console.error('Nenhum chunk de áudio foi capturado')
+          setRecordingError('Falha ao capturar áudio. Tente novamente.')
+          mediaRecorder.stream.getTracks().forEach((track) => track.stop())
+          setIsRecording(false)
+          setRecordingTime(0)
+          return
+        }
+
         const format = recordingFormatRef.current ?? AUDIO_FALLBACK
         const blob = new Blob(recordedChunksRef.current, { type: format.mime })
+        
+        console.log('Blob de áudio criado:', blob.size, 'bytes, tipo:', blob.type)
+        
+        if (blob.size === 0) {
+          console.error('Blob de áudio vazio')
+          setRecordingError('Falha ao criar arquivo de áudio. Tente novamente.')
+          mediaRecorder.stream.getTracks().forEach((track) => track.stop())
+          setIsRecording(false)
+          setRecordingTime(0)
+          return
+        }
+
         const file = new File([blob], `audio-${Date.now()}${format.extension}`, {
           type: format.mime,
         })
         const url = URL.createObjectURL(blob)
+        
+        console.log('Arquivo de áudio criado:', file.name, file.size, 'bytes')
         setAudioPreview({ url, file })
 
         mediaRecorder.stream.getTracks().forEach((track) => track.stop())
@@ -264,7 +293,10 @@ export default function MessageInput({
       }
 
       mediaRecorderRef.current = mediaRecorder
-      mediaRecorder.start()
+      // Solicitar dados a cada 100ms para garantir captura contínua
+      mediaRecorder.start(100)
+      console.log('Gravação iniciada com formato:', formatToUse.mime)
+      
       setRecordingError(null)
       setIsRecording(true)
       setRecordingTime(0)
@@ -401,8 +433,21 @@ export default function MessageInput({
       )}
 
       <div className="flex items-end gap-3">
+        {/* Timer de gravação visual */}
+        {isRecording && (
+          <div className="flex items-center gap-3 rounded-full border border-red-500/50 bg-red-500/10 px-4 py-2 animate-pulse">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-sm font-mono font-semibold text-red-400">
+                {formattedTime}
+              </span>
+            </div>
+            <span className="text-xs text-text-muted">Gravando...</span>
+          </div>
+        )}
+
         <div className="flex flex-1 items-center gap-2 rounded-full border border-white/10 bg-background-muted/70 px-4 py-2 shadow-inner-glow">
-          {onScheduleClick && (
+          {onScheduleClick && !isRecording && (
             <button
               type="button"
               onClick={onScheduleClick}
@@ -489,17 +534,18 @@ export default function MessageInput({
             />
           </div>
 
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white"
-            title="Emojis"
-            disabled={isRecording}
-          >
-            <Smile className="h-5 w-5" />
-          </button>
+          {!isRecording && (
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white"
+              title="Emojis"
+            >
+              <Smile className="h-5 w-5" />
+            </button>
+          )}
 
           {/* Indicador de resposta/edição */}
-          {(replyTo || editMessage) && (
+          {(replyTo || editMessage) && !isRecording && (
             <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-background-muted/60 px-3 py-2 text-xs">
               {editMessage ? (
                 <>
@@ -547,16 +593,17 @@ export default function MessageInput({
         <button
           type="button"
           onClick={handlePrimaryAction}
-          className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
+          className={`flex h-12 w-12 items-center justify-center rounded-full transition shadow-lg ${
             isRecording
-              ? 'bg-brand-danger text-white hover:bg-brand-danger/90'
+              ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
               : hasText
               ? 'bg-brand-primary text-white hover:bg-brand-primary/90'
               : 'bg-brand-secondary/30 text-brand-secondary hover:bg-brand-secondary/40'
           }`}
+          title={isRecording ? 'Parar gravação' : hasText ? 'Enviar mensagem' : 'Gravar áudio'}
         >
           {isRecording ? (
-            <StopCircle className="h-5 w-5" />
+            <StopCircle className="h-6 w-6" />
           ) : hasText ? (
             <Send className="h-5 w-5" />
           ) : (

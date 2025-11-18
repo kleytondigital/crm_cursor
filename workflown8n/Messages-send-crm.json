@@ -1,0 +1,1067 @@
+{
+  "name": "Messages-send-crm",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "messages-crm",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -928,
+        -16
+      ],
+      "id": "fdc1e28e-f29e-4b15-9ee6-56df47083dbf",
+      "name": "Webhook",
+      "webhookId": "24500a23-4fed-4006-83ca-cca406404a24"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4d7c68dc-cc76-4503-a0eb-00e826b03487"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "83bf3ae0-9ae9-4c4d-8262-3b389a53b30b",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "84cf5566-6184-438a-be26-11a1dde85caf",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "imagem",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ddc8e111-b207-40df-9760-56d8de753f85",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Video"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6da4e1f4-d4ed-4c12-b064-a5cf46c59bd6",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "documento",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Documento"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "4c11dd96-2edc-47b0-8e05-39c70ebbd959",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "reply_to": "={{ $json.body.replyTo || ''}}",
+        "text": "={{ $('Webhook').item.json.body.text }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        -208
+      ],
+      "id": "645401e8-7684-4653-9cd9-4bc0cc181f1b",
+      "name": "Send a text message",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "file": "={\n  \"mimetype\": \"{{ $('Webhook').item.json.body.mimetype }}\",\n  \"filename\": \"{{ $('Webhook').item.json.body.filename }}\",\n  \"url\": \"{{ $('Webhook').item.json.body.url }}\"\n} ",
+        "reply_to": "={{ $json.body.replyTo || ''}}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        128
+      ],
+      "id": "736dd12b-baaf-4cf2-86e7-2b71e2b6a773",
+      "name": "Send an image",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Video",
+        "reply_to": "={{ $json.body.replyTo || ''}}",
+        "caption": "",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        288
+      ],
+      "id": "6b1fac98-91dd-4154-9bec-0179e49dd838",
+      "name": "Send a video",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send File",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "file": "={\n  \"mimetype\": \"{{ $('Webhook').item.json.body.mimetype }}\",\n  \"filename\": \"{{ $('Webhook').item.json.body.filename }}\",\n  \"url\": \"{{ $('Webhook').item.json.body.url }}\"\n}",
+        "reply_to": "={{ $json.body.replyTo || ''}}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        464
+      ],
+      "id": "8a33fa5b-0608-4859-9085-154d75e8a49c",
+      "name": "Send a file",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://controle-de-envio-waha-plus.y0q0vs.easypanel.host/api/{{ $json.body.session }}/media/convert/voice",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Api-Key",
+              "value": "578c13351b7b8b8036cd8c161ddc095ff82acdecfdbd7"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.body.url }}\",\n  \"data\": null\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        -16
+      ],
+      "id": "d5a6f4f7-dc64-449e-b767-3207b7b96059",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1920,
+        272
+      ],
+      "id": "363fec7c-ab08-4cd9-bf05-2cacc8ac51a7",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://controle-de-envio-waha-plus.y0q0vs.easypanel.host/api/sendVoice",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Api-Key",
+              "value": "578c13351b7b8b8036cd8c161ddc095ff82acdecfdbd7"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $('Webhook').item.json.body.phone }}\",\n  \"file\": {\n    \"mimetype\": \"{{ $json.mimetype }}\",\n    \"data\": \"{{ $json.data }}\"\n  },\n  \"reply_to\": null,\n  \"convert\": true,\n  \"session\": \"{{ $('Webhook').item.json.body.session }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1568,
+        -16
+      ],
+      "id": "fce13b46-1dc6-44d5-a2dc-696e17be2968",
+      "name": "Enviar Audio"
+    },
+    {
+      "parameters": {
+        "resource": "Chats",
+        "operation": "Delete Message",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "messageId": "={{ $json.id }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        -560
+      ],
+      "id": "96687ae6-eee2-46b2-950e-ca1fc38a0b5e",
+      "name": "Deletes a message from the chat",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chats",
+        "operation": "Edit Message",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "messageId": "={{ $json.id }}",
+        "text": "={{ $('Webhook').item.json.body.Texto }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        -384
+      ],
+      "id": "dadec570-0b26-4b5d-8b8d-f7a9aa477263",
+      "name": "Edits a message in the chat",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "44855ec6-92c5-4c63-b855-7d915d318cae",
+              "leftValue": "={{ $json.body.action }}",
+              "rightValue": "delete",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "f344b22e-4814-42a6-83b7-716600dacde2",
+              "leftValue": "={{ $json.body.action }}",
+              "rightValue": "edit",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        -16
+      ],
+      "id": "30ca4e4e-e9d1-4c90-a12a-dea22f476bb5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').item.json.body.action }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0714d5ea-0cc1-4d4b-acfb-0e27b6e131cd"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Excluir Mensagem"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "37875a6e-129b-4d42-9f0e-e53ffc74c291",
+                    "leftValue": "={{ $('Webhook').item.json.body.action }}",
+                    "rightValue": "edit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Editar Mensagem"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        560,
+        -320
+      ],
+      "id": "14d2e24b-8d7e-4ff1-8129-818550578980",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "resource": "Chats",
+        "operation": "Get Chat Message",
+        "session": "={{ $json.body.session }}",
+        "chatId": "={{ $json.body.phone }}",
+        "messageId": "={{ $json.body.idMessage }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        912,
+        -560
+      ],
+      "id": "a0d46afb-ac73-4050-a01a-63f66cb92acb",
+      "name": "Gets message by id",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chats",
+        "operation": "Get Chat Message",
+        "session": "={{ $json.body.session }}",
+        "chatId": "={{ $json.body.phone }}",
+        "messageId": "={{ $json.body.idMessage }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        912,
+        -336
+      ],
+      "id": "ddbdfcea-d237-4ec4-8082-d082fde193d0",
+      "name": "Gets message by id1",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chats",
+        "operation": "Archive Chat",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        -896
+      ],
+      "id": "ac30b7e8-c13b-42bf-9f7f-0cfa70720ccc",
+      "name": "Archive the chat",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').item.json.body.action }}",
+                    "rightValue": "archive",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "03ad72a6-1dc8-48e3-a817-dbb3d1461aa6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Arquiva Chat"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "52268515-8027-40be-8570-88a939142d6e",
+                    "leftValue": "={{ $('Webhook').item.json.body.action }}",
+                    "rightValue": "unarchive",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Desrquiva Chat"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        560,
+        -784
+      ],
+      "id": "01127c00-c2e5-4e8d-8420-d39e4e085127",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "800d50dc-4097-4aa7-b235-4f2350de4d34",
+              "leftValue": "={{ $('Webhook').item.json.body.action }}",
+              "rightValue": "unaarchive",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "763c6646-b6a4-4fca-972a-17a68169c057",
+              "leftValue": "={{ $('Webhook').item.json.body.action }}",
+              "rightValue": "archive",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "25771ff9-90f1-459e-a69f-7a576ce7fb1b",
+              "leftValue": "={{ $('Webhook').item.json.body.action }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        -16
+      ],
+      "id": "a736dcf8-3680-482f-9011-6347cd25daf5",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "resource": "Chats",
+        "operation": "Unarchive Chat",
+        "session": "={{ $('Webhook').item.json.body.session }}",
+        "chatId": "={{ $('Webhook').item.json.body.phone }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1568,
+        -720
+      ],
+      "id": "d1a73f64-cb95-44f3-9bcc-a56d39a56306",
+      "name": "Unarchive the chat",
+      "credentials": {
+        "wahaApi": {
+          "id": "4U9LD3XwCrSYzvLF",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "590cd071-138b-4344-b2a8-10168b3687e9",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "67899756-eaf8-4745-b931-5e518b27fea9",
+              "name": "tempId",
+              "value": "={{ $('Webhook').item.json.body.tempId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2768,
+        -256
+      ],
+      "id": "573d8d1f-4500-4483-a475-ca523e9b3956",
+      "name": "Tempid"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3104,
+        -256
+      ],
+      "id": "2a6c1224-9624-4da0-9549-b76905a89caa",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "controle-de-envio-n8n-webhook.y0q0vs.easypanel.host",
+            "user-agent": "axios/1.13.2",
+            "content-length": "139",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "212.56.47.2",
+            "x-forwarded-host": "controle-de-envio-n8n-webhook.y0q0vs.easypanel.host",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "057eef2e0e06",
+            "x-n8n-api-key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxODFiYjg4OC1jNzViLTQxYTYtODQyMy1mMzEwNjVmODM2MDMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYzNDE1NjA0fQ.0mCpCI4VyA1heRlSxLXYLy92TZmqVYeuf47Fjhv6mMk",
+            "x-real-ip": "212.56.47.2"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "session": "B2X7Y93VN",
+            "phone": "556296724968@c.us",
+            "type": "text",
+            "text": "teste",
+            "url": null,
+            "tempId": "7a258c01-19d2-4e59-b66d-01cf417c43e2"
+          },
+          "webhookUrl": "https://controle-de-envio-n8n-webhook.y0q0vs.easypanel.host/webhook/messages-crm",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send an image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Enviar Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        []
+      ]
+    },
+    "Deletes a message from the chat": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edits a message in the chat": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Gets message by id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gets message by id1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gets message by id": {
+      "main": [
+        [
+          {
+            "node": "Deletes a message from the chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gets message by id1": {
+      "main": [
+        [
+          {
+            "node": "Edits a message in the chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "Archive the chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unarchive the chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Audio": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an image": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a video": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a file": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unarchive the chat": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive the chat": {
+      "main": [
+        [
+          {
+            "node": "Tempid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tempid": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9c96ba5e-c947-4a29-a68d-6bb63358d6a4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e3411150037f49a0639ec60eb235cfd9108b47972368f88d61d184d313da0aeb"
+  },
+  "id": "mHGXEB1xagyMCCbw",
+  "tags": []
+}
