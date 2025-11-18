@@ -59,6 +59,7 @@ export default function MessageInput({
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const dataRequestIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
   const recordingFormatRef = useRef<(typeof AUDIO_MIME_OPTIONS)[number] | null>(null)
   const attachmentsRef = useRef<HTMLDivElement>(null)
@@ -179,6 +180,9 @@ export default function MessageInput({
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current)
       }
+      if (dataRequestIntervalRef.current) {
+        clearInterval(dataRequestIntervalRef.current)
+      }
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop())
       }
@@ -291,10 +295,16 @@ export default function MessageInput({
         if (recordingIntervalRef.current) {
           clearInterval(recordingIntervalRef.current)
         }
+        
+        if (dataRequestIntervalRef.current) {
+          clearInterval(dataRequestIntervalRef.current)
+          dataRequestIntervalRef.current = null
+        }
 
         if (recordedChunksRef.current.length === 0) {
           console.error('❌ Nenhum chunk de áudio foi capturado')
-          setRecordingError('Falha ao capturar áudio. Tente novamente.')
+          console.error('💡 Dica: Verifique se o microfone está funcionando e se o volume está alto')
+          setRecordingError('Falha ao capturar áudio. Verifique o volume do microfone.')
           mediaRecorder.stream.getTracks().forEach((track) => track.stop())
           setIsRecording(false)
           setRecordingTime(0)
@@ -331,12 +341,20 @@ export default function MessageInput({
 
       mediaRecorderRef.current = mediaRecorder
       
-      // VOLTAR AO TIMESLICE que funcionava antes
-      console.log('🚀 Iniciando gravação com timeslice de 1000ms...')
-      mediaRecorder.start(1000)
+      // Iniciar gravação e forçar coleta periódica
+      console.log('🚀 Iniciando gravação...')
+      mediaRecorder.start()
       
       console.log('✅ Gravação iniciada com formato:', formatToUse.mime)
       console.log('📊 Estado do MediaRecorder:', mediaRecorder.state)
+      
+      // Forçar requestData a cada 1 segundo para garantir captura
+      dataRequestIntervalRef.current = setInterval(() => {
+        if (mediaRecorder.state === 'recording') {
+          console.log('📡 Solicitando dados do MediaRecorder...')
+          mediaRecorder.requestData()
+        }
+      }, 1000)
       
       setRecordingError(null)
       setIsRecording(true)
@@ -367,6 +385,12 @@ export default function MessageInput({
       setRecordingError(errorMessage)
       setIsRecording(false)
       recordingFormatRef.current = null
+      
+      if (dataRequestIntervalRef.current) {
+        clearInterval(dataRequestIntervalRef.current)
+        dataRequestIntervalRef.current = null
+      }
+      
       mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop())
     }
   }

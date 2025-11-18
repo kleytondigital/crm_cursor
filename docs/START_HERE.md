@@ -69,8 +69,8 @@
 ## 📚 Documentação Completa
 
 ### Áudio:
-- `docs/AUDIO_FIX_V3_FINAL.md` - ⭐ Versão FINAL que funciona!
-- `docs/TESTE_AUDIO_RAPIDO.md` - Teste rápido
+- `docs/AUDIO_FIX_V4_FINAL_REQUESTDATA.md` - ⭐ **Versão DEFINITIVA v4** (RequestData forçado)
+- `docs/TESTE_AUDIO_RAPIDO.md` - Teste rápido (2 min)
 
 ### Mensagens:
 - `docs/README_FIX_DUPLICACAO.md` - ⭐ Guia rápido
