@@ -209,12 +209,6 @@ export default function MessageInput({
   const handleAudioRecord = async () => {
     try {
       if (isRecording) {
-        // Solicitar último chunk antes de parar
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.requestData()
-          // Aguardar um pouco para garantir que o evento ondataavailable seja disparado
-          await new Promise(resolve => setTimeout(resolve, 100))
-        }
         mediaRecorderRef.current?.stop()
         return
       }
@@ -262,19 +256,10 @@ export default function MessageInput({
         return
       }
 
-      // Criar MediaRecorder com configurações mais compatíveis
-      let mediaRecorder: MediaRecorder
-      try {
-        mediaRecorder = new MediaRecorder(stream, { 
-          mimeType: formatToUse.mime,
-        })
-      } catch (e) {
-        console.warn('⚠️ Erro ao criar MediaRecorder com bitrate, tentando sem:', e)
-        // Fallback: tentar sem especificar bitrate
-        mediaRecorder = new MediaRecorder(stream, { 
-          mimeType: formatToUse.mime,
-        })
-      }
+      // Criar MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: formatToUse.mime,
+      })
 
       recordedChunksRef.current = []
       recordingFormatRef.current = formatToUse
@@ -346,9 +331,9 @@ export default function MessageInput({
 
       mediaRecorderRef.current = mediaRecorder
       
-      // Iniciar gravação SEM timeslice para maior compatibilidade
-      console.log('🚀 Iniciando gravação...')
-      mediaRecorder.start()
+      // VOLTAR AO TIMESLICE que funcionava antes
+      console.log('🚀 Iniciando gravação com timeslice de 1000ms...')
+      mediaRecorder.start(1000)
       
       console.log('✅ Gravação iniciada com formato:', formatToUse.mime)
       console.log('📊 Estado do MediaRecorder:', mediaRecorder.state)
