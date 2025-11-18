@@ -22,9 +22,14 @@ else
   exit 1
 fi
 
-# Gerar Prisma Client (caso não tenha sido gerado)
-echo "🔧 Generating Prisma Client..."
-npx prisma generate
+# Prisma Client já foi gerado durante o build
+# Apenas verificar se existe e está atualizado
+if [ ! -d "/app/node_modules/.prisma/client" ]; then
+  echo "⚠️  Prisma Client não encontrado, gerando..."
+  npx prisma generate
+else
+  echo "✅ Prisma Client já está disponível"
+fi
 
 # Verificar status das migrations
 echo "📊 Migration status:"

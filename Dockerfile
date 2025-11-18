@@ -83,9 +83,10 @@ COPY --from=builder /app/prisma/seed.js ./prisma/seed.js
 # Copiar script de entrypoint
 COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Criar diretório para uploads com permissões corretas (antes de mudar usuário)
+# Criar diretórios necessários e ajustar permissões (antes de mudar usuário)
 RUN mkdir -p /app/uploads && \
-    chmod +x /app/docker-entrypoint.sh
+    chmod +x /app/docker-entrypoint.sh && \
+    chown -R nestjs:nodejs /app/node_modules/.prisma /app/uploads 2>/dev/null || true
 
 # Mudar para usuário não-root
 USER nestjs
