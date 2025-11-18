@@ -16,19 +16,19 @@ export default function ConfigureTemplateModal({
   onClose,
   onSuccess,
 }: ConfigureTemplateModalProps) {
+  // Inicializar config com valores padrão do template
+  const initialConfig = (() => {
+    const config: Record<string, any> = {}
+    Object.entries(template.variables || {}).forEach(([varName, varConfig]: [string, any]) => {
+      config[varName] = varConfig.default || ''
+    })
+    return config
+  })()
+
   const [name, setName] = useState('')
-  const [config, setConfig] = useState<Record<string, any>>({})
+  const [config, setConfig] = useState<Record<string, any>>(initialConfig)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  // Inicializar config com valores padrão
-  useState(() => {
-    const initialConfig: Record<string, any> = {}
-    Object.entries(template.variables || {}).forEach(([varName, varConfig]: [string, any]) => {
-      initialConfig[varName] = varConfig.default || ''
-    })
-    setConfig(initialConfig)
-  })
 
   const handleVariableChange = (varName: string, value: any) => {
     setConfig((prev) => ({
