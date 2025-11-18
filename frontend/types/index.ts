@@ -8,6 +8,8 @@ export interface MessageEditHistory {
   tenantId: string
 }
 
+export type MessageStatus = 'sending' | 'sent' | 'error'
+
 export interface Message {
   id: string
   conversationId: string
@@ -22,6 +24,8 @@ export interface Message {
   direction?: 'INCOMING' | 'OUTGOING'
   timestamp?: string
   messageId?: string | null
+  tempId?: string | null // ID temporário para correlacionar mensagem otimista com mensagem do servidor
+  status?: MessageStatus // Status de envio da mensagem (apenas para mensagens otimistas)
   reply?: boolean
   replyText?: string | null
   replyMessageId?: string | null

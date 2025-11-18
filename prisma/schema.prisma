@@ -146,6 +146,7 @@ model Message {
   longitude      Float?
   direction      MessageDirection @default(INCOMING)
   messageId      String?          @unique
+  tempId         String?          // ID temporário para correlacionar mensagem otimista com mensagem do servidor
   timestamp      DateTime?
   tenantId       String
   createdAt      DateTime         @default(now())

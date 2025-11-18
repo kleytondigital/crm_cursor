@@ -34,6 +34,10 @@ export class CreateMessageDto {
   @IsString()
   @IsIn(['reply', 'edit', 'delete'])
   action?: string; // action para o webhook (reply, edit, delete)
+
+  @IsOptional()
+  @IsString()
+  tempId?: string; // ID temporário para correlacionar mensagem otimista com mensagem do servidor
 }
 
 export class EditMessageDto {

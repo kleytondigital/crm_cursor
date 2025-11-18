@@ -3,7 +3,7 @@
 import { Message, Conversation } from '@/types'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
-import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply, MoreVertical, Edit2, Trash2 } from 'lucide-react'
+import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply, MoreVertical, Edit2, Trash2, Clock, AlertCircle, Check } from 'lucide-react'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import AudioPlayer from './AudioPlayer'
 
@@ -79,10 +79,30 @@ export default function MessageBubble({
 
   const timeLabel = formatTime(message.timestamp || message.createdAt)
 
+  // Renderizar ícone de status baseado no estado da mensagem
+  const renderStatusIcon = () => {
+    if (!isUser) return null
+
+    // Se a mensagem tem status definido (otimista), usar esse status
+    if (message.status) {
+      switch (message.status) {
+        case 'sending':
+          return <Clock className="h-3.5 w-3.5 text-gray-400 animate-pulse" />
+        case 'error':
+          return <AlertCircle className="h-3.5 w-3.5 text-red-500" title="Falha ao enviar" />
+        case 'sent':
+          return <Check className="h-3.5 w-3.5 text-gray-400" />
+      }
+    }
+
+    // Se não tem status (mensagem confirmada do servidor), mostrar double check
+    return <CheckCheck className="h-4 w-4 text-brand-primary" />
+  }
+
   const metaInfo = (
     <div className="flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap">
-      <span>{timeLabel}</span>
-      {isUser && <CheckCheck className="h-4 w-4 text-brand-primary" />}
+      <span className={message.status === 'error' ? 'text-red-500' : ''}>{timeLabel}</span>
+      {renderStatusIcon()}
     </div>
   )
 
@@ -108,13 +128,22 @@ export default function MessageBubble({
                 <Image className="h-10 w-10 text-text-muted" />
               </div>
             ) : (
-              <img
-                src={resolveUrl || ''}
-                alt="Imagem"
-                onError={() => setImageError(true)}
-                className="h-auto w-full max-w-[220px] cursor-pointer rounded-xl border border-white/10 object-cover"
-                onClick={() => resolveUrl && window.open(resolveUrl, '_blank')}
-              />
+              <div className="relative">
+                <img
+                  src={resolveUrl || ''}
+                  alt="Imagem"
+                  onError={() => setImageError(true)}
+                  className={`h-auto w-full max-w-[220px] cursor-pointer rounded-xl border border-white/10 object-cover ${
+                    message.status === 'sending' ? 'opacity-60' : ''
+                  }`}
+                  onClick={() => resolveUrl && window.open(resolveUrl, '_blank')}
+                />
+                {message.status === 'sending' && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )
@@ -136,18 +165,23 @@ export default function MessageBubble({
         const profilePictureURL = !isUser ? (leadProfilePicture || null) : null
         
         return (
-          <div className="flex w-full max-w-[320px]">
+          <div className="flex w-full max-w-[320px] relative">
             <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
               isUser 
                 ? 'bg-blue-500' 
                 : 'bg-white dark:bg-gray-800'
-            }`}>
+            } ${message.status === 'sending' ? 'opacity-60' : ''}`}>
               <AudioPlayer
                 src={resolveUrl}
                 profilePictureURL={profilePictureURL || undefined}
                 className="w-full"
               />
             </div>
+            {message.status === 'sending' && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              </div>
+            )}
           </div>
         )
 
@@ -165,7 +199,9 @@ export default function MessageBubble({
             <div className="relative">
               <video 
                 controls 
-                className="h-auto w-full max-w-full rounded-lg"
+                className={`h-auto w-full max-w-full rounded-lg ${
+                  message.status === 'sending' ? 'opacity-60' : ''
+                }`}
                 preload="metadata"
                 onError={(e) => {
                   console.error('Erro ao carregar vídeo:', resolveUrl, e)
@@ -186,6 +222,11 @@ export default function MessageBubble({
                 <source src={resolveUrl} />
                 Seu navegador não suporta vídeo.
               </video>
+              {message.status === 'sending' && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                </div>
+              )}
             </div>
             <a
               href={resolveUrl}
@@ -213,23 +254,32 @@ export default function MessageBubble({
 
       case 'DOCUMENT':
         return (
-          <div className="flex w-full max-w-[240px] items-center gap-3 rounded-xl border border-white/10 bg-background-soft/70 px-3 py-3">
-            <File className="h-8 w-8 flex-shrink-0 text-brand-secondary" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">
-                {message.contentText || 'Documento'}
-              </p>
-              {resolveUrl && (
-                <a
-                  href={resolveUrl}
-                  download
-                  className="mt-1 flex items-center gap-1 text-xs text-brand-secondary hover:underline"
-                >
-                  <Download className="h-3 w-3" />
-                  <span>Baixar arquivo</span>
-                </a>
-              )}
+          <div className="relative">
+            <div className={`flex w-full max-w-[240px] items-center gap-3 rounded-xl border border-white/10 bg-background-soft/70 px-3 py-3 ${
+              message.status === 'sending' ? 'opacity-60' : ''
+            }`}>
+              <File className="h-8 w-8 flex-shrink-0 text-brand-secondary" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">
+                  {message.contentText || 'Documento'}
+                </p>
+                {resolveUrl && (
+                  <a
+                    href={resolveUrl}
+                    download
+                    className="mt-1 flex items-center gap-1 text-xs text-brand-secondary hover:underline"
+                  >
+                    <Download className="h-3 w-3" />
+                    <span>Baixar arquivo</span>
+                  </a>
+                )}
+              </div>
             </div>
+            {message.status === 'sending' && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              </div>
+            )}
           </div>
         )
 
@@ -516,6 +566,14 @@ export default function MessageBubble({
           {renderContent()}
           {message.contentType !== 'TEXT' && (
             <div className="flex justify-end">{metaInfo}</div>
+          )}
+          
+          {/* Indicador de erro ao enviar */}
+          {message.status === 'error' && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-red-400 border-t border-red-500/20 pt-2">
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>Falha ao enviar mensagem</span>
+            </div>
           )}
         </div>
       </div>

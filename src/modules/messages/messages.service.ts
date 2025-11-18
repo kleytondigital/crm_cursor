@@ -128,6 +128,7 @@ export class MessagesService {
         contentType: createMessageDto.contentType,
         contentUrl: createMessageDto.contentUrl,
         contentText: createMessageDto.contentText,
+        tempId: createMessageDto.tempId, // Armazenar tempId para correlação posterior
         tenantId: tenantId,
         connectionId: connection?.id ?? undefined,
         leadId: conversation.leadId,

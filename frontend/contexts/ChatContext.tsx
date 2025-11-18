@@ -108,6 +108,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // Buscar mensagem otimista correspondente
           const optimisticIndex = prev.findIndex(
             (item) => {
+              // PRIORIDADE 1: Verificar pelo tempId (mais confiável)
+              if (message.tempId && item.tempId === message.tempId) {
+                console.log('[ChatContext] Mensagem otimista encontrada por tempId (handleNewMessage):', {
+                  tempId: message.tempId,
+                  optimisticId: item.id,
+                  realId: message.id,
+                })
+                return true
+              }
+              
+              // PRIORIDADE 2: Verificação por conteúdo (fallback para compatibilidade)
               // Mensagem otimista não tem messageId (é gerada localmente antes de ser salva no servidor)
               // E não tem o mesmo ID interno (otimista tem UUID gerado localmente)
               const isOptimistic = !item.messageId && 
@@ -129,7 +140,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                                   (item.replyMessageId === message.replyMessageId)
                 
                 if (textMatch && timeMatch && senderMatch && replyMatch) {
-                  console.log('[ChatContext] Mensagem otimista encontrada (handleNewMessage):', {
+                  console.log('[ChatContext] Mensagem otimista encontrada por conteúdo (handleNewMessage):', {
                     optimisticId: item.id,
                     realId: message.id,
                     text: message.contentText?.substring(0, 30),
@@ -283,6 +294,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // Buscar mensagem otimista correspondente
           const optimisticIndex = prev.findIndex(
             (item) => {
+              // PRIORIDADE 1: Verificar pelo tempId (mais confiável)
+              if (data.message.tempId && item.tempId === data.message.tempId) {
+                console.log('[ChatContext] Mensagem otimista encontrada por tempId (handleMessageSent):', {
+                  tempId: data.message.tempId,
+                  optimisticId: item.id,
+                  realId: data.message.id,
+                })
+                return true
+              }
+              
+              // PRIORIDADE 2: Verificação por conteúdo (fallback para compatibilidade)
               // Mensagem otimista não tem messageId (é gerada localmente antes de ser salva no servidor)
               // E não tem o mesmo ID interno (otimista tem UUID gerado localmente)
               const isOptimistic = !item.messageId && 
@@ -304,7 +326,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                                   (item.replyMessageId === data.message.replyMessageId)
                 
                 if (textMatch && timeMatch && senderMatch && replyMatch) {
-                  console.log('[ChatContext] Mensagem otimista encontrada (handleMessageSent):', {
+                  console.log('[ChatContext] Mensagem otimista encontrada por conteúdo (handleMessageSent):', {
                     optimisticId: item.id,
                     realId: data.message.id,
                     text: data.message.contentText?.substring(0, 30),
@@ -560,30 +582,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Criar mensagem otimista apenas para mensagens de texto (mídia será adicionada quando o upload terminar)
+        // Criar mensagem otimista com status 'sending'
         // Para mídia, a mensagem otimista será criada após o upload ou quando chegar via WebSocket
-        let optimisticId: string | null = null
-        if (contentType === 'TEXT' || !file) {
-          optimisticId = crypto.randomUUID()
-          const optimisticMessage: Message = {
-            id: optimisticId,
-            conversationId: selectedConversation.id,
-            senderType: 'USER' as const,
-            contentType,
-            contentText,
-            contentUrl,
-            tenantId: selectedConversation.tenantId,
-            createdAt: new Date().toISOString(),
-            timestamp: new Date().toISOString(),
-            direction: 'OUTGOING' as const,
-            sender: undefined,
-            reply: !!replyTo,
-            replyMessageId: replyMessageId,
-            replyText: replyText,
-          }
-
-          setMessages((prev) => [...prev, optimisticMessage])
+        let tempId: string | null = null
+        tempId = crypto.randomUUID()
+        const optimisticMessage: Message = {
+          id: tempId,
+          conversationId: selectedConversation.id,
+          senderType: 'USER' as const,
+          contentType,
+          contentText,
+          contentUrl,
+          tenantId: selectedConversation.tenantId,
+          createdAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          direction: 'OUTGOING' as const,
+          sender: undefined,
+          reply: !!replyTo,
+          replyMessageId: replyMessageId,
+          replyText: replyText,
+          tempId, // Adicionar tempId para identificação posterior
+          status: 'sending', // Status inicial: enviando
         }
+
+        setMessages((prev) => [...prev, optimisticMessage])
 
         // Enviar mensagem via API REST
         // A mensagem será emitida via WebSocket pelo backend quando for processada
@@ -597,11 +619,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             contentUrl,
             replyTo: replyTo,
             action: action,
+            tempId: tempId, // Enviar tempId para o backend
           })
         } catch (err) {
-          // Se houver erro, remover mensagem otimista
-          if (optimisticId) {
-            setMessages((prev) => prev.filter((item) => item.id !== optimisticId))
+          // Se houver erro, marcar mensagem como erro ao invés de remover
+          if (tempId) {
+            setMessages((prev) => 
+              prev.map((item) => 
+                item.id === tempId 
+                  ? { ...item, status: 'error' as const }
+                  : item
+              )
+            )
           }
           throw err
         }
