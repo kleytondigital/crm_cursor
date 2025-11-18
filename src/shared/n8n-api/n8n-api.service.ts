@@ -351,6 +351,38 @@ export class N8nApiService {
   }
 
   /**
+   * Método genérico para fazer POST em qualquer webhook/URL do n8n
+   * Usado para enviar mensagens, notificações, etc.
+   */
+  async postToUrl(url: string, payload: any): Promise<any> {
+    try {
+      this.logger.log(`Enviando POST para webhook: ${url}`);
+      this.logger.debug(`Payload: ${JSON.stringify(payload).substring(0, 200)}...`);
+
+      const response = await this.client.post(url, payload);
+
+      this.logger.log(`Webhook respondeu com status: ${response.status}`);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(
+        `Erro ao enviar POST para webhook ${url}: ${error.message}`,
+        error.stack,
+      );
+
+      // Se for erro de rede ou timeout, logar detalhes
+      if (error.code === 'ECONNREFUSED') {
+        this.logger.error(`Conexão recusada para ${url}. Verifique se o n8n está rodando.`);
+      } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+        this.logger.error(`Timeout ao chamar ${url}. Webhook demorou mais de ${this.timeout}ms.`);
+      }
+
+      // Não fazer throw para não quebrar o fluxo da aplicação
+      // O webhook é best-effort
+      return null;
+    }
+  }
+
+  /**
    * Helper para sleep (usado no retry)
    */
   private sleep(ms: number): Promise<void> {
