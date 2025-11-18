@@ -16,9 +16,12 @@ export async function apiRequest<T = any>(
   
   const url = `${API_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
   
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+  }
+
+  if (options.headers) {
+    Object.assign(headers, options.headers)
   }
 
   if (token) {
@@ -85,6 +88,10 @@ export const schedulerAPI = {
     authFetch(`/scheduler/campaigns/${id}`, {
       method: 'DELETE',
     }),
+  removeCampaign: (id: string) =>
+    authFetch(`/scheduler/campaigns/${id}`, {
+      method: 'DELETE',
+    }),
   runCampaign: (id: string) =>
     authFetch(`/scheduler/campaigns/${id}/run`, {
       method: 'POST',
@@ -93,10 +100,20 @@ export const schedulerAPI = {
     authFetch(`/scheduler/campaigns/${id}/cancel`, {
       method: 'POST',
     }),
-  getScheduledMessages: () => authFetch('/scheduler/scheduled'),
+  getScheduledMessages: (leadId?: string) =>
+    authFetch(leadId ? `/scheduler/scheduled?leadId=${leadId}` : '/scheduler/scheduled'),
   cancelScheduledMessage: (id: string) =>
     authFetch(`/scheduler/scheduled/${id}`, {
       method: 'DELETE',
+    }),
+  cancel: (id: string) =>
+    authFetch(`/scheduler/scheduled/${id}`, {
+      method: 'DELETE',
+    }),
+  schedule: (data: any) =>
+    authFetch('/scheduler/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 }
 
@@ -117,6 +134,10 @@ export const connectionsAPI = {
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
+    authFetch(`/connections/${id}`, {
+      method: 'DELETE',
+    }),
+  remove: (id: string) =>
     authFetch(`/connections/${id}`, {
       method: 'DELETE',
     }),
@@ -142,10 +163,19 @@ export const leadsAPI = {
     authFetch(`/leads/${id}`, {
       method: 'DELETE',
     }),
+  remove: (id: string) =>
+    authFetch(`/leads/${id}`, {
+      method: 'DELETE',
+    }),
   updateStage: (id: string, stageId: string) =>
     authFetch(`/leads/${id}/stage`, {
       method: 'PATCH',
       body: JSON.stringify({ stageId }),
+    }),
+  updateStatus: (id: string, status: string) =>
+    authFetch(`/leads/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 }
 
@@ -165,9 +195,46 @@ export const messagesAPI = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  delete: (id: string) =>
+  edit: (data: any) =>
+    authFetch('/messages/edit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (data: any) => {
+    // Se for string, é o ID interno
+    if (typeof data === 'string') {
+      return authFetch(`/messages/${data}`, {
+        method: 'DELETE',
+      })
+    }
+    // Se for objeto, é uma deleção de mensagem do WhatsApp
+    return authFetch('/messages/delete', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+  remove: (id: string) =>
     authFetch(`/messages/${id}`, {
       method: 'DELETE',
+    }),
+  upload: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_URL}/messages/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    })
+    if (!response.ok) throw new Error('Upload failed')
+    return response.json()
+  },
+  send: (data: any) =>
+    authFetch('/messages/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 }
 
@@ -186,6 +253,10 @@ export const conversationsAPI = {
     authFetch(`/conversations/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+  remove: (id: string) =>
+    authFetch(`/conversations/${id}`, {
+      method: 'DELETE',
     }),
   markAsRead: (id: string) =>
     authFetch(`/conversations/${id}/read`, {
@@ -213,6 +284,10 @@ export const usersAPI = {
     authFetch(`/users/${id}`, {
       method: 'DELETE',
     }),
+  remove: (id: string) =>
+    authFetch(`/users/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 // ============================================
@@ -235,6 +310,10 @@ export const companiesAPI = {
     authFetch(`/companies/${id}`, {
       method: 'DELETE',
     }),
+  remove: (id: string) =>
+    authFetch(`/companies/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 // ============================================
@@ -242,6 +321,7 @@ export const companiesAPI = {
 // ============================================
 export const departmentsAPI = {
   getAll: () => authFetch('/departments'),
+  list: () => authFetch('/departments'),
   getById: (id: string) => authFetch(`/departments/${id}`),
   create: (data: any) =>
     authFetch('/departments', {
@@ -257,14 +337,36 @@ export const departmentsAPI = {
     authFetch(`/departments/${id}`, {
       method: 'DELETE',
     }),
+  remove: (id: string) =>
+    authFetch(`/departments/${id}`, {
+      method: 'DELETE',
+    }),
+  addUser: (departmentId: string, data: any) =>
+    authFetch(`/departments/${departmentId}/users`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  removeUser: (departmentId: string, userId: string) =>
+    authFetch(`/departments/${departmentId}/users/${userId}`, {
+      method: 'DELETE',
+    }),
 }
 
 // ============================================
 // ATTENDANCES API
 // ============================================
 export const attendancesAPI = {
-  getAll: () => authFetch('/attendances'),
+  getAll: (params?: string | Record<string, string>) => {
+    if (!params) return authFetch('/attendances')
+    const queryString = typeof params === 'string' 
+      ? params 
+      : new URLSearchParams(params).toString()
+    return authFetch(`/attendances?${queryString}`)
+  },
   getById: (id: string) => authFetch(`/attendances/${id}`),
+  getByLeadId: (leadId: string) => authFetch(`/attendances/lead/${leadId}`),
+  getStats: () => authFetch('/attendances/stats'),
+  getSmartQueue: () => authFetch('/attendances/smart-queue'),
   create: (data: any) =>
     authFetch('/attendances', {
       method: 'POST',
@@ -274,6 +376,14 @@ export const attendancesAPI = {
     authFetch(`/attendances/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    authFetch(`/attendances/${id}`, {
+      method: 'DELETE',
+    }),
+  remove: (id: string) =>
+    authFetch(`/attendances/${id}`, {
+      method: 'DELETE',
     }),
   close: (id: string, data: any) =>
     authFetch(`/attendances/${id}/close`, {
@@ -289,6 +399,20 @@ export const attendancesAPI = {
     authFetch(`/attendances/${id}/priority`, {
       method: 'PATCH',
       body: JSON.stringify({ priority }),
+    }),
+  updatePriority: (id: string, priority: string) =>
+    authFetch(`/attendances/${id}/priority`, {
+      method: 'PATCH',
+      body: JSON.stringify({ priority }),
+    }),
+  claim: (id: string, data?: any) =>
+    authFetch(`/attendances/${id}/claim`, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+  syncLeadsWithAttendances: () =>
+    authFetch('/attendances/sync-leads', {
+      method: 'POST',
     }),
 }
 
