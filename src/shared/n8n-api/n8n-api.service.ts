@@ -172,6 +172,13 @@ export class N8nApiService {
   }
 
   /**
+   * Construir URL do webhook a partir de um path
+   */
+  buildWebhookUrl(webhookPath: string): string {
+    return `${this.n8nUrl}/webhook/${webhookPath}`;
+  }
+
+  /**
    * Substituir variáveis em um workflow JSON
    * Ex: {{systemPrompt}} -> valor real
    */

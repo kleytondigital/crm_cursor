@@ -11,6 +11,11 @@ import { UpdateWorkflowTemplateDto } from './dto/update-template.dto';
 import { CreateWorkflowInstanceDto } from './dto/create-instance.dto';
 import { UpdateWorkflowInstanceDto } from './dto/update-instance.dto';
 import { UserRole } from '@prisma/client';
+import {
+  processWorkflowTemplate,
+  generateUniqueWebhookPath,
+  validateRequiredVariables,
+} from './helpers/variable-replacer';
 
 interface AuthContext {
   userId: string;
@@ -165,28 +170,43 @@ export class WorkflowTemplatesService {
     dto: CreateWorkflowInstanceDto,
     context: AuthContext,
   ) {
-    // Buscar template
+    // 1. Buscar template
     const template = await this.findOneTemplate(templateId, context);
 
-    // Validar que todas as variáveis obrigatórias foram fornecidas
-    this.validateVariables(template.variables, dto.config);
-
-    // Substituir variáveis no workflow
-    const workflowData = this.n8nApiService.replaceVariables(
-      template.n8nWorkflowData,
+    // 2. Validar variáveis obrigatórias
+    const validation = validateRequiredVariables(
+      template.variables as Record<string, any>,
       dto.config,
     );
 
-    // Adicionar nome personalizado ao workflow
-    workflowData.name = dto.name;
+    if (!validation.valid) {
+      throw new BadRequestException(
+        `Campos obrigatórios faltando: ${validation.missingFields.join(', ')}`,
+      );
+    }
 
-    // Criar workflow no n8n
-    const n8nWorkflow = await this.n8nApiService.createWorkflow(workflowData);
+    // 3. Gerar novo UUID para webhook path
+    const newWebhookPath = generateUniqueWebhookPath();
 
-    // Extrair URL do webhook se existir
-    const webhookUrl = this.n8nApiService.extractWebhookUrl(n8nWorkflow);
+    // 4. Processar workflow: substituir variáveis e webhook path
+    const processedWorkflowData = processWorkflowTemplate(
+      template.n8nWorkflowData,
+      dto.config,
+      newWebhookPath,
+    );
 
-    // Criar instância no banco
+    // 5. Adicionar nome personalizado ao workflow
+    processedWorkflowData.name = dto.name;
+
+    // 6. Criar workflow no n8n
+    const n8nWorkflow = await this.n8nApiService.createWorkflow(
+      processedWorkflowData,
+    );
+
+    // 7. Construir URL do webhook
+    const webhookUrl = this.n8nApiService.buildWebhookUrl(newWebhookPath);
+
+    // 8. Criar instância no banco
     const instance = await this.prisma.workflowInstance.create({
       data: {
         templateId: template.id,
@@ -196,15 +216,15 @@ export class WorkflowTemplatesService {
         config: dto.config,
         aiAgentId: dto.aiAgentId,
         tenantId: context.tenantId,
-        isActive: false, // Inicia desativado
+        isActive: false, // Inicia desativado, será ativado manualmente
+      },
+      include: {
+        template: true,
+        aiAgent: true,
       },
     });
 
-    return {
-      ...instance,
-      n8nWorkflowId: n8nWorkflow.id,
-      webhookUrl,
-    };
+    return instance;
   }
 
   /**
@@ -360,18 +380,5 @@ export class WorkflowTemplatesService {
 
   // ============= HELPERS =============
 
-  private validateVariables(variablesDef: any, config: any): void {
-    const requiredVars = Object.keys(variablesDef).filter(
-      (key) => variablesDef[key].required === true,
-    );
-
-    const missingVars = requiredVars.filter((key) => !config[key]);
-
-    if (missingVars.length > 0) {
-      throw new BadRequestException(
-        `Variáveis obrigatórias faltando: ${missingVars.join(', ')}`,
-      );
-    }
-  }
 }
 

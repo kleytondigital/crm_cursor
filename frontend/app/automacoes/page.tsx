@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import ConfigureTemplateModal from '@/components/admin/ConfigureTemplateModal'
 
 interface WorkflowTemplate {
   id: string
@@ -43,6 +44,8 @@ export default function AutomacoesPage() {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
   const [instances, setInstances] = useState<WorkflowInstance[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
+  const [showConfigureModal, setShowConfigureModal] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -103,6 +106,18 @@ export default function AutomacoesPage() {
       console.error('Erro ao remover:', error)
       alert('Erro ao remover automação')
     }
+  }
+
+  const handleConfigureTemplate = (template: WorkflowTemplate) => {
+    setSelectedTemplate(template)
+    setShowConfigureModal(true)
+  }
+
+  const handleConfigureSuccess = () => {
+    loadData()
+    setShowConfigureModal(false)
+    setSelectedTemplate(null)
+    setView('instances')
   }
 
   if (!mounted || !token) {
@@ -286,7 +301,7 @@ export default function AutomacoesPage() {
 
                 <Button
                   className="w-full gap-2 bg-brand-primary text-white"
-                  onClick={() => alert('Configuração será implementada')}
+                  onClick={() => handleConfigureTemplate(template)}
                 >
                   <Plus className="h-4 w-4" />
                   Usar Template
@@ -310,6 +325,18 @@ export default function AutomacoesPage() {
       </main>
 
       <Footer />
+
+      {/* Modal de Configuração */}
+      {showConfigureModal && selectedTemplate && (
+        <ConfigureTemplateModal
+          template={selectedTemplate}
+          onClose={() => {
+            setShowConfigureModal(false)
+            setSelectedTemplate(null)
+          }}
+          onSuccess={handleConfigureSuccess}
+        />
+      )}
     </div>
   )
 }
