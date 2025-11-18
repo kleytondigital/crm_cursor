@@ -1,0 +1,246 @@
+{
+  "name": "CRM - Send Message Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair e validar dados do payload\nconst input = $input.item.json;\n\nconst tempId = input.tempId;\nconst session = input.session;\nconst phone = input.phone;\nconst type = input.type;\nconst text = input.text;\nconst url = input.url;\nconst mimetype = input.mimetype;\nconst filename = input.filename;\nconst action = input.action;\nconst replyTo = input.replyTo;\n\n// Validações\nif (!session) throw new Error('session é obrigatório');\nif (!phone) throw new Error('phone é obrigatório');\nif (!type) throw new Error('type é obrigatório');\nif (!tempId) throw new Error('tempId é obrigatório');\n\n// Retornar dados extraídos\nreturn {\n  json: {\n    tempId,\n    session,\n    phone,\n    type,\n    text,\n    url,\n    mimetype,\n    filename,\n    action,\n    replyTo\n  }\n};"
+      },
+      "id": "extract-data",
+      "name": "Extract & Validate Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.type}}",
+              "operation": "equals",
+              "value2": "text"
+            }
+          ]
+        }
+      },
+      "id": "check-type",
+      "name": "Check Message Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.WAHA_URL}}/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"session\": \"{{$json.session}}\",\n  \"chatId\": \"{{$json.phone}}@c.us\",\n  \"text\": \"{{$json.text}}\",\n  \"reply_to\": {{$json.replyTo ? '\"' + $json.replyTo + '\"' : 'null'}}\n}",
+        "options": {}
+      },
+      "id": "send-text",
+      "name": "WAHA - Send Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.WAHA_URL}}/api/sendFile",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"session\": \"{{$json.session}}\",\n  \"chatId\": \"{{$json.phone}}@c.us\",\n  \"file\": {\n    \"url\": \"{{$json.url}}\",\n    \"mimetype\": \"{{$json.mimetype}}\",\n    \"filename\": \"{{$json.filename}}\"\n  },\n  \"reply_to\": {{$json.replyTo ? '\"' + $json.replyTo + '\"' : 'null'}}\n}",
+        "options": {}
+      },
+      "id": "send-file",
+      "name": "WAHA - Send File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obter resposta do WAHA e tempId armazenado\nconst wahaResponse = $input.item.json;\nconst extractedData = $node[\"Extract & Validate Data\"].json;\n\n// Construir payload de resposta para o CRM\nconst crmPayload = {\n  event: 'message.sent',\n  session: extractedData.session,\n  payload: {\n    id: wahaResponse.id,\n    timestamp: wahaResponse.timestamp || Math.floor(Date.now() / 1000),\n    from: wahaResponse.from,\n    to: wahaResponse.to || `${extractedData.phone}@c.us`,\n    fromMe: true,\n    body: extractedData.text || '',\n    type: wahaResponse.type || 'chat',\n    hasMedia: ['image', 'audio', 'video', 'document'].includes(extractedData.type),\n    tempId: extractedData.tempId, // ← CRUCIAL!\n    \n    // Campos opcionais de mídia\n    ...(extractedData.url && {\n      mediaUrl: extractedData.url,\n      mimetype: extractedData.mimetype,\n      filename: extractedData.filename\n    }),\n    \n    // Campos opcionais de resposta\n    ...(wahaResponse.quotedMsg && {\n      quotedMsg: wahaResponse.quotedMsg\n    })\n  }\n};\n\nreturn { json: crmPayload };"
+      },
+      "id": "build-response",
+      "name": "Build CRM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CRM_WEBHOOK_URL}}/webhooks/waha",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-to-crm",
+      "name": "Send to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"tempId\": \"{{$node[\"Extract & Validate Data\"].json.tempId}}\" }",
+        "options": {}
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tratar erro e enviar resposta de erro para o CRM\nconst extractedData = $node[\"Extract & Validate Data\"].json;\nconst error = $input.all()[0].error;\n\nconst errorPayload = {\n  event: 'message.error',\n  session: extractedData.session,\n  payload: {\n    tempId: extractedData.tempId,\n    error: {\n      code: 'SEND_ERROR',\n      message: error.message || 'Erro ao enviar mensagem',\n      details: error.description || ''\n    }\n  }\n};\n\nreturn { json: errorPayload };"
+      },
+      "id": "handle-error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CRM_WEBHOOK_URL}}/webhooks/waha",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-error-to-crm",
+      "name": "Send Error to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract & Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Check Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Message Type": {
+      "main": [
+        [
+          {
+            "node": "WAHA - Send Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WAHA - Send File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WAHA - Send Text": {
+      "main": [
+        [
+          {
+            "node": "Build CRM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WAHA - Send File": {
+      "main": [
+        [
+          {
+            "node": "Build CRM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build CRM Response": {
+      "main": [
+        [
+          {
+            "node": "Send to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to CRM": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Error": {
+      "main": [
+        [
+          {
+            "node": "Send Error to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-18T00:00:00.000Z",
+  "versionId": "1"
+}
+

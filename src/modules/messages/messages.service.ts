@@ -157,10 +157,10 @@ export class MessagesService {
     });
 
     if (createMessageDto.senderType === SenderType.USER) {
-      // Passar replyTo e action para o forwardMessageToN8n
+      // Passar replyTo, action e tempId para o forwardMessageToN8n
       // Se action não foi especificado mas temos replyTo, assumir action=reply
       const action = createMessageDto.action || (createMessageDto.replyTo ? 'reply' : undefined);
-      await this.forwardMessageToN8n(message, connection ?? null, createMessageDto.replyTo, action);
+      await this.forwardMessageToN8n(message, connection ?? null, createMessageDto.replyTo, action, createMessageDto.tempId);
     }
 
     this.handleAttendanceSync(
@@ -408,7 +408,7 @@ export class MessagesService {
     return parts[parts.length - 1] || undefined;
   }
 
-  private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null, replyTo?: string, action?: string) {
+  private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null, replyTo?: string, action?: string, tempId?: string) {
     try {
       if (!connection?.sessionName) {
         this.logger.warn(
@@ -449,6 +449,7 @@ export class MessagesService {
           message.contentType === ContentType.TEXT
             ? undefined
             : message.contentText || this.extractFilename(message.contentUrl) || undefined,
+        tempId: tempId, // Adicionar tempId para correlação no webhook
       };
       
       // Adicionar action e replyTo se for uma resposta ou se action foi especificado

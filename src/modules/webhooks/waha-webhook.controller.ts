@@ -111,6 +111,12 @@ export class WahaWebhookController {
     const payload = event?.payload ?? event ?? {};
     const info = payload?._data?.Info ?? {};
 
+    // Extrair tempId (ID temporário para correlação)
+    const tempId = payload?.tempId ?? event?.tempId ?? null;
+    if (tempId) {
+      this.logger.log(`Mensagem com tempId recebida: ${tempId}`);
+    }
+
     // Extrair informações de mídia
     const media = payload?.media ?? event?.media ?? null;
     const hasMedia = payload?.hasMedia ?? event?.hasMedia ?? !!media;
@@ -429,6 +435,7 @@ export class WahaWebhookController {
         longitude: hasLocation ? longitude : null,
         direction,
         messageId,
+        tempId, // ID temporário para correlação com mensagem otimista
         timestamp,
         reply: isReply,
         replyText: replyText,
