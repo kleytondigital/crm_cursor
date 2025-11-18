@@ -308,8 +308,18 @@ export class WahaWebhookController {
           resolvedContentText += `\n${locationUrl}`;
         }
       }
+    } else if (hasMedia) {
+      // Para mensagens de mídia, SEMPRE usar a descrição da mídia
+      // Isso evita que números de telefone ou IDs apareçam no lugar do texto
+      resolvedContentText = this.describeMediaText(media?.mimetype);
     } else {
-      resolvedContentText = messageText ?? (hasMedia ? this.describeMediaText(media?.mimetype) : null);
+      // Para mensagens de texto, usar o messageText extraído
+      // Validar que não seja um número de telefone (evitar @c.us ou @s.whatsapp.net)
+      if (messageText && !WA_REGEX.test(messageText)) {
+        resolvedContentText = messageText;
+      } else {
+        resolvedContentText = messageText; // Fallback para casos raros
+      }
     }
 
     let contentUrl: string | null = hasMedia ? media?.url ?? null : null;
