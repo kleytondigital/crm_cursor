@@ -89,7 +89,7 @@ export default function MessageBubble({
         case 'sending':
           return <Clock className="h-3.5 w-3.5 text-gray-400 animate-pulse" />
         case 'error':
-          return <AlertCircle className="h-3.5 w-3.5 text-red-500" title="Falha ao enviar" />
+          return <AlertCircle className="h-3.5 w-3.5 text-red-500" />
         case 'sent':
           return <Check className="h-3.5 w-3.5 text-gray-400" />
       }
