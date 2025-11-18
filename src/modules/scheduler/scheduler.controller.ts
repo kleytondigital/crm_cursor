@@ -5,8 +5,10 @@ import {
   Body,
   Param,
   Delete,
+  Query,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { SchedulerService } from './scheduler.service';
 import { CreateScheduledMessageDto } from './dto/create-scheduled-message.dto';
@@ -40,6 +42,22 @@ export class SchedulerController {
       role: user.role,
     };
     return this.schedulerService.cancelMessage(id, context);
+  }
+
+  @Get('scheduled')
+  async getScheduledByLeadId(
+    @Query('leadId') leadId: string,
+    @CurrentUser() user: any,
+  ) {
+    if (!leadId) {
+      throw new BadRequestException('leadId é obrigatório');
+    }
+    const context = {
+      userId: user.id,
+      companyId: user.companyId,
+      role: user.role,
+    };
+    return this.schedulerService.getScheduledMessages(leadId, context);
   }
 
   @Get('messages/:leadId')

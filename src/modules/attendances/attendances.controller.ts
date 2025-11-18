@@ -69,6 +69,16 @@ export class AttendancesController {
     return { success: true, data };
   }
 
+  @Get('lead/:leadId')
+  async getByLead(@Param('leadId') leadId: string, @CurrentUser() user: any) {
+    const data = await this.attendancesService.getAttendancesByLead(leadId, {
+      tenantId: user.companyId,
+      userId: user.id,
+      role: user.role,
+    });
+    return { success: true, data };
+  }
+
   @Get(':id')
   async details(@Param('id') id: string, @CurrentUser() user: any) {
     // IMPORTANTE: Esta rota deve vir DEPOIS das rotas específicas (stats, queue/next, departments)

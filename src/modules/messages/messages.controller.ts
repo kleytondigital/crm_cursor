@@ -46,6 +46,16 @@ export class MessagesController {
     );
   }
 
+  @Post('send')
+  send(@Body() createMessageDto: CreateMessageDto, @CurrentUser() user: any) {
+    return this.messagesService.create(
+      createMessageDto,
+      user.companyId,
+      user.sub,
+      user.role,
+    );
+  }
+
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {

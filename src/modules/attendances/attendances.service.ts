@@ -548,6 +548,27 @@ export class AttendancesService {
     }
   }
 
+  async getAttendancesByLead(
+    leadId: string,
+    context: AuthContext,
+  ) {
+    try {
+      const attendances = await this.prisma.attendance.findMany({
+        where: {
+          leadId,
+          tenantId: context.tenantId,
+        },
+        include: this.defaultAttendanceInclude(),
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return attendances.map(attendance => this.serializeAttendance(attendance));
+    } catch (error) {
+      console.error('Erro em getAttendancesByLead:', error);
+      throw new Error(`Erro ao buscar atendimentos do lead: ${error?.message || error}`);
+    }
+  }
+
   async claimAttendance(
     leadId: string,
     dto: AttendanceClaimDto,
