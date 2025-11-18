@@ -80,8 +80,12 @@ COPY --from=builder /app/dist ./dist
 # Se o seed.js já foi copiado com prisma ./prisma/, esta linha garante que o compilado do builder seja usado
 COPY --from=builder /app/prisma/seed.js ./prisma/seed.js
 
+# Copiar script de entrypoint
+COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+
 # Criar diretório para uploads com permissões corretas (antes de mudar usuário)
-RUN mkdir -p /app/uploads
+RUN mkdir -p /app/uploads && \
+    chmod +x /app/docker-entrypoint.sh
 
 # Mudar para usuário não-root
 USER nestjs
@@ -97,5 +101,5 @@ ENV PORT=3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Comando para iniciar a aplicação
-CMD ["node", "dist/main.js"]
+# Comando para iniciar a aplicação (usando entrypoint que aplica migrations)
+CMD ["/app/docker-entrypoint.sh"]
