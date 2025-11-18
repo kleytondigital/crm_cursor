@@ -12,8 +12,6 @@ import { CreateWorkflowInstanceDto } from './dto/create-instance.dto';
 import { UpdateWorkflowInstanceDto } from './dto/update-instance.dto';
 import { UserRole } from '@prisma/client';
 import {
-  processWorkflowTemplate,
-  generateUniqueWebhookPath,
   validateRequiredVariables,
 } from './helpers/variable-replacer';
 
@@ -163,7 +161,7 @@ export class WorkflowTemplatesService {
 
   /**
    * Criar instância de workflow a partir de um template
-   * Substitui variáveis, cria workflow no n8n e ativa
+   * Envia requisição para webhook gestor do n8n que criará o workflow
    */
   async instantiateTemplate(
     templateId: string,
@@ -185,38 +183,26 @@ export class WorkflowTemplatesService {
       );
     }
 
-    // 3. Gerar novo UUID para webhook path
-    const newWebhookPath = generateUniqueWebhookPath();
-
-    // 4. Processar workflow: substituir variáveis e webhook path
-    const processedWorkflowData = processWorkflowTemplate(
-      template.n8nWorkflowData,
-      dto.config,
-      newWebhookPath,
+    // 3. Chamar webhook gestor para criar workflow
+    // O webhook gestor receberá o templateName, variables e criará o workflow completo
+    const workflowData = await this.n8nApiService.createWorkflowViaManager(
+      context.tenantId,
+      template.name, // templateName usado pelo gestor para identificar qual template usar
+      dto.name, // automationName
+      dto.config, // variables
     );
 
-    // 5. Adicionar nome personalizado ao workflow
-    processedWorkflowData.name = dto.name;
-
-    // 6. Criar workflow no n8n
-    const n8nWorkflow = await this.n8nApiService.createWorkflow(
-      processedWorkflowData,
-    );
-
-    // 7. Construir URL do webhook
-    const webhookUrl = this.n8nApiService.buildWebhookUrl(newWebhookPath);
-
-    // 8. Criar instância no banco
+    // 4. Criar instância no banco com dados retornados pelo webhook gestor
     const instance = await this.prisma.workflowInstance.create({
       data: {
         templateId: template.id,
-        n8nWorkflowId: n8nWorkflow.id,
-        webhookUrl,
+        n8nWorkflowId: workflowData.workflowId,
+        webhookUrl: workflowData.webhookUrl,
         name: dto.name,
         config: dto.config,
         aiAgentId: dto.aiAgentId,
         tenantId: context.tenantId,
-        isActive: false, // Inicia desativado, será ativado manualmente
+        isActive: workflowData.active, // Status retornado pelo webhook gestor
       },
       include: {
         template: true,
@@ -237,8 +223,11 @@ export class WorkflowTemplatesService {
       throw new BadRequestException('Workflow ainda não foi criado no n8n');
     }
 
-    // Ativar no n8n
-    await this.n8nApiService.activateWorkflow(instance.n8nWorkflowId);
+    // Ativar via webhook gestor
+    await this.n8nApiService.activateWorkflowViaManager(
+      context.tenantId,
+      instance.n8nWorkflowId,
+    );
 
     // Atualizar status no banco
     return this.prisma.workflowInstance.update({
@@ -257,8 +246,11 @@ export class WorkflowTemplatesService {
       throw new BadRequestException('Workflow ainda não foi criado no n8n');
     }
 
-    // Desativar no n8n
-    await this.n8nApiService.deactivateWorkflow(instance.n8nWorkflowId);
+    // Desativar via webhook gestor
+    await this.n8nApiService.deactivateWorkflowViaManager(
+      context.tenantId,
+      instance.n8nWorkflowId,
+    );
 
     // Atualizar status no banco
     return this.prisma.workflowInstance.update({
@@ -318,21 +310,15 @@ export class WorkflowTemplatesService {
   ) {
     const instance = await this.findOneInstance(id, context);
 
-    // Se mudar a configuração, precisa recriar o workflow no n8n
+    // Se mudar a configuração, atualizar via webhook gestor
     if (dto.config && instance.n8nWorkflowId) {
-      // Deletar workflow antigo
-      await this.n8nApiService.deleteWorkflow(instance.n8nWorkflowId);
-
-      // Criar novo com as novas configurações
-      const workflowData = this.n8nApiService.replaceVariables(
-        instance.template.n8nWorkflowData,
+      // Atualizar workflow via webhook gestor
+      await this.n8nApiService.updateWorkflowViaManager(
+        context.tenantId,
+        instance.n8nWorkflowId,
         dto.config,
+        dto.name,
       );
-
-      workflowData.name = dto.name || instance.name;
-
-      const n8nWorkflow = await this.n8nApiService.createWorkflow(workflowData);
-      const webhookUrl = this.n8nApiService.extractWebhookUrl(n8nWorkflow);
 
       return this.prisma.workflowInstance.update({
         where: { id },
@@ -340,8 +326,6 @@ export class WorkflowTemplatesService {
           name: dto.name,
           config: dto.config,
           aiAgentId: dto.aiAgentId,
-          n8nWorkflowId: n8nWorkflow.id,
-          webhookUrl,
           isActive: false, // Desativa para reativar manualmente
         },
       });
@@ -360,10 +344,13 @@ export class WorkflowTemplatesService {
   async removeInstance(id: string, context: AuthContext) {
     const instance = await this.findOneInstance(id, context);
 
-    // Deletar workflow no n8n se existir
+    // Deletar workflow via webhook gestor se existir
     if (instance.n8nWorkflowId) {
       try {
-        await this.n8nApiService.deleteWorkflow(instance.n8nWorkflowId);
+        await this.n8nApiService.deleteWorkflowViaManager(
+          context.tenantId,
+          instance.n8nWorkflowId,
+        );
       } catch (error) {
         // Continuar mesmo se falhar no n8n
         console.error('Erro ao deletar workflow no n8n:', error);

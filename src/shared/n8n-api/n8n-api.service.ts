@@ -1,197 +1,359 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import {
+  ManagerWebhookRequestDto,
+  ManagerWebhookResponseDto,
+  CreateWorkflowRequestDto,
+  UpdateWorkflowRequestDto,
+  DeleteWorkflowRequestDto,
+  ActivateWorkflowRequestDto,
+  DeactivateWorkflowRequestDto,
+  GetWorkflowRequestDto,
+  ValidateVariablesRequestDto,
+  CreateWorkflowResponseData,
+  UpdateWorkflowResponseData,
+  ActivateWorkflowResponseData,
+  GetWorkflowResponseData,
+  ValidateVariablesResponseData,
+  TestWorkflowRequestDto,
+  DuplicateWorkflowRequestDto,
+  GetLogsRequestDto,
+  GetLogsResponseData,
+} from './dto/manager-webhook.dto';
 
-interface N8nWorkflowData {
-  name: string;
-  nodes: any[];
-  connections: any;
-  settings?: any;
-  staticData?: any;
-}
-
-interface N8nWorkflowResponse {
-  id: string;
-  name: string;
-  active: boolean;
-  nodes: any[];
-  connections: any;
-  webhookUrl?: string;
-}
-
+/**
+ * Service para comunicação com o Webhook Gestor do N8N
+ * 
+ * O webhook gestor é responsável por orquestrar toda a criação e gestão de workflows.
+ * Ao invés de chamar diretamente a API do n8n, enviamos requisições para um webhook
+ * gestor que realiza todas as operações necessárias.
+ */
 @Injectable()
 export class N8nApiService {
   private readonly logger = new Logger(N8nApiService.name);
   private readonly client: AxiosInstance;
-  private readonly n8nUrl: string;
-  private readonly n8nApiKey: string;
+  private readonly managerWebhookUrl: string;
+  private readonly timeout: number = 30000; // 30 segundos
+  private readonly maxRetries: number = 3;
 
   constructor(private readonly configService: ConfigService) {
-    this.n8nUrl = this.configService.get<string>('N8N_URL') || 'http://localhost:5678';
-    this.n8nApiKey = this.configService.get<string>('N8N_API_KEY') || '';
+    this.managerWebhookUrl =
+      this.configService.get<string>('N8N_MANAGER_WEBHOOK_URL') ||
+      'http://localhost:5678/webhook/manager-crm';
 
     this.client = axios.create({
-      baseURL: `${this.n8nUrl}/api/v1`,
+      timeout: this.timeout,
       headers: {
-        'X-N8N-API-KEY': this.n8nApiKey,
         'Content-Type': 'application/json',
       },
     });
+
+    this.logger.log(
+      `N8nApiService inicializado. Webhook Gestor: ${this.managerWebhookUrl}`,
+    );
   }
 
   /**
-   * Criar um novo workflow no n8n
+   * Método genérico para chamar o webhook gestor
    */
-  async createWorkflow(workflowData: N8nWorkflowData): Promise<N8nWorkflowResponse> {
+  private async callManagerWebhook<T = any>(
+    payload: ManagerWebhookRequestDto,
+    retryCount = 0,
+  ): Promise<ManagerWebhookResponseDto<T>> {
     try {
-      this.logger.log(`Criando workflow: ${workflowData.name}`);
-      
-      const response = await this.client.post('/workflows', workflowData);
-      
-      this.logger.log(`Workflow criado com sucesso: ${response.data.id}`);
-      return response.data;
-    } catch (error: any) {
-      this.logger.error(`Erro ao criar workflow: ${error.message}`, error.stack);
-      throw new BadRequestException(`Erro ao criar workflow no n8n: ${error.message}`);
-    }
-  }
-
-  /**
-   * Ativar um workflow no n8n
-   */
-  async activateWorkflow(workflowId: string): Promise<N8nWorkflowResponse> {
-    try {
-      this.logger.log(`Ativando workflow: ${workflowId}`);
-      
-      const response = await this.client.patch(`/workflows/${workflowId}`, {
-        active: true,
-      });
-      
-      this.logger.log(`Workflow ativado com sucesso: ${workflowId}`);
-      return response.data;
-    } catch (error: any) {
-      this.logger.error(`Erro ao ativar workflow: ${error.message}`, error.stack);
-      throw new BadRequestException(`Erro ao ativar workflow no n8n: ${error.message}`);
-    }
-  }
-
-  /**
-   * Desativar um workflow no n8n
-   */
-  async deactivateWorkflow(workflowId: string): Promise<N8nWorkflowResponse> {
-    try {
-      this.logger.log(`Desativando workflow: ${workflowId}`);
-      
-      const response = await this.client.patch(`/workflows/${workflowId}`, {
-        active: false,
-      });
-      
-      this.logger.log(`Workflow desativado com sucesso: ${workflowId}`);
-      return response.data;
-    } catch (error: any) {
-      this.logger.error(`Erro ao desativar workflow: ${error.message}`, error.stack);
-      throw new BadRequestException(`Erro ao desativar workflow no n8n: ${error.message}`);
-    }
-  }
-
-  /**
-   * Atualizar um workflow existente no n8n
-   */
-  async updateWorkflow(
-    workflowId: string,
-    workflowData: Partial<N8nWorkflowData>,
-  ): Promise<N8nWorkflowResponse> {
-    try {
-      this.logger.log(`Atualizando workflow: ${workflowId}`);
-      
-      const response = await this.client.patch(`/workflows/${workflowId}`, workflowData);
-      
-      this.logger.log(`Workflow atualizado com sucesso: ${workflowId}`);
-      return response.data;
-    } catch (error: any) {
-      this.logger.error(`Erro ao atualizar workflow: ${error.message}`, error.stack);
-      throw new BadRequestException(`Erro ao atualizar workflow no n8n: ${error.message}`);
-    }
-  }
-
-  /**
-   * Deletar um workflow no n8n
-   */
-  async deleteWorkflow(workflowId: string): Promise<void> {
-    try {
-      this.logger.log(`Deletando workflow: ${workflowId}`);
-      
-      await this.client.delete(`/workflows/${workflowId}`);
-      
-      this.logger.log(`Workflow deletado com sucesso: ${workflowId}`);
-    } catch (error: any) {
-      this.logger.error(`Erro ao deletar workflow: ${error.message}`, error.stack);
-      throw new BadRequestException(`Erro ao deletar workflow no n8n: ${error.message}`);
-    }
-  }
-
-  /**
-   * Obter um workflow do n8n
-   */
-  async getWorkflow(workflowId: string): Promise<N8nWorkflowResponse> {
-    try {
-      const response = await this.client.get(`/workflows/${workflowId}`);
-      return response.data;
-    } catch (error: any) {
-      this.logger.error(`Erro ao obter workflow: ${error.message}`, error.stack);
-      throw new BadRequestException(`Erro ao obter workflow do n8n: ${error.message}`);
-    }
-  }
-
-  /**
-   * Extrair URL do webhook de um workflow
-   * Procura por nós do tipo 'n8n-nodes-base.webhook' e retorna a primeira URL encontrada
-   */
-  extractWebhookUrl(workflow: N8nWorkflowResponse): string | null {
-    try {
-      const webhookNode = workflow.nodes.find(
-        (node: any) => node.type === 'n8n-nodes-base.webhook',
+      this.logger.log(
+        `Chamando webhook gestor - Action: ${payload.action}, Tenant: ${payload.tenantId}`,
       );
 
-      if (!webhookNode) {
-        return null;
+      const response = await this.client.post<ManagerWebhookResponseDto<T>>(
+        this.managerWebhookUrl,
+        payload,
+      );
+
+      if (!response.data.success) {
+        throw new BadRequestException(
+          response.data.error?.message || 'Erro no webhook gestor',
+        );
       }
 
-      const webhookPath = webhookNode.parameters?.path || webhookNode.webhookId;
-      
-      if (!webhookPath) {
-        return null;
+      this.logger.log(`Webhook gestor respondeu com sucesso: ${payload.action}`);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(
+        `Erro ao chamar webhook gestor (tentativa ${retryCount + 1}/${this.maxRetries}): ${error.message}`,
+        error.stack,
+      );
+
+      // Retry com exponential backoff
+      if (retryCount < this.maxRetries - 1) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        this.logger.log(`Aguardando ${delay}ms antes de tentar novamente...`);
+        await this.sleep(delay);
+        return this.callManagerWebhook(payload, retryCount + 1);
       }
 
-      // Construir URL do webhook
-      return `${this.n8nUrl}/webhook/${webhookPath}`;
-    } catch (error) {
-      this.logger.error(`Erro ao extrair URL do webhook: ${error.message}`);
-      return null;
+      throw new BadRequestException(
+        `Erro ao comunicar com webhook gestor do n8n: ${error.message}`,
+      );
     }
   }
 
   /**
-   * Construir URL do webhook a partir de um path
+   * Criar um novo workflow via webhook gestor
    */
-  buildWebhookUrl(webhookPath: string): string {
-    return `${this.n8nUrl}/webhook/${webhookPath}`;
+  async createWorkflowViaManager(
+    tenantId: string,
+    templateName: string,
+    automationName: string,
+    variables: Record<string, any>,
+  ): Promise<CreateWorkflowResponseData> {
+    const payload: CreateWorkflowRequestDto = {
+      action: 'create',
+      tenantId,
+      templateName,
+      automationName,
+      variables,
+    };
+
+    const response =
+      await this.callManagerWebhook<CreateWorkflowResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou dados do workflow criado',
+      );
+    }
+
+    return response.data;
   }
 
   /**
-   * Substituir variáveis em um workflow JSON
-   * Ex: {{systemPrompt}} -> valor real
+   * Atualizar um workflow existente via webhook gestor
    */
-  replaceVariables(workflowData: any, variables: Record<string, any>): any {
-    let workflowStr = JSON.stringify(workflowData);
+  async updateWorkflowViaManager(
+    tenantId: string,
+    workflowId: string,
+    variables: Record<string, any>,
+    automationName?: string,
+  ): Promise<UpdateWorkflowResponseData> {
+    const payload: UpdateWorkflowRequestDto = {
+      action: 'update',
+      tenantId,
+      workflowId,
+      variables,
+      automationName,
+    };
 
-    // Substituir cada variável no formato {{variableName}}
-    Object.keys(variables).forEach((key) => {
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      workflowStr = workflowStr.replace(regex, variables[key]);
-    });
+    const response =
+      await this.callManagerWebhook<UpdateWorkflowResponseData>(payload);
 
-    return JSON.parse(workflowStr);
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou dados do workflow atualizado',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Deletar um workflow via webhook gestor
+   */
+  async deleteWorkflowViaManager(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<void> {
+    const payload: DeleteWorkflowRequestDto = {
+      action: 'delete',
+      tenantId,
+      workflowId,
+    };
+
+    await this.callManagerWebhook(payload);
+  }
+
+  /**
+   * Ativar um workflow via webhook gestor
+   */
+  async activateWorkflowViaManager(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<ActivateWorkflowResponseData> {
+    const payload: ActivateWorkflowRequestDto = {
+      action: 'activate',
+      tenantId,
+      workflowId,
+    };
+
+    const response =
+      await this.callManagerWebhook<ActivateWorkflowResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou dados do workflow ativado',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Desativar um workflow via webhook gestor
+   */
+  async deactivateWorkflowViaManager(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<ActivateWorkflowResponseData> {
+    const payload: DeactivateWorkflowRequestDto = {
+      action: 'deactivate',
+      tenantId,
+      workflowId,
+    };
+
+    const response =
+      await this.callManagerWebhook<ActivateWorkflowResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou dados do workflow desativado',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Obter informações de um workflow via webhook gestor
+   */
+  async getWorkflowInfoViaManager(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<GetWorkflowResponseData> {
+    const payload: GetWorkflowRequestDto = {
+      action: 'get',
+      tenantId,
+      workflowId,
+    };
+
+    const response =
+      await this.callManagerWebhook<GetWorkflowResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou dados do workflow',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Validar variáveis antes de criar workflow
+   */
+  async validateVariablesViaManager(
+    tenantId: string,
+    templateName: string,
+    variables: Record<string, any>,
+  ): Promise<ValidateVariablesResponseData> {
+    const payload: ValidateVariablesRequestDto = {
+      action: 'validate',
+      tenantId,
+      templateName,
+      variables,
+    };
+
+    const response =
+      await this.callManagerWebhook<ValidateVariablesResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou resultado da validação',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Testar workflow sem ativar
+   */
+  async testWorkflowViaManager(
+    tenantId: string,
+    workflowId: string,
+    testData?: any,
+  ): Promise<any> {
+    const payload: TestWorkflowRequestDto = {
+      action: 'test',
+      tenantId,
+      workflowId,
+      testData,
+    };
+
+    const response = await this.callManagerWebhook(payload);
+    return response.data;
+  }
+
+  /**
+   * Duplicar workflow existente
+   */
+  async duplicateWorkflowViaManager(
+    tenantId: string,
+    workflowId: string,
+    newAutomationName: string,
+  ): Promise<CreateWorkflowResponseData> {
+    const payload: DuplicateWorkflowRequestDto = {
+      action: 'duplicate',
+      tenantId,
+      workflowId,
+      newAutomationName,
+    };
+
+    const response =
+      await this.callManagerWebhook<CreateWorkflowResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou dados do workflow duplicado',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Obter logs de execução do workflow
+   */
+  async getWorkflowLogsViaManager(
+    tenantId: string,
+    workflowId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<GetLogsResponseData> {
+    const payload: GetLogsRequestDto = {
+      action: 'logs',
+      tenantId,
+      workflowId,
+      limit,
+      offset,
+    };
+
+    const response =
+      await this.callManagerWebhook<GetLogsResponseData>(payload);
+
+    if (!response.data) {
+      throw new BadRequestException(
+        'Webhook gestor não retornou logs do workflow',
+      );
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Helper para sleep (usado no retry)
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
-

@@ -1,0 +1,214 @@
+/**
+ * DTOs para comunicação com o Webhook Gestor do N8N
+ * O webhook gestor é responsável por orquestrar a criação e gestão de workflows
+ */
+
+export type ManagerAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'activate'
+  | 'deactivate'
+  | 'get'
+  | 'validate'
+  | 'test'
+  | 'duplicate'
+  | 'logs'
+  | 'export';
+
+/**
+ * Request base para o webhook gestor
+ */
+export interface ManagerWebhookRequestDto {
+  action: ManagerAction;
+  tenantId: string;
+}
+
+/**
+ * Request para criar um novo workflow
+ */
+export interface CreateWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'create';
+  templateName: string;
+  automationName: string;
+  variables: Record<string, any>;
+}
+
+/**
+ * Request para atualizar um workflow existente
+ */
+export interface UpdateWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'update';
+  workflowId: string;
+  automationName?: string;
+  variables: Record<string, any>;
+}
+
+/**
+ * Request para deletar um workflow
+ */
+export interface DeleteWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'delete';
+  workflowId: string;
+}
+
+/**
+ * Request para ativar um workflow
+ */
+export interface ActivateWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'activate';
+  workflowId: string;
+}
+
+/**
+ * Request para desativar um workflow
+ */
+export interface DeactivateWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'deactivate';
+  workflowId: string;
+}
+
+/**
+ * Request para obter informações de um workflow
+ */
+export interface GetWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'get';
+  workflowId: string;
+}
+
+/**
+ * Request para validar variáveis antes de criar
+ */
+export interface ValidateVariablesRequestDto extends ManagerWebhookRequestDto {
+  action: 'validate';
+  templateName: string;
+  variables: Record<string, any>;
+}
+
+/**
+ * Request para testar workflow sem ativar
+ */
+export interface TestWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'test';
+  workflowId: string;
+  testData?: any;
+}
+
+/**
+ * Request para duplicar workflow
+ */
+export interface DuplicateWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'duplicate';
+  workflowId: string;
+  newAutomationName: string;
+}
+
+/**
+ * Request para obter logs de execução
+ */
+export interface GetLogsRequestDto extends ManagerWebhookRequestDto {
+  action: 'logs';
+  workflowId: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Request para exportar configuração
+ */
+export interface ExportWorkflowRequestDto extends ManagerWebhookRequestDto {
+  action: 'export';
+  workflowId: string;
+}
+
+/**
+ * Response do webhook gestor
+ */
+export interface ManagerWebhookResponseDto<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+/**
+ * Dados retornados ao criar um workflow
+ */
+export interface CreateWorkflowResponseData {
+  workflowId: string;
+  webhookUrl: string;
+  status: 'created';
+  active: boolean;
+}
+
+/**
+ * Dados retornados ao atualizar um workflow
+ */
+export interface UpdateWorkflowResponseData {
+  workflowId: string;
+  status: 'updated';
+  active: boolean;
+}
+
+/**
+ * Dados retornados ao ativar/desativar um workflow
+ */
+export interface ActivateWorkflowResponseData {
+  workflowId: string;
+  status: 'activated' | 'deactivated';
+  active: boolean;
+}
+
+/**
+ * Dados retornados ao obter informações de um workflow
+ */
+export interface GetWorkflowResponseData {
+  workflowId: string;
+  name: string;
+  active: boolean;
+  webhookUrl: string;
+  variables: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Dados retornados ao validar variáveis
+ */
+export interface ValidateVariablesResponseData {
+  valid: boolean;
+  missingFields?: string[];
+  invalidFields?: Array<{
+    field: string;
+    reason: string;
+  }>;
+}
+
+/**
+ * Dados retornados ao obter logs
+ */
+export interface GetLogsResponseData {
+  workflowId: string;
+  logs: Array<{
+    executionId: string;
+    startedAt: string;
+    finishedAt: string;
+    status: 'success' | 'error' | 'running';
+    error?: string;
+  }>;
+  total: number;
+}
+
+/**
+ * Dados retornados ao exportar workflow
+ */
+export interface ExportWorkflowResponseData {
+  workflowId: string;
+  workflowData: any;
+  exportedAt: string;
+}
+

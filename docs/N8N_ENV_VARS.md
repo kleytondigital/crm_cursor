@@ -1,34 +1,33 @@
 # Variáveis de Ambiente para Integração N8N
 
-Este documento descreve as variáveis de ambiente necessárias para a integração com o n8n.
+Este documento descreve as variáveis de ambiente necessárias para a integração com o n8n via Webhook Gestor.
+
+## Nova Arquitetura com Webhook Gestor
+
+A partir de agora, o CRM não se comunica diretamente com a API do n8n. Ao invés disso, todas as operações são feitas através de um **Webhook Gestor** que orquestra a criação e gestão dos workflows.
 
 ## Variáveis Obrigatórias
 
-### N8N_URL
-- **Descrição**: URL base da instância do n8n
-- **Formato**: `https://seu-n8n.com` (sem barra no final)
-- **Exemplo**: `https://n8n.aoseudispor.com.br`
-- **Padrão**: `http://localhost:5678`
-
-### N8N_API_KEY
-- **Descrição**: Chave de API do n8n para autenticação
-- **Como obter**:
-  1. Acesse seu n8n
-  2. Vá em Settings > API
-  3. Crie uma nova API key
-  4. Copie a chave gerada
-- **Exemplo**: `n8n_api_1234567890abcdef`
-- **Padrão**: (vazio)
+### N8N_MANAGER_WEBHOOK_URL
+- **Descrição**: URL do webhook gestor no n8n
+- **Formato**: `https://seu-n8n.com/webhook/manager-crm`
+- **Exemplo**: `https://n8n.aoseudispor.com.br/webhook/manager-crm`
+- **Padrão**: `http://localhost:5678/webhook/manager-crm`
 
 ## Configuração no .env
 
-Adicione as seguintes linhas ao seu arquivo `.env`:
+Adicione a seguinte linha ao seu arquivo `.env`:
 
 ```bash
-# N8N Integration
-N8N_URL=https://seu-n8n.com
-N8N_API_KEY=sua-api-key-aqui
+# N8N Integration (via Webhook Gestor)
+N8N_MANAGER_WEBHOOK_URL=https://seu-n8n.com/webhook/manager-crm
 ```
+
+## Variáveis Removidas
+
+As seguintes variáveis **não são mais necessárias**:
+- ~~`N8N_URL`~~ (substituída por `N8N_MANAGER_WEBHOOK_URL`)
+- ~~`N8N_API_KEY`~~ (não é mais necessária, a API key fica apenas no n8n)
 
 ## Como Usar
 
@@ -37,8 +36,7 @@ N8N_API_KEY=sua-api-key-aqui
 Para desenvolvimento local com n8n rodando na mesma máquina:
 
 ```bash
-N8N_URL=http://localhost:5678
-N8N_API_KEY=sua-api-key
+N8N_MANAGER_WEBHOOK_URL=http://localhost:5678/webhook/manager-crm
 ```
 
 ### 2. Produção
@@ -46,50 +44,77 @@ N8N_API_KEY=sua-api-key
 Para produção, use a URL pública do seu n8n:
 
 ```bash
-N8N_URL=https://n8n.seudominio.com
-N8N_API_KEY=sua-api-key-de-producao
+N8N_MANAGER_WEBHOOK_URL=https://n8n.seudominio.com/webhook/manager-crm
 ```
 
-## Webhook URLs
+## Como Funciona
 
-O sistema automaticamente constrói URLs de webhooks no formato:
+1. **CRM envia requisição** para o webhook gestor com action e dados
+2. **Webhook gestor processa** a requisição no n8n
+3. **N8N cria/atualiza/deleta** o workflow conforme necessário
+4. **Webhook gestor retorna** os dados (workflowId, webhookUrl, etc)
+5. **CRM salva** os dados retornados no banco
 
-```
-{N8N_URL}/webhook/{webhook-path-uuid}
+## Exemplo de Requisição
+
+```json
+{
+  "action": "create",
+  "tenantId": "uuid-do-tenant",
+  "templateName": "SDR",
+  "automationName": "SDR Vendas 2024",
+  "variables": {
+    "nomeEmpresa": "Minha Empresa",
+    "horarioFuncionamento": "8h-18h",
+    "systemPrompt": "Você é um SDR..."
+  }
+}
 ```
 
-Exemplo:
-```
-https://n8n.aoseudispor.com.br/webhook/a0b316a9-3e7b-40a4-828e-0a998b1f4908
+## Exemplo de Resposta
+
+```json
+{
+  "success": true,
+  "data": {
+    "workflowId": "123",
+    "webhookUrl": "https://n8n.com/webhook/uuid-gerado",
+    "status": "created",
+    "active": false
+  }
+}
 ```
 
 ## Segurança
 
 ⚠️ **IMPORTANTE:**
-- Nunca commite o arquivo `.env` com credenciais reais
-- Use API keys diferentes para desenvolvimento e produção
-- Mantenha as API keys seguras e rotacione-as periodicamente
-- Revogue imediatamente qualquer chave que seja exposta
+- O webhook gestor deve ter autenticação configurada no n8n
+- Nunca commite o arquivo `.env` com URLs reais
+- O webhook gestor tem acesso à API key do n8n internamente
+- Configure rate limiting no webhook gestor para evitar abuso
 
 ## Troubleshooting
 
-### Erro: "Erro ao criar workflow no n8n"
+### Erro: "Erro ao comunicar com webhook gestor do n8n"
 
-**Causa**: Credenciais inválidas ou URL incorreta
+**Causa**: Webhook gestor não está acessível ou não existe
 
 **Solução**:
-1. Verifique se `N8N_URL` está correto e acessível
-2. Confirme que `N8N_API_KEY` está válida
-3. Teste a conexão: `curl -H "X-N8N-API-KEY: sua-key" https://seu-n8n.com/api/v1/workflows`
+1. Verifique se `N8N_MANAGER_WEBHOOK_URL` está correto
+2. Confirme que o webhook gestor está criado e ativo no n8n
+3. Teste a conexão: `curl -X POST https://seu-n8n.com/webhook/manager-crm`
 
-### Erro: "Webhook URL não foi gerado"
+### Erro: "Webhook gestor não retornou dados"
 
-**Causa**: Workflow não tem nó de webhook
+**Causa**: Erro no processamento dentro do n8n
 
-**Solução**: Certifique-se de que o template do workflow inclui pelo menos um nó do tipo `n8n-nodes-base.webhook`
+**Solução**: 
+1. Verifique os logs de execução do workflow gestor no n8n
+2. Confirme que todos os nodes estão configurados corretamente
+3. Valide o JSON de resposta do webhook gestor
 
 ## Referências
 
-- [Documentação da API do n8n](https://docs.n8n.io/api/)
+- [Guia do Webhook Gestor](./N8N_WEBHOOK_MANAGER.md)
 - [Guia de Integração N8N](../N8N_INTEGRATION.md)
 

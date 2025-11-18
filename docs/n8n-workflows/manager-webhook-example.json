@@ -1,0 +1,208 @@
+{
+  "name": "Webhook Gestor CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "manager-crm",
+        "options": {},
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "manager-crm"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validar request\nconst body = $input.item.json.body;\n\n// Campos obrigatórios\nif (!body.action) {\n  return [\n    {\n      json: {\n        success: false,\n        error: {\n          code: 'MISSING_ACTION',\n          message: 'Campo action é obrigatório'\n        }\n      }\n    }\n  ];\n}\n\nif (!body.tenantId) {\n  return [\n    {\n      json: {\n        success: false,\n        error: {\n          code: 'MISSING_TENANT',\n          message: 'Campo tenantId é obrigatório'\n        }\n      }\n    }\n  ];\n}\n\n// Adicionar rota para o switch\nreturn [\n  {\n    json: {\n      ...body,\n      _route: body.action\n    }\n  }\n];"
+      },
+      "name": "Validar e Rotear",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "rules": [
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "create"
+            },
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "update"
+            },
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "delete"
+            },
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "activate"
+            },
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "deactivate"
+            },
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "get"
+            },
+            {
+              "operation": "equal",
+              "value1": "={{ $json._route }}",
+              "value2": "validate"
+            }
+          ]
+        }
+      },
+      "name": "Switch Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// ACTION: CREATE\nconst { templateName, automationName, variables, tenantId } = $json;\n\n// Validar template\nif (!templateName || !automationName || !variables) {\n  return [\n    {\n      json: {\n        success: false,\n        error: {\n          code: 'INVALID_CREATE_REQUEST',\n          message: 'templateName, automationName e variables são obrigatórios'\n        }\n      }\n    }\n  ];\n}\n\n// Gerar UUID para webhook\nconst webhookPath = `${tenantId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;\n\n// Montar workflow baseado no template\nlet workflow = {\n  name: automationName,\n  active: false,\n  nodes: [],\n  connections: {},\n  settings: {},\n  staticData: {}\n};\n\n// Template SDR\nif (templateName === 'SDR') {\n  workflow.nodes = [\n    {\n      \"name\": \"Webhook Entrada\",\n      \"type\": \"n8n-nodes-base.webhook\",\n      \"parameters\": {\n        \"path\": webhookPath,\n        \"httpMethod\": \"POST\",\n        \"responseMode\": \"onReceived\"\n      },\n      \"position\": [250, 300]\n    },\n    {\n      \"name\": \"Processar Mensagem\",\n      \"type\": \"n8n-nodes-base.function\",\n      \"parameters\": {\n        \"functionCode\": \"const mensagem = $json.body.mensagem;\\nconst contato = $json.body.contato;\\n\\nreturn [{\\n  json: {\\n    mensagem,\\n    contato,\\n    empresa: '\" + (variables.nomeEmpresa || 'Empresa') + \"',\\n    horario: '\" + (variables.horarioFuncionamento || 'Comercial') + \"'\\n  }\\n}];\"\n      },\n      \"position\": [450, 300]\n    },\n    {\n      \"name\": \"AI Agent\",\n      \"type\": \"n8n-nodes-base.openai\",\n      \"parameters\": {\n        \"resource\": \"chat\",\n        \"model\": \"gpt-4\",\n        \"messages\": {\n          \"values\": [\n            {\n              \"role\": \"system\",\n              \"content\": variables.systemPrompt || 'Você é um assistente virtual'\n            },\n            {\n              \"role\": \"user\",\n              \"content\": \"={{ $json.mensagem }}\"\n            }\n          ]\n        }\n      },\n      \"position\": [650, 300]\n    },\n    {\n      \"name\": \"Responder\",\n      \"type\": \"n8n-nodes-base.respondToWebhook\",\n      \"parameters\": {\n        \"respondWith\": \"json\",\n        \"responseBody\": \"={{ { success: true, resposta: $json.choices[0].message.content } }}\"\n      },\n      \"position\": [850, 300]\n    }\n  ];\n  \n  workflow.connections = {\n    \"Webhook Entrada\": {\n      \"main\": [[{ \"node\": \"Processar Mensagem\", \"type\": \"main\", \"index\": 0 }]]\n    },\n    \"Processar Mensagem\": {\n      \"main\": [[{ \"node\": \"AI Agent\", \"type\": \"main\", \"index\": 0 }]]\n    },\n    \"AI Agent\": {\n      \"main\": [[{ \"node\": \"Responder\", \"type\": \"main\", \"index\": 0 }]]\n    }\n  };\n}\n\n// Passar para próximo node que criará via API\nreturn [\n  {\n    json: {\n      workflow,\n      webhookPath,\n      tenantId\n    }\n  }\n];"
+      },
+      "name": "Action Create",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/api/v1/workflows",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-API-KEY",
+              "value": "={{ $env.N8N_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "body": "={{ JSON.stringify($json.workflow) }}",
+        "options": {}
+      },
+      "name": "Criar Workflow N8N",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Formatar resposta de criação\nconst createdWorkflow = $json;\nconst webhookPath = $node[\"Action Create\"].json.webhookPath;\nconst n8nUrl = process.env.N8N_URL || 'http://localhost:5678';\n\nreturn [\n  {\n    json: {\n      success: true,\n      data: {\n        workflowId: createdWorkflow.id,\n        webhookUrl: `${n8nUrl}/webhook/${webhookPath}`,\n        status: 'created',\n        active: createdWorkflow.active || false\n      }\n    }\n  }\n];"
+      },
+      "name": "Resposta Create",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// ACTION: ACTIVATE\nconst { workflowId } = $json;\n\nif (!workflowId) {\n  return [\n    {\n      json: {\n        success: false,\n        error: {\n          code: 'MISSING_WORKFLOW_ID',\n          message: 'workflowId é obrigatório'\n        }\n      }\n    }\n  ];\n}\n\nreturn [\n  {\n    json: {\n      workflowId,\n      action: 'activate'\n    }\n  }\n];"
+      },
+      "name": "Action Activate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:5678/api/v1/workflows/{{ $json.workflowId }}",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-API-KEY",
+              "value": "={{ $env.N8N_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "body": "{\"active\": true}",
+        "options": {}
+      },
+      "name": "Ativar Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [\n  {\n    json: {\n      success: true,\n      data: {\n        workflowId: $json.id,\n        status: 'activated',\n        active: true\n      }\n    }\n  }\n];"
+      },
+      "name": "Resposta Activate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {},
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Validar e Rotear", "type": "main", "index": 0 }]]
+    },
+    "Validar e Rotear": {
+      "main": [[{ "node": "Switch Action", "type": "main", "index": 0 }]]
+    },
+    "Switch Action": {
+      "main": [
+        [{ "node": "Action Create", "type": "main", "index": 0 }],
+        [],
+        [],
+        [{ "node": "Action Activate", "type": "main", "index": 0 }],
+        [],
+        [],
+        []
+      ]
+    },
+    "Action Create": {
+      "main": [[{ "node": "Criar Workflow N8N", "type": "main", "index": 0 }]]
+    },
+    "Criar Workflow N8N": {
+      "main": [[{ "node": "Resposta Create", "type": "main", "index": 0 }]]
+    },
+    "Resposta Create": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "Action Activate": {
+      "main": [[{ "node": "Ativar Workflow", "type": "main", "index": 0 }]]
+    },
+    "Ativar Workflow": {
+      "main": [[{ "node": "Resposta Activate", "type": "main", "index": 0 }]]
+    },
+    "Resposta Activate": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}
+
