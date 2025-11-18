@@ -209,6 +209,12 @@ export default function MessageInput({
   const handleAudioRecord = async () => {
     try {
       if (isRecording) {
+        // Solicitar último chunk antes de parar
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.requestData()
+          // Aguardar um pouco para garantir que o evento ondataavailable seja disparado
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
         mediaRecorderRef.current?.stop()
         return
       }
@@ -218,13 +224,35 @@ export default function MessageInput({
         setAudioPreview(null)
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      console.log('🎤 Solicitando permissão de microfone...')
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
+      })
 
-      const selectedFormat = AUDIO_MIME_OPTIONS.find((option) =>
-        MediaRecorder.isTypeSupported(option.mime),
-      )
+      console.log('✅ Permissão concedida. Stream ativo:', stream.active)
+      console.log('📊 Tracks de áudio:', stream.getAudioTracks().length)
+
+      // Verificar se o stream tem tracks de áudio
+      const audioTracks = stream.getAudioTracks()
+      if (audioTracks.length === 0) {
+        throw new Error('Nenhuma track de áudio encontrada no stream')
+      }
+
+      console.log('🎵 Track de áudio:', audioTracks[0].label, 'Estado:', audioTracks[0].readyState)
+
+      // Tentar encontrar um formato suportado
+      const selectedFormat = AUDIO_MIME_OPTIONS.find((option) => {
+        const supported = MediaRecorder.isTypeSupported(option.mime)
+        console.log(`📝 Formato ${option.mime}: ${supported ? '✅ suportado' : '❌ não suportado'}`)
+        return supported
+      })
 
       const formatToUse = selectedFormat ?? AUDIO_FALLBACK
+      console.log('🎯 Formato escolhido:', formatToUse.mime)
 
       if (!MediaRecorder.isTypeSupported(formatToUse.mime)) {
         setRecordingError(
@@ -234,29 +262,53 @@ export default function MessageInput({
         return
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType: formatToUse.mime,
-        audioBitsPerSecond: 128000 // 128kbps para qualidade adequada
-      })
+      // Criar MediaRecorder com configurações mais compatíveis
+      let mediaRecorder: MediaRecorder
+      try {
+        mediaRecorder = new MediaRecorder(stream, { 
+          mimeType: formatToUse.mime,
+        })
+      } catch (e) {
+        console.warn('⚠️ Erro ao criar MediaRecorder com bitrate, tentando sem:', e)
+        // Fallback: tentar sem especificar bitrate
+        mediaRecorder = new MediaRecorder(stream, { 
+          mimeType: formatToUse.mime,
+        })
+      }
+
       recordedChunksRef.current = []
       recordingFormatRef.current = formatToUse
 
+      console.log('📹 MediaRecorder criado. Estado:', mediaRecorder.state)
+
       mediaRecorder.ondataavailable = (event) => {
+        console.log('📦 ondataavailable disparado. Tamanho:', event.data.size, 'bytes')
         if (event.data.size > 0) {
-          console.log('Chunk de áudio capturado:', event.data.size, 'bytes')
+          console.log('✅ Chunk de áudio capturado:', event.data.size, 'bytes')
           recordedChunksRef.current.push(event.data)
+        } else {
+          console.warn('⚠️ Chunk vazio recebido')
         }
       }
 
+      mediaRecorder.onerror = (event: any) => {
+        console.error('❌ Erro no MediaRecorder:', event.error)
+        setRecordingError('Erro durante a gravação: ' + event.error?.message)
+      }
+
+      mediaRecorder.onstart = () => {
+        console.log('▶️ Gravação iniciada')
+      }
+
       mediaRecorder.onstop = () => {
-        console.log('Gravação finalizada. Total de chunks:', recordedChunksRef.current.length)
+        console.log('⏹️ Gravação finalizada. Total de chunks:', recordedChunksRef.current.length)
         
         if (recordingIntervalRef.current) {
           clearInterval(recordingIntervalRef.current)
         }
 
         if (recordedChunksRef.current.length === 0) {
-          console.error('Nenhum chunk de áudio foi capturado')
+          console.error('❌ Nenhum chunk de áudio foi capturado')
           setRecordingError('Falha ao capturar áudio. Tente novamente.')
           mediaRecorder.stream.getTracks().forEach((track) => track.stop())
           setIsRecording(false)
@@ -267,10 +319,10 @@ export default function MessageInput({
         const format = recordingFormatRef.current ?? AUDIO_FALLBACK
         const blob = new Blob(recordedChunksRef.current, { type: format.mime })
         
-        console.log('Blob de áudio criado:', blob.size, 'bytes, tipo:', blob.type)
+        console.log('📦 Blob de áudio criado:', blob.size, 'bytes, tipo:', blob.type)
         
         if (blob.size === 0) {
-          console.error('Blob de áudio vazio')
+          console.error('❌ Blob de áudio vazio')
           setRecordingError('Falha ao criar arquivo de áudio. Tente novamente.')
           mediaRecorder.stream.getTracks().forEach((track) => track.stop())
           setIsRecording(false)
@@ -283,7 +335,7 @@ export default function MessageInput({
         })
         const url = URL.createObjectURL(blob)
         
-        console.log('Arquivo de áudio criado:', file.name, file.size, 'bytes')
+        console.log('✅ Arquivo de áudio criado:', file.name, file.size, 'bytes')
         setAudioPreview({ url, file })
 
         mediaRecorder.stream.getTracks().forEach((track) => track.stop())
@@ -293,9 +345,13 @@ export default function MessageInput({
       }
 
       mediaRecorderRef.current = mediaRecorder
-      // Solicitar dados a cada 100ms para garantir captura contínua
-      mediaRecorder.start(100)
-      console.log('Gravação iniciada com formato:', formatToUse.mime)
+      
+      // Iniciar gravação SEM timeslice para maior compatibilidade
+      console.log('🚀 Iniciando gravação...')
+      mediaRecorder.start()
+      
+      console.log('✅ Gravação iniciada com formato:', formatToUse.mime)
+      console.log('📊 Estado do MediaRecorder:', mediaRecorder.state)
       
       setRecordingError(null)
       setIsRecording(true)
@@ -303,11 +359,27 @@ export default function MessageInput({
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1)
       }, 1000)
-    } catch (error) {
-      console.error('Erro ao gravar áudio:', error)
-      setRecordingError(
-        'Não foi possível iniciar a gravação. Verifique as permissões de áudio do navegador.',
-      )
+    } catch (error: any) {
+      console.error('❌ Erro ao gravar áudio:', error)
+      console.error('Detalhes do erro:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      })
+      
+      let errorMessage = 'Não foi possível iniciar a gravação.'
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage = 'Permissão de microfone negada. Por favor, permita o acesso ao microfone.'
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMessage = 'Nenhum microfone encontrado. Verifique se há um microfone conectado.'
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        errorMessage = 'Microfone está sendo usado por outro aplicativo. Feche outros aplicativos que possam estar usando o microfone.'
+      } else {
+        errorMessage = `Erro: ${error.message}`
+      }
+      
+      setRecordingError(errorMessage)
       setIsRecording(false)
       recordingFormatRef.current = null
       mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop())

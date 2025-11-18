@@ -1,33 +1,30 @@
 {
-  "name": "Send to CRM Webhook",
-  "parameters": {
-    "method": "POST",
-    "url": "https://backcrm.aoseudispor.com.br/webhooks/waha",
-    "sendHeaders": true,
-    "headerParameters": {
-      "parameters": [
-        {
-          "name": "Content-Type",
-          "value": "application/json"
+    "name": "Send to CRM Webhook",
+    "parameters": {
+        "method": "POST",
+        "url": "https://backcrm.aoseudispor.com.br/webhooks/waha",
+        "sendHeaders": true,
+        "headerParameters": {
+            "parameters": [{
+                "name": "Content-Type",
+                "value": "application/json"
+            }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ \n  {\n    \"senderFinal\": $('Webhook').item.json.body.phone,\n    \"session\": $('Webhook').item.json.body.session,\n    \"timestamp\": $json.timestamp || Math.floor(Date.now() / 1000),\n    \"fromMe\": true,\n    \"conversation\": $('Webhook').item.json.body.text || $('Webhook').item.json.body.url || '',\n    \"hasMedia\": ['imagem', 'audio', 'video', 'documento'].includes($('Webhook').item.json.body.type),\n    \"pushName\": null,\n    \"media\": {\n      \"url\": $('Webhook').item.json.body.url || null,\n      \"mimetype\": $('Webhook').item.json.body.mimetype || null\n    },\n    \"locationMessage\": {\n      \"latitude\": null,\n      \"longitude\": null,\n      \"name\": null,\n      \"URL\": null,\n      \"JPEGThumbnail\": null\n    },\n    \"profilePictureURL\": null,\n    \"idMessage\": $json.id || $json.messageId || null,\n    \"tempId\": $('Webhook').item.json.body.tempId,\n    \"reply\": \"false\",\n    \"replyto\": {\n      \"id\": null,\n      \"body\": null\n    }\n  }\n}}",
+        "options": {
+            "timeout": 10000,
+            "response": {
+                "response": {}
+            }
         }
-      ]
     },
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={{ \n  {\n    \"senderFinal\": $('Webhook').item.json.body.phone,\n    \"session\": $('Webhook').item.json.body.session,\n    \"timestamp\": $json.timestamp || Math.floor(Date.now() / 1000),\n    \"fromMe\": true,\n    \"conversation\": $('Webhook').item.json.body.text || $('Webhook').item.json.body.url || '',\n    \"hasMedia\": ['imagem', 'audio', 'video', 'documento'].includes($('Webhook').item.json.body.type),\n    \"pushName\": null,\n    \"media\": {\n      \"url\": $('Webhook').item.json.body.url || null,\n      \"mimetype\": $('Webhook').item.json.body.mimetype || null\n    },\n    \"locationMessage\": {\n      \"latitude\": null,\n      \"longitude\": null,\n      \"name\": null,\n      \"URL\": null,\n      \"JPEGThumbnail\": null\n    },\n    \"profilePictureURL\": null,\n    \"idMessage\": $json.id || $json.messageId || null,\n    \"tempId\": $('Webhook').item.json.body.tempId,\n    \"reply\": \"false\",\n    \"replyto\": {\n      \"id\": null,\n      \"body\": null\n    }\n  }\n}}",
-    "options": {
-      "timeout": 10000,
-      "response": {
-        "response": {}
-      }
-    }
-  },
-  "type": "n8n-nodes-base.httpRequest",
-  "typeVersion": 4.2,
-  "position": [
-    2400,
-    -256
-  ],
-  "id": "new-send-to-crm-webhook-node",
-  "name": "Send to CRM Webhook"
+    "type": "n8n-nodes-base.httpRequest",
+    "typeVersion": 4.2,
+    "position": [
+        2400, -256
+    ],
+    "id": "new-send-to-crm-webhook-node",
+    "name": "Send to CRM Webhook"
 }
