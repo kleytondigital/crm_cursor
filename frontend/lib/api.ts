@@ -366,7 +366,7 @@ export const attendancesAPI = {
   getById: (id: string) => authFetch(`/attendances/${id}`),
   getByLeadId: (leadId: string) => authFetch(`/attendances/lead/${leadId}`),
   getStats: () => authFetch('/attendances/stats'),
-  getSmartQueue: () => authFetch('/attendances/smart-queue'),
+  getSmartQueue: () => authFetch('/attendances/queue/next'),
   create: (data: any) =>
     authFetch('/attendances', {
       method: 'POST',
@@ -411,7 +411,7 @@ export const attendancesAPI = {
       body: data ? JSON.stringify(data) : undefined,
     }),
   syncLeadsWithAttendances: () =>
-    authFetch('/attendances/sync-leads', {
+    authFetch('/attendances/sync', {
       method: 'POST',
     }),
 }
