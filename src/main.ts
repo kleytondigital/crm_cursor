@@ -15,7 +15,7 @@ async function bootstrap() {
     credentials: false, // Não enviar credenciais (pode causar problemas com WebSocket)
     exposedHeaders: ['Content-Range', 'Accept-Ranges'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'X-API-Key', 'x-api-key'],
   });
 
   // Guard JWT global (rotas públicas usam @Public() decorator)

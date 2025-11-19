@@ -29,6 +29,12 @@ import { UpdateMessageTranscriptionDto } from './dto/update-message-transcriptio
 export class N8nWebhooksController {
   constructor(private readonly n8nWebhooksService: N8nWebhooksService) {}
 
+  @Get('test')
+  @Public()
+  test() {
+    return { message: 'N8N Webhooks Controller está funcionando' };
+  }
+
   // ============= LEADS =============
 
   @Patch('leads/:phone/name')

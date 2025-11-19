@@ -24,7 +24,16 @@ export class ApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<ApiKeyRequest>();
     const apiKey = this.extractApiKey(request);
 
+    console.log('[ApiKeyGuard] Verificando API Key:', {
+      path: request.path,
+      method: request.method,
+      hasApiKey: !!apiKey,
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'none',
+      headers: Object.keys(request.headers).filter(h => h.toLowerCase().includes('api')),
+    });
+
     if (!apiKey) {
+      console.log('[ApiKeyGuard] API Key não fornecida');
       throw new UnauthorizedException('API Key não fornecida');
     }
 
@@ -49,8 +58,15 @@ export class ApiKeyGuard implements CanActivate {
     });
 
     if (!keyRecord) {
+      console.log('[ApiKeyGuard] API Key inválida ou expirada');
       throw new UnauthorizedException('API Key inválida ou expirada');
     }
+
+    console.log('[ApiKeyGuard] API Key válida:', {
+      keyId: keyRecord.id,
+      name: keyRecord.name,
+      tenantId: keyRecord.tenantId || 'global',
+    });
 
     // Adicionar informações da API key na request
     request.apiKey = keyRecord;
