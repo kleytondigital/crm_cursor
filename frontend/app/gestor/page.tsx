@@ -18,11 +18,12 @@ import {
   HelpCircle,
   X,
   ShieldAlert,
+  Bot,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
-type MenuSection = 'dashboard' | 'departments' | 'users' | null
+type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | null
 
 interface MenuItem {
   id: MenuSection
@@ -52,6 +53,11 @@ const menuItems: MenuItem[] = [
     id: 'users',
     label: 'Usuários',
     icon: <Users className="h-4 w-4" />,
+  },
+  {
+    id: 'automations',
+    label: 'Automações',
+    icon: <Bot className="h-4 w-4" />,
   },
 ]
 
@@ -90,6 +96,7 @@ const configHelpItems = [
 ]
 
 function GestorContent() {
+  const router = useRouter()
   const [selectedSection, setSelectedSection] = useState<MenuSection>('dashboard')
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -330,6 +337,34 @@ function GestorContent() {
 
           {selectedSection === 'departments' && <DepartmentManager />}
           {selectedSection === 'users' && <UserManager />}
+          {selectedSection === 'automations' && (
+            <div className="flex flex-col gap-4">
+              <header>
+                <h2 className="text-2xl font-semibold text-white">Automações</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Gerencie workflows automatizados e integrações com n8n.
+                </p>
+              </header>
+
+              <Card className="rounded-2xl border border-white/5 bg-background-muted/60 p-6 shadow-inner-glow">
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Bot className="mx-auto h-16 w-16 text-brand-secondary opacity-50" />
+                    <h3 className="mt-4 text-lg font-semibold text-white">Automações IA</h3>
+                    <p className="mt-2 text-sm text-text-muted max-w-md">
+                      Configure workflows inteligentes com n8n para automatizar seu atendimento.
+                    </p>
+                    <button
+                      onClick={() => router.push('/automacoes')}
+                      className="mt-6 rounded-full bg-brand-primary px-6 py-3 text-sm font-medium text-white hover:bg-brand-primary-dark shadow-glow"
+                    >
+                      Acessar Automações
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
         </main>
       </div>
       <Footer />

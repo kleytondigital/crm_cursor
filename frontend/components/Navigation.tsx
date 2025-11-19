@@ -20,10 +20,8 @@ const navigationItems = [
   { href: '/', label: 'Chats', icon: MessageCircle },
   { href: '/connections', label: 'Conexões', icon: Share2, adminOnly: true },
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
-  { href: '/pipeline', label: 'Estágios', icon: Sliders, adminOnly: true },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
-  { href: '/automacoes', label: 'Automações', icon: Bot, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
 ]
 
