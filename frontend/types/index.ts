@@ -17,6 +17,7 @@ export interface Message {
   contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT' | 'LOCATION'
   contentUrl?: string
   contentText?: string
+  transcriptionText?: string | null // Transcrição de áudio via OpenAI Whisper
   latitude?: number | null
   longitude?: number | null
   tenantId: string

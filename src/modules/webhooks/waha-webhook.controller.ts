@@ -15,6 +15,7 @@ import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
 import { MinioService } from '@/shared/minio/minio.service';
+import { N8nService } from '@/shared/n8n/n8n.service';
 
 const WA_REGEX = /@(c\.us|s\.whatsapp\.net)$/;
 
@@ -28,6 +29,7 @@ export class WahaWebhookController {
     private readonly configService: ConfigService,
     private readonly attendancesService: AttendancesService,
     private readonly minioService: MinioService,
+    private readonly n8nService: N8nService,
   ) {}
 
   @Public()
@@ -609,6 +611,22 @@ export class WahaWebhookController {
       );
     }
 
+    // Enviar áudio para transcrição no n8n se for mensagem de áudio recebida
+    if (!fromMe && contentType === ContentType.AUDIO && contentUrl) {
+      try {
+        await this.sendAudioForTranscription({
+          messageId: message.id,
+          audioUrl: absoluteContentUrl || contentUrl,
+          tenantId: connection.tenantId,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Erro ao enviar áudio para transcrição no n8n: ${error?.message || error}`,
+        );
+        // Não bloquear o processamento se falhar a transcrição
+      }
+    }
+
     return true;
   }
 
@@ -1039,6 +1057,45 @@ export class WahaWebhookController {
     }
 
     return null;
+  }
+
+  private async sendAudioForTranscription({
+    messageId,
+    audioUrl,
+    tenantId,
+  }: {
+    messageId: string;
+    audioUrl: string;
+    tenantId: string;
+  }) {
+    const webhookUrl =
+      this.configService.get<string>('N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION') ??
+      this.configService.get<string>('N8N_AUDIO_TRANSCRIPTION_WEBHOOK_URL');
+
+    if (!webhookUrl) {
+      this.logger.warn(
+        'N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION não configurado. Transcrição de áudio não será processada.',
+      );
+      return;
+    }
+
+    const payload = {
+      messageId,
+      audioUrl,
+      tenantId,
+    };
+
+    try {
+      await this.n8nService.postToUrl(webhookUrl, payload);
+      this.logger.log(
+        `Áudio enviado para transcrição no n8n. messageId=${messageId} audioUrl=${audioUrl}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao enviar áudio para transcrição no n8n: ${error?.message || error}`,
+      );
+      throw error;
+    }
   }
 }
 

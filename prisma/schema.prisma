@@ -164,6 +164,7 @@ model Message {
   sender         String?
   contentUrl     String?
   contentText    String?
+  transcriptionText String?       // Transcrição de áudio via OpenAI Whisper
   latitude       Float?
   longitude      Float?
   direction      MessageDirection @default(INCOMING)

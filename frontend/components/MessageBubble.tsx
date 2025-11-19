@@ -165,7 +165,7 @@ export default function MessageBubble({
         const profilePictureURL = !isUser ? (leadProfilePicture || null) : null
         
         return (
-          <div className="flex w-full max-w-[320px] relative">
+          <div className="flex w-full max-w-[320px] flex-col gap-2 relative">
             <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
               isUser 
                 ? 'bg-blue-500' 
@@ -180,6 +180,25 @@ export default function MessageBubble({
             {message.status === 'sending' && (
               <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              </div>
+            )}
+            {/* Exibir transcrição se disponível */}
+            {message.transcriptionText && (
+              <div className={`text-xs leading-relaxed rounded-lg px-3 py-2 ${
+                isUser
+                  ? 'bg-blue-500/20 text-blue-100 border border-blue-400/30'
+                  : 'bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700'
+              }`}>
+                <p className="whitespace-pre-wrap break-words">
+                  {message.transcriptionText}
+                </p>
+              </div>
+            )}
+            {/* Mostrar indicador "Transcrevendo..." se não tiver transcrição mas for áudio recebido */}
+            {!message.transcriptionText && !isUser && (
+              <div className="text-xs text-text-muted italic px-3 py-1 flex items-center gap-1">
+                <Clock className="h-3 w-3 animate-pulse" />
+                <span>Transcrevendo áudio...</span>
               </div>
             )}
           </div>

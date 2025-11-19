@@ -20,6 +20,7 @@ import {
 import { CloseAttendanceDto } from './dto/close-attendance.dto';
 import { UpdateAttendancePriorityDto } from './dto/update-attendance-priority.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { UpdateMessageTranscriptionDto } from './dto/update-message-transcription.dto';
 
 @Controller('webhooks/n8n')
 @UseGuards(ApiKeyGuard)
@@ -126,6 +127,19 @@ export class N8nWebhooksController {
     @ApiKeyTenant() tenantId: string,
   ) {
     return this.n8nWebhooksService.getMessagesByLeadId(leadId, tenantId);
+  }
+
+  @Patch('messages/:messageId/transcription')
+  updateMessageTranscription(
+    @Param('messageId') messageId: string,
+    @Body() dto: UpdateMessageTranscriptionDto,
+    @ApiKeyTenant() tenantId: string,
+  ) {
+    return this.n8nWebhooksService.updateMessageTranscription(
+      messageId,
+      dto,
+      tenantId,
+    );
   }
 }
 

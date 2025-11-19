@@ -16,6 +16,7 @@ import {
 import { CloseAttendanceDto } from './dto/close-attendance.dto';
 import { UpdateAttendancePriorityDto } from './dto/update-attendance-priority.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { UpdateMessageTranscriptionDto } from './dto/update-message-transcription.dto';
 import { UserRole } from '@prisma/client';
 
 @Injectable()
@@ -261,6 +262,28 @@ export class N8nWebhooksService {
       },
       orderBy: { createdAt: 'desc' },
       take: 50, // Limitar a 50 mensagens mais recentes
+    });
+  }
+
+  async updateMessageTranscription(
+    messageId: string,
+    dto: UpdateMessageTranscriptionDto,
+    tenantId: string,
+  ) {
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        tenantId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Mensagem não encontrada');
+    }
+
+    return this.prisma.message.update({
+      where: { id: message.id },
+      data: { transcriptionText: dto.transcriptionText },
     });
   }
 
