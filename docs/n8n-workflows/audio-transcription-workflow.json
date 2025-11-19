@@ -61,7 +61,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $('Webhook Trigger').item.json.body.messageId }}/transcription",
+        "url": "={{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $json.body.messageId }}/transcription",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

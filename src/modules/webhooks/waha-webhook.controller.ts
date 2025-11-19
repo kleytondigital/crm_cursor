@@ -612,18 +612,33 @@ export class WahaWebhookController {
     }
 
     // Enviar áudio para transcrição no n8n se for mensagem de áudio recebida
-    if (!fromMe && contentType === ContentType.AUDIO && contentUrl) {
-      try {
-        await this.sendAudioForTranscription({
-          messageId: message.id,
-          audioUrl: absoluteContentUrl || contentUrl,
-          tenantId: connection.tenantId,
-        });
-      } catch (error) {
-        this.logger.error(
-          `Erro ao enviar áudio para transcrição no n8n: ${error?.message || error}`,
+    if (!fromMe && contentType === ContentType.AUDIO) {
+      this.logger.log(
+        `[AUDIO TRANSCRIPTION] Mensagem de áudio detectada. messageId=${message.id} contentUrl=${contentUrl} absoluteContentUrl=${absoluteContentUrl}`,
+      );
+      
+      if (contentUrl || absoluteContentUrl) {
+        const finalAudioUrl = absoluteContentUrl || contentUrl;
+        try {
+          await this.sendAudioForTranscription({
+            messageId: message.id, // ID interno do banco (UUID)
+            audioUrl: finalAudioUrl!,
+            tenantId: connection.tenantId,
+          });
+          this.logger.log(
+            `[AUDIO TRANSCRIPTION] Áudio enviado para transcrição com sucesso. messageId=${message.id}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `[AUDIO TRANSCRIPTION] Erro ao enviar áudio para transcrição no n8n: ${error?.message || error}`,
+            error?.stack,
+          );
+          // Não bloquear o processamento se falhar a transcrição
+        }
+      } else {
+        this.logger.warn(
+          `[AUDIO TRANSCRIPTION] Mensagem de áudio sem URL. messageId=${message.id} contentUrl=${contentUrl}`,
         );
-        // Não bloquear o processamento se falhar a transcrição
       }
     }
 

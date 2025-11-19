@@ -10,6 +10,7 @@ import {
 import { N8nWebhooksService } from './n8n-webhooks.service';
 import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
 import { ApiKeyTenant } from '@/shared/decorators/api-key.decorator';
+import { Public } from '@/shared/decorators/public.decorator';
 import { UpdateLeadNameDto } from './dto/update-lead-name.dto';
 import { UpdateLeadTagsDto } from './dto/update-lead-tags.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
@@ -23,7 +24,8 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateMessageTranscriptionDto } from './dto/update-message-transcription.dto';
 
 @Controller('webhooks/n8n')
-@UseGuards(ApiKeyGuard)
+@Public() // Marcar como público para JwtAuthGuard global não interferir
+@UseGuards(ApiKeyGuard) // ApiKeyGuard fará a validação de API Key
 export class N8nWebhooksController {
   constructor(private readonly n8nWebhooksService: N8nWebhooksService) {}
 

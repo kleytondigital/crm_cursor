@@ -100,16 +100,24 @@ O workflow contém os seguintes nodes:
 ### Node 4: HTTP Request (Atualizar CRM)
 
 - **Method**: PATCH
-- **URL**: `{{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $('Webhook').item.json.body.messageId }}/transcription`
-- **Authentication**: Generic Credential Type
-  - **Header Name**: `X-API-Key`
-  - **Header Value**: `{{ $env.CRM_API_KEY }}`
+- **URL**: `{{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $json.body.messageId }}/transcription`
+- **Send Headers**: Sim
+- **Headers**:
+  - `X-API-Key`: `{{ $env.CRM_API_KEY }}`
+  - `Content-Type`: `application/json`
+- **Send Body**: Sim
+- **Body Type**: JSON
 - **Body**:
 ```json
 {
   "transcriptionText": "{{ $json.text }}"
 }
 ```
+
+**IMPORTANTE**:
+- `CRM_API_URL` deve apontar para o **backend** (ex: `https://backcrm.aoseudispor.com.br`), **NÃO** para o frontend
+- O `messageId` vem do payload do webhook (`$json.body.messageId`) e é o **ID interno** (UUID) do banco de dados
+- Certifique-se de que a URL do backend está correta e acessível do n8n
 
 ## API Endpoints
 
@@ -177,6 +185,29 @@ Para mensagens de áudio recebidas sem transcrição ainda, o frontend exibe um 
 
 ## Troubleshooting
 
+### Erro 404 ao atualizar transcrição
+
+**Sintomas**: O n8n retorna erro 404 com HTML do Next.js ao tentar atualizar a transcrição.
+
+**Causas possíveis**:
+1. `CRM_API_URL` está apontando para o frontend ao invés do backend
+2. URL do backend está incorreta ou inacessível do n8n
+3. Rota não existe no backend
+
+**Soluções**:
+1. Verifique que `CRM_API_URL` no n8n aponta para o **backend** (ex: `https://backcrm.aoseudispor.com.br`), **NÃO** para o frontend
+2. Teste manualmente o endpoint:
+   ```bash
+   curl -X PATCH https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
+     -H "X-API-Key: {sua-api-key}" \
+     -H "Content-Type: application/json" \
+     -d '{"transcriptionText":"teste"}'
+   ```
+3. Verifique os logs do backend para ver se a requisição está chegando
+4. Confirme que o `messageId` no payload do n8n é o **ID interno** (UUID), não o `messageId` do WhatsApp
+
+**Nota**: Se o erro retornar HTML do Next.js (página 404), significa que a requisição está indo para o frontend ao invés do backend.
+
 ### Áudio não é enviado para transcrição
 
 1. Verifique se `N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION` está configurado no `.env` do CRM
@@ -194,11 +225,31 @@ Para mensagens de áudio recebidas sem transcrição ainda, o frontend exibe um 
 4. Verifique se o endpoint `/webhooks/n8n/messages/{messageId}/transcription` está acessível
 5. Verifique se o `messageId` está correto no payload do n8n
 
-### Erro 404 ao atualizar transcrição
+### Erro 404 ao atualizar transcrição (HTML do Next.js)
+
+**Sintoma**: n8n retorna erro 404 com HTML do Next.js (página "404: This page could not be found").
+
+**Causa**: `CRM_API_URL` está apontando para o **frontend** ao invés do **backend**.
+
+**Solução**:
+1. Verifique que `CRM_API_URL` no n8n aponta para o **backend**:
+   - ✅ Correto: `https://backcrm.aoseudispor.com.br`
+   - ❌ Errado: `https://crm.aoseudispor.com.br` (frontend)
+2. Teste manualmente o endpoint:
+   ```bash
+   curl -X PATCH https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
+     -H "X-API-Key: {sua-api-key}" \
+     -H "Content-Type: application/json" \
+     -d '{"transcriptionText":"teste"}'
+   ```
+3. Verifique os logs do backend para confirmar que a requisição está chegando
+
+### Erro 404 ao atualizar transcrição (Mensagem não encontrada)
 
 1. Confirme que o `messageId` está correto e existe no banco de dados
-2. Verifique se a API Key tem permissão para atualizar mensagens
-3. Confirme que o `tenantId` da API Key corresponde ao tenant da mensagem
+2. Verifique que o `messageId` é o **ID interno** (UUID), não o `messageId` do WhatsApp
+3. Verifique se a API Key tem permissão para atualizar mensagens
+4. Confirme que o `tenantId` da API Key corresponde ao tenant da mensagem
 
 ### Erro ao transcrever no OpenAI
 
