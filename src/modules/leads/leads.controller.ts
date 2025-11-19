@@ -50,6 +50,15 @@ export class LeadsController {
     return this.leadsService.update(id, updateLeadDto, user.companyId);
   }
 
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: LeadStatus,
+    @CurrentUser() user: any,
+  ) {
+    return this.leadsService.updateStatus(id, status, user.companyId);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.leadsService.remove(id, user.companyId);

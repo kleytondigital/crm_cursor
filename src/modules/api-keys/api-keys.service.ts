@@ -24,15 +24,27 @@ export class ApiKeysService {
       throw new ForbiddenException('Apenas administradores podem criar API Keys');
     }
 
+    // Validar isGlobal: apenas SUPER_ADMIN pode criar chaves globais
+    if (dto.isGlobal && context.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Apenas Super Admins podem criar API Keys globais');
+    }
+
     // Gerar uma chave aleatória
     const rawKey = this.generateRawKey();
     const hashedKey = this.hashApiKey(rawKey);
+
+    // Determinar tenantId:
+    // - Se isGlobal=true e SUPER_ADMIN: tenantId = null (chave global)
+    // - Caso contrário: usar tenantId do contexto
+    const tenantId = dto.isGlobal && context.role === UserRole.SUPER_ADMIN 
+      ? null 
+      : context.tenantId;
 
     const apiKey = await this.prisma.apiKey.create({
       data: {
         name: dto.name,
         key: hashedKey,
-        tenantId: context.role === UserRole.SUPER_ADMIN ? null : context.tenantId,
+        tenantId,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       },
     });
@@ -43,6 +55,7 @@ export class ApiKeysService {
       name: apiKey.name,
       key: rawKey, // IMPORTANTE: Mostrar apenas na criação
       tenantId: apiKey.tenantId,
+      isGlobal: apiKey.tenantId === null,
       expiresAt: apiKey.expiresAt,
       createdAt: apiKey.createdAt,
       warning: 'Guarde esta chave em local seguro. Ela não poderá ser recuperada novamente.',
@@ -54,7 +67,7 @@ export class ApiKeysService {
       isActive: true,
     };
 
-    // SUPER_ADMIN vê todas as keys
+    // SUPER_ADMIN vê todas as keys (incluindo globais com tenantId=null)
     // Admins veem apenas as keys do seu tenant
     if (context.role !== UserRole.SUPER_ADMIN) {
       where.tenantId = context.tenantId;
@@ -75,7 +88,11 @@ export class ApiKeysService {
       },
     });
 
-    return keys;
+    // Adicionar flag isGlobal para facilitar no frontend
+    return keys.map((key) => ({
+      ...key,
+      isGlobal: key.tenantId === null,
+    }));
   }
 
   async findOne(id: string, context: AuthContext) {

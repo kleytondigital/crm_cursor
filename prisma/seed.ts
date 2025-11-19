@@ -74,6 +74,60 @@ async function main() {
     },
   });
 
+  // Criar estágios padrão do pipeline (globais, não tenant-specific)
+  const defaultStages = [
+    {
+      name: 'Novo',
+      status: 'NOVO',
+      color: '#3B82F6', // Azul
+      order: 0,
+      isDefault: true,
+      isActive: true,
+      tenantId: null,
+    },
+    {
+      name: 'Em Atendimento',
+      status: 'EM_ATENDIMENTO',
+      color: '#F59E0B', // Laranja
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      tenantId: null,
+    },
+    {
+      name: 'Aguardando',
+      status: 'AGUARDANDO',
+      color: '#8B5CF6', // Roxo
+      order: 2,
+      isDefault: true,
+      isActive: true,
+      tenantId: null,
+    },
+    {
+      name: 'Concluído',
+      status: 'CONCLUIDO',
+      color: '#10B981', // Verde
+      order: 3,
+      isDefault: true,
+      isActive: true,
+      tenantId: null,
+    },
+  ];
+
+  for (const stage of defaultStages) {
+    await prisma.pipelineStage.upsert({
+      where: {
+        tenantId_status_name: {
+          tenantId: null,
+          status: stage.status as any,
+          name: stage.name,
+        },
+      },
+      update: {},
+      create: stage as any,
+    });
+  }
+
   console.log('Seed executado com sucesso!');
   console.log('================================');
   console.log('Credenciais criadas:');

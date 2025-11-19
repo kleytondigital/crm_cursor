@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsBoolean } from 'class-validator';
 
 export class CreateApiKeyDto {
   @IsString()
@@ -7,5 +7,9 @@ export class CreateApiKeyDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isGlobal?: boolean; // Apenas para SUPER_ADMIN: criar chave global (sem tenant)
 }
 
