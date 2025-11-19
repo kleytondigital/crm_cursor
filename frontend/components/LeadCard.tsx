@@ -28,6 +28,29 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
     return format(new Date(dateString), 'dd/MM/yyyy', { locale: ptBR })
   }
 
+  const formatPhone = (phone: string) => {
+    // Remove @c.us ou @s.whatsapp.net
+    let cleanPhone = phone.replace(/@(c\.us|s\.whatsapp\.net)/, '')
+    // Remove espaços e caracteres especiais
+    cleanPhone = cleanPhone.replace(/\D/g, '')
+    // Formatar: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+    if (cleanPhone.length === 11) {
+      return cleanPhone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+    } else if (cleanPhone.length === 10) {
+      return cleanPhone.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+    }
+    return cleanPhone
+  }
+
+  const getDisplayName = () => {
+    // Se o nome existe e não está vazio (após trim), usar o nome
+    if (lead.name && lead.name.trim().length > 0) {
+      return lead.name.trim()
+    }
+    // Caso contrário, formatar o telefone
+    return formatPhone(lead.phone)
+  }
+
   return (
     <Draggable draggableId={lead.id} index={index}>
       {(provided, snapshot) => (
@@ -39,11 +62,11 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
         >
-          <h3 className="mb-2 text-lg font-semibold text-white">{lead.name}</h3>
+          <h3 className="mb-2 line-clamp-2 text-base font-semibold text-white">{getDisplayName()}</h3>
 
           <div className="mb-3 flex items-center text-sm text-text-muted">
             <Phone className="mr-2 h-4 w-4 text-brand-secondary" />
-            <span>{lead.phone}</span>
+            <span className="truncate">{formatPhone(lead.phone)}</span>
           </div>
 
           {lead.tags && lead.tags.length > 0 && (
