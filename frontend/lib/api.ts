@@ -440,3 +440,24 @@ export const authAPI = {
     }),
   me: () => authFetch('/auth/me'),
 }
+
+// ============================================
+// API KEYS API
+// ============================================
+export const apiKeysAPI = {
+  list: () => authFetch('/api-keys'),
+  getById: (id: string) => authFetch(`/api-keys/${id}`),
+  create: (data: { name: string; isGlobal?: boolean; expiresAt?: string }) =>
+    authFetch('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  revoke: (id: string) =>
+    authFetch(`/api-keys/${id}`, {
+      method: 'DELETE',
+    }),
+  remove: (id: string) =>
+    authFetch(`/api-keys/${id}`, {
+      method: 'DELETE',
+    }),
+}

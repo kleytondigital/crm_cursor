@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import CompaniesManager from '@/components/admin/CompaniesManager'
 import UsersManager from '@/components/admin/UsersManager'
 import WorkflowTemplatesManager from '@/components/admin/WorkflowTemplatesManager'
-import { Building2, Users, LayoutDashboard, LogOut, Bot } from 'lucide-react'
+import ApiKeysManager from '@/components/admin/ApiKeysManager'
+import { Building2, Users, LayoutDashboard, LogOut, Bot, Key } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type Section = 'companies' | 'users' | 'workflows'
+type Section = 'companies' | 'users' | 'workflows' | 'api-keys'
 
 export default function SaasDashboardPage() {
   const router = useRouter()
@@ -66,6 +67,7 @@ export default function SaasDashboardPage() {
     { id: 'companies' as Section, label: 'Empresas', icon: Building2 },
     { id: 'users' as Section, label: 'Usuários', icon: Users },
     { id: 'workflows' as Section, label: 'Automações', icon: Bot },
+    { id: 'api-keys' as Section, label: 'API Keys', icon: Key },
   ]
 
   return (
@@ -127,6 +129,7 @@ export default function SaasDashboardPage() {
           {selectedSection === 'companies' && <CompaniesManager />}
           {selectedSection === 'users' && <UsersManager />}
           {selectedSection === 'workflows' && <WorkflowTemplatesManager />}
+          {selectedSection === 'api-keys' && <ApiKeysManager />}
         </div>
       </main>
     </div>
