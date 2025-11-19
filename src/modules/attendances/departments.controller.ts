@@ -39,7 +39,7 @@ export class DepartmentsController {
   ) {
     const data = await this.departmentsService.createDepartment(dto, {
       tenantId: user.companyId,
-      userId: user.sub,
+      userId: user.id,
     });
     return { success: true, data };
   }
@@ -53,7 +53,7 @@ export class DepartmentsController {
   ) {
     const data = await this.departmentsService.updateDepartment(id, dto, {
       tenantId: user.companyId,
-      userId: user.sub,
+      userId: user.id,
     });
     return { success: true, data };
   }
@@ -63,7 +63,7 @@ export class DepartmentsController {
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     const data = await this.departmentsService.deleteDepartment(id, {
       tenantId: user.companyId,
-      userId: user.sub,
+      userId: user.id,
     });
     return { success: true, data };
   }
@@ -77,7 +77,7 @@ export class DepartmentsController {
   ) {
     const data = await this.departmentsService.assignUser(id, dto, {
       tenantId: user.companyId,
-      userId: user.sub,
+      userId: user.id,
     });
     return { success: true, data };
   }
@@ -91,7 +91,7 @@ export class DepartmentsController {
   ) {
     const data = await this.departmentsService.removeUser(id, userId, {
       tenantId: user.companyId,
-      userId: user.sub,
+      userId: user.id,
     });
     return { success: true, data };
   }
