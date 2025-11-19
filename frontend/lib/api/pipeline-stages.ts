@@ -1,4 +1,4 @@
-import api from './axios'
+import { API_URL } from '../api'
 
 export interface PipelineStage {
   id: string
@@ -29,41 +29,70 @@ export interface UpdatePipelineStageDto {
   isActive?: boolean
 }
 
+/**
+ * Helper para fazer requisições autenticadas
+ */
+async function authFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem('token')
+  const url = `${API_URL}${endpoint}`
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    },
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
+    throw new Error(error.message || `Erro ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export const pipelineStagesAPI = {
   // Listar todos os estágios
   async getAll(): Promise<PipelineStage[]> {
-    const response = await api.get('/pipeline-stages')
-    return response.data
+    return authFetch('/pipeline-stages')
   },
 
   // Buscar estágio por ID
   async getById(id: string): Promise<PipelineStage> {
-    const response = await api.get(`/pipeline-stages/${id}`)
-    return response.data
+    return authFetch(`/pipeline-stages/${id}`)
   },
 
   // Criar novo estágio
   async create(data: CreatePipelineStageDto): Promise<PipelineStage> {
-    const response = await api.post('/pipeline-stages', data)
-    return response.data
+    return authFetch('/pipeline-stages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   },
 
   // Atualizar estágio
   async update(id: string, data: UpdatePipelineStageDto): Promise<PipelineStage> {
-    const response = await api.patch(`/pipeline-stages/${id}`, data)
-    return response.data
+    return authFetch(`/pipeline-stages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
   },
 
   // Remover estágio
   async remove(id: string): Promise<{ message: string }> {
-    const response = await api.delete(`/pipeline-stages/${id}`)
-    return response.data
+    return authFetch(`/pipeline-stages/${id}`, {
+      method: 'DELETE',
+    })
   },
 
   // Reordenar estágios
   async reorder(stages: Array<{ id: string; order: number }>): Promise<{ message: string }> {
-    const response = await api.post('/pipeline-stages/reorder', { stages })
-    return response.data
+    return authFetch('/pipeline-stages/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ stages }),
+    })
   },
 }
 
