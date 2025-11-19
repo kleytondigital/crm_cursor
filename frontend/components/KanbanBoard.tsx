@@ -5,45 +5,35 @@ import { DragDropContext, DropResult } from 'react-beautiful-dnd'
 import KanbanColumn from './KanbanColumn'
 import { Lead } from '@/types'
 import { leadsAPI } from '@/lib/api'
+import { PipelineStage, pipelineStagesAPI } from '@/lib/api/pipeline-stages'
 import { Loader2 } from 'lucide-react'
-
-const COLUMNS = [
-  {
-    id: 'NOVO',
-    title: 'Novos Leads',
-    description: 'Aguardando primeiro contato',
-    border: 'border-brand-secondary/40',
-    indicator: 'bg-brand-secondary',
-  },
-  {
-    id: 'EM_ATENDIMENTO',
-    title: 'Em Atendimento',
-    description: 'Conversas em andamento',
-    border: 'border-brand-primary/40',
-    indicator: 'bg-brand-primary',
-  },
-  {
-    id: 'AGUARDANDO',
-    title: 'Aguardando Retorno',
-    description: 'Dependem do cliente',
-    border: 'border-brand-warning/50',
-    indicator: 'bg-brand-warning',
-  },
-  {
-    id: 'CONCLUIDO',
-    title: 'Concluídos',
-    description: 'Oportunidades convertidas',
-    border: 'border-brand-success/50',
-    indicator: 'bg-brand-success',
-  },
-] as const
 
 type LeadStatus = 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO'
 
-export default function KanbanBoard() {
+interface KanbanBoardProps {
+  onEditStage?: (stage: PipelineStage) => void
+}
+
+export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
   const [leads, setLeads] = useState<Lead[]>([])
+  const [stages, setStages] = useState<PipelineStage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  const loadStages = async () => {
+    try {
+      const data = await pipelineStagesAPI.getAll()
+      // Filtrar apenas estágios ativos e ordenar
+      const activeStages = data
+        .filter((stage) => stage.isActive)
+        .sort((a, b) => a.order - b.order)
+      setStages(activeStages)
+    } catch (err: any) {
+      console.error('Erro ao carregar estágios:', err)
+      setError('Erro ao carregar estágios do pipeline')
+    }
+  }
 
   const loadLeads = async () => {
     try {
@@ -59,6 +49,21 @@ export default function KanbanBoard() {
   }
 
   useEffect(() => {
+    // Obter role do usuário
+    if (typeof window !== 'undefined') {
+      try {
+        const userStr = localStorage.getItem('user')
+        if (userStr) {
+          const user = JSON.parse(userStr)
+          setUserRole(user.role)
+        }
+      } catch (error) {
+        console.error('Erro ao obter role do usuário:', error)
+      }
+    }
+
+    // Carregar estágios e leads
+    loadStages()
     loadLeads()
   }, [])
 
@@ -136,6 +141,8 @@ export default function KanbanBoard() {
     )
   }
 
+  const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER'
+
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/5 bg-background-subtle/60 shadow-inner-glow">
       {error && (
@@ -147,16 +154,28 @@ export default function KanbanBoard() {
       <div className="flex-1 overflow-x-auto px-6 py-6">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-6" style={{ minWidth: 'max-content' }}>
-            {COLUMNS.map((column) => (
+            {stages.map((stage) => (
               <KanbanColumn
-                key={column.id}
-                column={column}
-                leads={getLeadsByStatus(column.id as LeadStatus)}
+                key={stage.id}
+                stage={stage}
+                leads={getLeadsByStatus(stage.status)}
+                onEdit={isAdmin && onEditStage ? () => onEditStage(stage) : undefined}
               />
             ))}
           </div>
         </DragDropContext>
       </div>
+
+      {stages.length === 0 && !loading && (
+        <div className="flex items-center justify-center py-12 px-6">
+          <div className="text-center text-text-muted">
+            <p>Nenhum estágio configurado.</p>
+            {isAdmin && (
+              <p className="mt-2 text-sm">Clique em "Gerenciar Estágios" para criar.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

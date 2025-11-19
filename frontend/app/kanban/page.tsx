@@ -128,7 +128,13 @@ export default function KanbanPage() {
         </section>
 
         <section className="flex flex-1 flex-col">
-          <KanbanBoard key={refreshKey} />
+          <KanbanBoard 
+            key={refreshKey}
+            onEditStage={(stage) => {
+              setSelectedStage(stage)
+              setShowStageModal(true)
+            }}
+          />
         </section>
       </main>
       <Footer />
