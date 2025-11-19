@@ -268,17 +268,22 @@ export class N8nWebhooksService {
   async updateMessageTranscription(
     messageId: string,
     dto: UpdateMessageTranscriptionDto,
-    tenantId: string,
+    tenantId: string | null,
   ) {
+    // Se tenantId é null (chave global), buscar mensagem sem filtro de tenant
+    const where: any = { id: messageId };
+    if (tenantId !== null) {
+      where.tenantId = tenantId;
+    }
+
     const message = await this.prisma.message.findFirst({
-      where: {
-        id: messageId,
-        tenantId,
-      },
+      where,
     });
 
     if (!message) {
-      throw new NotFoundException('Mensagem não encontrada');
+      throw new NotFoundException(
+        `Mensagem não encontrada. messageId=${messageId} tenantId=${tenantId || 'global'}`,
+      );
     }
 
     return this.prisma.message.update({

@@ -100,7 +100,7 @@ O workflow contém os seguintes nodes:
 ### Node 4: HTTP Request (Atualizar CRM)
 
 - **Method**: PATCH
-- **URL**: `{{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $json.body.messageId }}/transcription`
+- **URL**: `{{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $('Webhook Trigger').first().json.body.messageId }}/transcription`
 - **Send Headers**: Sim
 - **Headers**:
   - `X-API-Key`: `{{ $env.CRM_API_KEY }}`

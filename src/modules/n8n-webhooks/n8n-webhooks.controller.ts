@@ -135,8 +135,13 @@ export class N8nWebhooksController {
   updateMessageTranscription(
     @Param('messageId') messageId: string,
     @Body() dto: UpdateMessageTranscriptionDto,
-    @ApiKeyTenant() tenantId: string,
+    @ApiKeyTenant() tenantId: string | null,
   ) {
+    console.log('[N8N Webhook] Recebendo atualização de transcrição:', {
+      messageId,
+      tenantId: tenantId || 'global',
+      transcriptionText: dto.transcriptionText?.substring(0, 50),
+    });
     return this.n8nWebhooksService.updateMessageTranscription(
       messageId,
       dto,
