@@ -148,14 +148,23 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl">
-            <div className="flex flex-col p-1">
+          <>
+            {/* Overlay para fechar ao clicar fora */}
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => setMenuOpen(false)}
+            />
+            <div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl">
+              <div className="flex flex-col p-1">
               {menuItems.map((item) => {
                 const Icon = item.icon
                 return (
                   <button
                     key={item.id}
-                    onClick={item.onClick}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      item.onClick()
+                    }}
                     disabled={item.disabled}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                       item.disabled
@@ -170,8 +179,9 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
                   </button>
                 )
               })}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 

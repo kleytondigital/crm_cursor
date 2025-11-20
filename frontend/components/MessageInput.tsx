@@ -124,51 +124,68 @@ export default function MessageInput({
   }
 
   const handleFileSelect = async (file: File) => {
-    const fileType = file.type.split('/')[0]
-    
-    // Se estiver respondendo, incluir replyTo
-    const replyToId = replyTo?.messageId || null
+    try {
+      const fileType = file.type.split('/')[0]
+      
+      // Se estiver respondendo, incluir replyTo
+      const replyToId = replyTo?.messageId || null
 
-    if (fileType === 'image') {
-      await sendMessage('', 'IMAGE', file, replyToId || undefined, replyToId ? 'reply' : undefined)
-    } else if (fileType === 'audio') {
-      await sendMessage('', 'AUDIO', file, replyToId || undefined, replyToId ? 'reply' : undefined)
-    } else if (fileType === 'video') {
-      await sendMessage('', 'VIDEO', file, replyToId || undefined, replyToId ? 'reply' : undefined)
-    } else {
-      await sendMessage(file.name, 'DOCUMENT', file, replyToId || undefined, replyToId ? 'reply' : undefined)
-    }
-    
-    // Limpar resposta após enviar mídia
-    if (replyToId) {
-      onReplyCancel?.()
+      if (fileType === 'image') {
+        await sendMessage('', 'IMAGE', file, replyToId || undefined, replyToId ? 'reply' : undefined)
+      } else if (fileType === 'audio') {
+        await sendMessage('', 'AUDIO', file, replyToId || undefined, replyToId ? 'reply' : undefined)
+      } else if (fileType === 'video') {
+        await sendMessage('', 'VIDEO', file, replyToId || undefined, replyToId ? 'reply' : undefined)
+      } else {
+        await sendMessage(file.name, 'DOCUMENT', file, replyToId || undefined, replyToId ? 'reply' : undefined)
+      }
+      
+      // Limpar resposta após enviar mídia
+      if (replyToId) {
+        onReplyCancel?.()
+      }
+    } catch (error) {
+      console.error('Erro ao enviar arquivo:', error)
+      throw error
     }
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      handleFileSelect(file)
+      try {
+        await handleFileSelect(file)
+      } catch (error) {
+        console.error('Erro ao enviar imagem/vídeo:', error)
+      }
     }
     if (imageInputRef.current) {
       imageInputRef.current.value = ''
     }
   }
 
-  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      handleFileSelect(file)
+      try {
+        await handleFileSelect(file)
+      } catch (error) {
+        console.error('Erro ao enviar foto da câmera:', error)
+      }
     }
     if (cameraInputRef.current) {
       cameraInputRef.current.value = ''
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      handleFileSelect(file)
+      try {
+        await handleFileSelect(file)
+      } catch (error) {
+        console.error('Erro ao enviar documento:', error)
+      }
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -603,44 +620,55 @@ export default function MessageInput({
             </button>
 
             {showAttachments && (
-              <div className="absolute bottom-full left-0 mb-2 z-50 w-56 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
-                <ul className="flex flex-col gap-1">
-                  {onScheduleClick && (
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAttachments(false)
-                          onScheduleClick()
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
-                      >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
-                          <Calendar className="h-4 w-4" />
-                        </span>
-                        <span>Agendar Mensagem</span>
-                      </button>
-                    </li>
-                  )}
-                  {attachmentOptions.map((option) => {
-                    const Icon = option.icon
-                    return (
-                      <li key={option.key}>
+              <>
+                {/* Overlay para fechar ao clicar fora */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowAttachments(false)}
+                />
+                <div className="absolute bottom-full left-0 mb-2 z-50 w-56 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
+                  <ul className="flex flex-col gap-1">
+                    {onScheduleClick && (
+                      <li>
                         <button
                           type="button"
-                          onClick={() => handleAttachmentSelect(option.key)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowAttachments(false)
+                            onScheduleClick()
+                          }}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
                         >
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
-                            <Icon className="h-4 w-4" />
+                            <Calendar className="h-4 w-4" />
                           </span>
-                          <span>{option.label}</span>
+                          <span>Agendar Mensagem</span>
                         </button>
                       </li>
-                    )
-                  })}
-                </ul>
-              </div>
+                    )}
+                    {attachmentOptions.map((option) => {
+                      const Icon = option.icon
+                      return (
+                        <li key={option.key}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAttachmentSelect(option.key)
+                            }}
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
+                          >
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span>{option.label}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </>
             )}
 
             <input

@@ -21,12 +21,13 @@ import {
   ShieldAlert,
   Bot,
   Menu,
+  Share2,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
-type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | null
+type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | null
 
 interface MenuItem {
   id: MenuSection
@@ -56,6 +57,11 @@ const menuItems: MenuItem[] = [
     id: 'users',
     label: 'Usuários',
     icon: <Users className="h-4 w-4" />,
+  },
+  {
+    id: 'connections',
+    label: 'Conexões',
+    icon: <Share2 className="h-4 w-4" />,
   },
   {
     id: 'automations',
@@ -119,6 +125,11 @@ function GestorContent() {
   }, [searchQuery])
 
   const handleMenuClick = (itemId: MenuSection) => {
+    if (itemId === 'connections') {
+      // Para conexões, redirecionar para a página
+      router.push('/connections')
+      return
+    }
     if (itemId === 'departments' && menuItems.find((m) => m.id === 'departments')?.hasSubmenu) {
       setExpandedMenus((prev) => {
         const newSet = new Set(prev)
@@ -188,6 +199,10 @@ function GestorContent() {
                           if (!isExpanded) {
                             setSelectedSection(item.id)
                           }
+                        } else if (item.id === 'connections') {
+                          // Redirecionar para conexões
+                          router.push('/connections')
+                          setExpandedMenus(new Set())
                         } else {
                           // Selecionar seção diretamente
                           handleMenuClick(item.id)
@@ -414,6 +429,33 @@ function GestorContent() {
 
           {selectedSection === 'departments' && <DepartmentManager />}
           {selectedSection === 'users' && <UserManager />}
+          {selectedSection === 'connections' && (
+            <div className="flex flex-col gap-4">
+              <header>
+                <h2 className="text-xl md:text-2xl font-semibold text-white">Conexões WhatsApp</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Gerencie conexões do WhatsApp conectadas ao sistema.
+                </p>
+              </header>
+              <Card className="rounded-2xl border border-white/5 bg-background-muted/60 p-4 md:p-6 shadow-inner-glow">
+                <div className="flex items-center justify-center py-8 md:py-12">
+                  <div className="text-center">
+                    <Share2 className="mx-auto h-12 w-12 md:h-16 md:w-16 text-brand-secondary opacity-50" />
+                    <h3 className="mt-3 md:mt-4 text-lg font-semibold text-white">Gerenciar Conexões</h3>
+                    <p className="mt-1 md:mt-2 text-sm text-text-muted max-w-md">
+                      Configure e gerencie as conexões do WhatsApp para atendimento.
+                    </p>
+                    <button
+                      onClick={() => router.push('/connections')}
+                      className="mt-4 md:mt-6 rounded-full bg-brand-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-primary-dark shadow-glow"
+                    >
+                      Acessar Conexões
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
           {selectedSection === 'automations' && (
             <div className="flex flex-col gap-4">
               <header>
