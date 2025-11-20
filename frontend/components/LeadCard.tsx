@@ -62,7 +62,7 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
         >
-          <h3 className="mb-2 line-clamp-2 text-sm sm:text-base font-semibold text-white">{getDisplayName()}</h3>
+          <h3 className="mb-2 line-clamp-2 break-words text-sm sm:text-base font-semibold text-white">{getDisplayName()}</h3>
 
           <div className="mb-3 flex items-center text-xs sm:text-sm text-text-muted">
             <Phone className="mr-2 h-4 w-4 text-brand-secondary" />

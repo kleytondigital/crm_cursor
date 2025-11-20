@@ -148,40 +148,33 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
         </button>
 
         {menuOpen && (
-          <>
-            {/* Overlay para fechar ao clicar fora */}
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={() => setMenuOpen(false)}
-            />
-            <div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl">
-              <div className="flex flex-col p-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <button
-                    key={item.id}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      item.onClick()
-                    }}
-                    disabled={item.disabled}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                      item.disabled
-                        ? 'cursor-not-allowed opacity-50 text-text-muted'
-                        : item.destructive
-                        ? 'text-rose-300 hover:bg-rose-500/10 hover:text-rose-200'
-                        : 'text-text-primary hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </button>
-                )
-              })}
-              </div>
+          <div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl">
+            <div className="flex flex-col p-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.id}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    item.onClick()
+                  }}
+                  disabled={item.disabled}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                    item.disabled
+                      ? 'cursor-not-allowed opacity-50 text-text-muted'
+                      : item.destructive
+                      ? 'text-rose-300 hover:bg-rose-500/10 hover:text-rose-200'
+                      : 'text-text-primary hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
             </div>
-          </>
+          </div>
         )}
       </div>
 

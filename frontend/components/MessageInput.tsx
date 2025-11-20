@@ -214,7 +214,7 @@ export default function MessageInput({
       return
     }
 
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (
         attachmentsRef.current &&
         !attachmentsRef.current.contains(event.target as Node)
@@ -224,7 +224,11 @@ export default function MessageInput({
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [showAttachments])
 
   const handleAudioRecord = async () => {
@@ -620,55 +624,44 @@ export default function MessageInput({
             </button>
 
             {showAttachments && (
-              <>
-                {/* Overlay para fechar ao clicar fora */}
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowAttachments(false)}
-                />
-                <div className="absolute bottom-full left-0 mb-2 z-50 w-56 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
-                  <ul className="flex flex-col gap-1">
-                    {onScheduleClick && (
-                      <li>
+              <div className="absolute bottom-full left-0 mb-2 z-50 w-60 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
+                <ul className="flex flex-col gap-1">
+                  {onScheduleClick && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttachments(false)
+                          onScheduleClick()
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
+                      >
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
+                          <Calendar className="h-4 w-4" />
+                        </span>
+                        <span>Agendar Mensagem</span>
+                      </button>
+                    </li>
+                  )}
+                  {attachmentOptions.map((option) => {
+                    const Icon = option.icon
+                    return (
+                      <li key={option.key}>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setShowAttachments(false)
-                            onScheduleClick()
-                          }}
+                          onClick={() => handleAttachmentSelect(option.key)}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
                         >
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
-                            <Calendar className="h-4 w-4" />
+                            <Icon className="h-4 w-4" />
                           </span>
-                          <span>Agendar Mensagem</span>
+                          <span>{option.label}</span>
                         </button>
                       </li>
-                    )}
-                    {attachmentOptions.map((option) => {
-                      const Icon = option.icon
-                      return (
-                        <li key={option.key}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleAttachmentSelect(option.key)
-                            }}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
-                          >
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">
-                              <Icon className="h-4 w-4" />
-                            </span>
-                            <span>{option.label}</span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              </>
+                    )
+                  })}
+                </ul>
+              </div>
             )}
 
             <input

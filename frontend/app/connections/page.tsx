@@ -38,6 +38,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer';
+import BottomNavigation from '@/components/BottomNavigation';
 
 const DEFAULT_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_WAHA_WEBHOOK ||
@@ -705,14 +706,19 @@ export default function ConnectionsPage() {
 
   if (!mounted || !isAuthorized) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-background-subtle/60 p-8 shadow-inner-glow">
-          <ShieldAlert className="h-12 w-12 text-rose-400" />
-          <h2 className="text-xl font-semibold text-white">Acesso Negado</h2>
-          <p className="text-sm text-text-muted">
-            Você não possui permissão para acessar esta página.
-          </p>
+      <div className="flex min-h-screen flex-col bg-background">
+        <Navigation />
+        <div className="flex flex-1 items-center justify-center px-6">
+          <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-background-subtle/60 p-8 shadow-inner-glow text-center">
+            <ShieldAlert className="h-12 w-12 text-rose-400" />
+            <h2 className="text-xl font-semibold text-white">Acesso Negado</h2>
+            <p className="text-sm text-text-muted max-w-sm">
+              Você não possui permissão para acessar esta página.
+            </p>
+          </div>
         </div>
+        <Footer />
+        <BottomNavigation />
       </div>
     );
   }
@@ -801,7 +807,7 @@ export default function ConnectionsPage() {
             </p>
           </div>
         ) : data && data.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {data.map((connection) => {
               const runtimeStatusKey =
                 connection.statusInfo?.status?.toUpperCase() || connection.status;
@@ -890,10 +896,10 @@ export default function ConnectionsPage() {
                               key={`${hook.url}-${index}`}
                               className="rounded-xl border border-white/5 bg-black/10 px-3 py-2"
                             >
-                              <p className="truncate text-sm text-text-primary">
+                              <p className="text-sm text-text-primary break-words">
                                 {hook.url || 'URL não informada'}
                               </p>
-                              <p className="mt-1 text-xs text-text-muted">
+                              <p className="mt-1 text-xs text-text-muted break-words">
                                 {hook.events.length > 0
                                   ? hook.events.join(', ')
                                   : 'Sem eventos selecionados'}
@@ -1268,6 +1274,7 @@ export default function ConnectionsPage() {
       </Dialog>
       </main>
       <Footer />
+      <BottomNavigation />
     </div>
   );
 }
