@@ -25,6 +25,7 @@ interface ChatContextType {
   loading: boolean
   error: string | null
   selectConversation: (conversation: Conversation | null) => void
+  clearSelectedConversation: () => void
   selectConversationByLeadId: (leadId: string) => Promise<void>
   sendMessage: (content: string, contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT', file?: File, replyTo?: string, action?: 'reply') => Promise<void>
   loadConversations: () => Promise<void>
@@ -542,6 +543,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     loadMessages(conversation.id)
   }, [selectedConversation, loadMessages])
 
+  const clearSelectedConversation = useCallback(() => {
+    selectConversation(null)
+  }, [selectConversation])
+
   const selectConversationByLeadId = useCallback(async (leadId: string) => {
     // Evitar seleção duplicada
     if (selectedLeadIdRef.current === leadId && selectedConversation?.leadId === leadId) {
@@ -718,6 +723,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         selectConversation,
+        clearSelectedConversation,
         selectConversationByLeadId,
         sendMessage,
         loadConversations,
