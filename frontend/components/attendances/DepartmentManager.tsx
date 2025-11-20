@@ -152,68 +152,71 @@ export default function DepartmentManager() {
           Nenhum departamento cadastrado. Crie o primeiro para organizar os atendimentos.
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:gap-4 md:grid-cols-2">
           {departments.map((department) => (
             <div
               key={department.id}
-              className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-text-primary"
+              className="flex flex-col gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-white/10 bg-white/5 p-3 md:p-4 text-sm text-text-primary"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-base font-semibold text-white">{department.name}</p>
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm md:text-base font-semibold text-white truncate">{department.name}</p>
                   {department.description && (
-                    <p className="text-xs text-text-muted">{department.description}</p>
+                    <p className="text-xs text-text-muted line-clamp-2 mt-0.5">{department.description}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-full border border-white/10 bg-white/5 text-xs uppercase tracking-wide text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary"
+                    className="rounded-full border border-white/10 bg-white/5 text-[10px] md:text-xs uppercase tracking-wide text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary px-2 md:px-3 py-1 md:py-1.5 h-auto"
                     onClick={() => openEditModal(department)}
                     disabled={loading}
                   >
-                    Editar
+                    <span className="hidden sm:inline">Editar</span>
+                    <span className="sm:hidden">Edt</span>
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-full border border-rose-500/30 bg-rose-500/10 text-xs uppercase tracking-wide text-rose-200 hover:border-rose-400/60 hover:bg-rose-500/20"
+                    className="rounded-full border border-rose-500/30 bg-rose-500/10 text-[10px] md:text-xs uppercase tracking-wide text-rose-200 hover:border-rose-400/60 hover:bg-rose-500/20 px-2 md:px-3 py-1 md:py-1.5 h-auto"
                     onClick={() => handleDelete(department)}
                     disabled={loading}
                   >
-                    Remover
+                    <span className="hidden sm:inline">Remover</span>
+                    <span className="sm:hidden">Rem</span>
                   </Button>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-text-muted">
-                  <span>Membros ({department.users.length})</span>
+              <div className="flex flex-col gap-1.5 md:gap-2">
+                <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
+                  <span className="text-[11px] md:text-xs">Membros ({department.users.length})</span>
                   <button
                     onClick={() => openMemberModal(department)}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary flex-shrink-0"
                   >
-                    <Users className="h-3.5 w-3.5" />
-                    Gerenciar
+                    <Users className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <span className="hidden sm:inline">Gerenciar</span>
+                    <span className="sm:hidden">Ger.</span>
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 md:gap-2">
                   {department.users.length === 0 ? (
-                    <span className="text-xs text-text-muted/80">Sem membros atribuídos.</span>
+                    <span className="text-[11px] md:text-xs text-text-muted/80">Sem membros atribuídos.</span>
                   ) : (
                     department.users.map((member) => (
                       <span
                         key={member.id}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-background-muted/70 px-2 py-1 text-xs text-text-primary"
+                        className="inline-flex items-center gap-1 md:gap-2 rounded-full border border-white/10 bg-background-muted/70 px-1.5 md:px-2 py-0.5 md:py-1 text-[11px] md:text-xs text-text-primary max-w-full"
                       >
-                        {member.name}
+                        <span className="truncate max-w-[100px] md:max-w-none">{member.name}</span>
                         <button
                           onClick={() => handleRemoveMember(department.id, member)}
-                          className="rounded-full border border-white/10 p-1 text-text-muted hover:border-rose-400/40 hover:text-rose-300"
+                          className="rounded-full border border-white/10 p-0.5 md:p-1 text-text-muted hover:border-rose-400/40 hover:text-rose-300 flex-shrink-0"
                           title="Remover"
                         >
-                          <UserMinus className="h-3 w-3" />
+                          <UserMinus className="h-2.5 w-2.5 md:h-3 md:w-3" />
                         </button>
                       </span>
                     ))

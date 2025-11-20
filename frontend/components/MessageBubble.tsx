@@ -47,18 +47,32 @@ export default function MessageBubble({
 
   // Fechar menu quando clicar fora
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false)
-      }
+    if (!showMenu) {
+      return
     }
 
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node
+      
+      // Verificar se o clique foi dentro do menu
+      if (menuRef.current && menuRef.current.contains(target)) {
+        return
+      }
+      
+      // Clicou fora do menu, fechar
+      setShowMenu(false)
     }
+
+    // Usar setTimeout para evitar que o evento de abertura seja capturado como clique fora
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside, true)
+      document.addEventListener('touchstart', handleClickOutside, true)
+    }, 0)
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
+      clearTimeout(timeoutId)
+      document.removeEventListener('mousedown', handleClickOutside, true)
+      document.removeEventListener('touchstart', handleClickOutside, true)
     }
   }, [showMenu])
 

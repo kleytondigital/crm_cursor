@@ -726,7 +726,7 @@ export default function ConnectionsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navigation />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-6 pb-10 pt-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 lg:gap-8 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
       <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-background-muted to-background-card px-6 py-8">
         <div className="absolute inset-0 bg-hero-grid opacity-70" />
         <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
@@ -807,7 +807,7 @@ export default function ConnectionsPage() {
             </p>
           </div>
         ) : data && data.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:gap-4 lg:gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {data.map((connection) => {
               const runtimeStatusKey =
                 connection.statusInfo?.status?.toUpperCase() || connection.status;
@@ -820,22 +820,22 @@ export default function ConnectionsPage() {
 
               return (
                 <Card key={connection.id} className="flex h-full flex-col">
-                  <CardHeader className="border-b border-white/5">
-                    <CardTitle className="flex items-start justify-between text-white">
-                      <div>
-                        <p className="text-xl font-semibold">{connection.name}</p>
+                  <CardHeader className="border-b border-white/5 p-3 md:p-6">
+                    <CardTitle className="flex items-start justify-between gap-2 text-white">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base md:text-lg lg:text-xl font-semibold truncate">{connection.name}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={status.tone}>{status.label}</Badge>
+                      <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                        <Badge variant={status.tone} className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">{status.label}</Badge>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-text-muted hover:text-white"
+                          className="h-7 w-7 md:h-8 md:w-8 text-text-muted hover:text-white"
                           onClick={() => openWebhooksDialog(connection)}
                           title="Configurações avançadas"
                           disabled={webhooksLoading && webhooksDialog.connection?.id === connection.id}
                         >
-                          <Settings className="h-4 w-4" />
+                          <Settings className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </Button>
                       </div>
                     </CardTitle>
@@ -843,19 +843,19 @@ export default function ConnectionsPage() {
                       ID: {connection.sessionName}
                     </CardDescription> */}
                   </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-4 text-sm text-text-muted">
-                    <div className="rounded-2xl border border-white/5 bg-background-soft/50 px-4 py-3">
-                      <p className="text-xs uppercase tracking-wide text-text-muted">
+                  <CardContent className="flex flex-1 flex-col gap-2 md:gap-3 lg:gap-4 text-sm text-text-muted p-3 md:p-6">
+                    <div className="rounded-xl md:rounded-2xl border border-white/5 bg-background-soft/50 px-2.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3">
+                      <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">
                         Sessão
                       </p>
-                      <p className="mt-1 text-sm text-text-primary">
+                      <p className="mt-0.5 md:mt-1 text-xs md:text-sm text-text-primary break-words">
                         {connection.sessionName}
                       </p>
                     </div>
 
                     {isConnected && (
-                      <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-secondary/20 text-brand-secondary">
+                      <div className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-white/5 bg-white/5 px-2.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3">
+                        <div className="flex h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-secondary/20 text-brand-secondary text-xs md:text-sm lg:text-base">
                           {connection.statusInfo?.picture ? (
                             <img
                               src={connection.statusInfo.picture}
@@ -866,88 +866,89 @@ export default function ConnectionsPage() {
                             (connection.statusInfo?.pushName ?? connection.name).charAt(0)
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs md:text-sm font-semibold text-white">
                             {connection.statusInfo?.pushName || 'Dispositivo autenticado'}
                           </p>
-                          <p className="truncate text-xs text-text-muted">
+                          <p className="truncate text-[10px] md:text-xs text-text-muted">
                             {connection.statusInfo?.waId || 'Número indisponível'}
                           </p>
                         </div>
                       </div>
                     )}
 
-                    <div className="rounded-2xl border border-white/5 bg-background-soft/50 px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-wide text-text-muted">
+                    <div className="rounded-xl md:rounded-2xl border border-white/5 bg-background-soft/50 px-2.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">
                           Webhooks
                         </p>
                         <Badge
                           variant={hasSessionWebhooks ? 'default' : 'destructive'}
-                          className="text-xs"
+                          className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1"
                         >
                           {hasSessionWebhooks ? 'Configurado' : 'Não configurado'}
                         </Badge>
                       </div>
                       {hasSessionWebhooks ? (
-                        <div className="mt-2 space-y-1">
-                          {sessionWebhooks.slice(0, 3).map((hook, index) => (
+                        <div className="mt-1.5 md:mt-2 space-y-1">
+                          {sessionWebhooks.slice(0, 2).map((hook, index) => (
                             <div
                               key={`${hook.url}-${index}`}
-                              className="rounded-xl border border-white/5 bg-black/10 px-3 py-2"
+                              className="rounded-lg md:rounded-xl border border-white/5 bg-black/10 px-2 md:px-3 py-1.5 md:py-2"
                             >
-                              <p className="text-sm text-text-primary break-words">
+                              <p className="text-xs md:text-sm text-text-primary break-words line-clamp-2">
                                 {hook.url || 'URL não informada'}
                               </p>
-                              <p className="mt-1 text-xs text-text-muted break-words">
+                              <p className="mt-0.5 md:mt-1 text-[10px] md:text-xs text-text-muted break-words line-clamp-2">
                                 {hook.events.length > 0
-                                  ? hook.events.join(', ')
-                                  : 'Sem eventos selecionados'}
+                                  ? hook.events.slice(0, 2).join(', ') + (hook.events.length > 2 ? '...' : '')
+                                  : 'Sem eventos'}
                               </p>
                             </div>
                           ))}
-                          {sessionWebhooks.length > 3 && (
-                            <p className="text-xs text-text-muted">
-                              +{sessionWebhooks.length - 3} webhooks adicionais
+                          {sessionWebhooks.length > 2 && (
+                            <p className="text-[10px] md:text-xs text-text-muted">
+                              +{sessionWebhooks.length - 2} webhooks adicionais
                             </p>
                           )}
                         </div>
                       ) : (
-                        <p className="mt-2 text-sm text-text-muted">
-                          Nenhum webhook configurado nesta sessão.
+                        <p className="mt-1.5 md:mt-2 text-xs md:text-sm text-text-muted">
+                          Nenhum webhook configurado.
                         </p>
                       )}
                     </div>
 
                     {isConnected && (
                       <>
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                            <p className="text-text-muted">Criada em</p>
-                            <p className="mt-1 text-sm text-white">
-                              {new Date(connection.createdAt).toLocaleString()}
+                        <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs">
+                          <div className="rounded-xl md:rounded-2xl border border-white/5 bg-white/5 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-3">
+                            <p className="text-[10px] md:text-xs text-text-muted">Criada em</p>
+                            <p className="mt-0.5 md:mt-1 text-xs md:text-sm text-white break-words">
+                              {new Date(connection.createdAt).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
-                          <div className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                            <p className="text-text-muted">Atualizada</p>
-                            <p className="mt-1 text-sm text-white">
-                              {new Date(connection.updatedAt).toLocaleString()}
+                          <div className="rounded-xl md:rounded-2xl border border-white/5 bg-white/5 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-3">
+                            <p className="text-[10px] md:text-xs text-text-muted">Atualizada</p>
+                            <p className="mt-0.5 md:mt-1 text-xs md:text-sm text-white break-words">
+                              {new Date(connection.updatedAt).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                         </div>
                       </>
                     )}
                   </CardContent>
-                  <CardFooter className="flex flex-wrap items-center gap-2 pt-4">
+                  <CardFooter className="flex flex-wrap items-center gap-1.5 md:gap-2 p-3 md:p-6 pt-3 md:pt-4">
                     {!isConnected && (
                       <Button
                         size="sm"
-                        className="gap-2"
+                        className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
                         onClick={() => openConnectDialog(connection)}
                         disabled={actionMutation.isLoading || qrMutation.isLoading}
                       >
-                        <Play className="h-4 w-4" />
-                        Conectar
+                        <Play className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        <span className="hidden sm:inline">Conectar</span>
+                        <span className="sm:hidden">Conectar</span>
                       </Button>
                     )}
                     {isConnected && (
@@ -955,22 +956,24 @@ export default function ConnectionsPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="gap-2"
+                          className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
                           onClick={() => handleAction(connection.id, 'disconnect')}
                           disabled={actionMutation.isLoading}
                         >
-                          <Power className="h-4 w-4" />
-                          Desconectar
+                          <Power className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline">Desconectar</span>
+                          <span className="sm:hidden">Descon.</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="gap-2 text-text-muted"
+                          className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2 text-text-muted"
                           onClick={() => handleAction(connection.id, 'reload')}
                           disabled={actionMutation.isLoading}
                         >
-                          <RefreshCw className="h-4 w-4" />
-                          Recarregar
+                          <RefreshCw className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline">Recarregar</span>
+                          <span className="sm:hidden">Atualizar</span>
                         </Button>
                       </>
                     )}
@@ -980,12 +983,13 @@ export default function ConnectionsPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        className="ml-auto gap-2"
+                        className="ml-auto gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
                         onClick={() => handleAction(connection.id, 'delete')}
                         disabled={actionMutation.isLoading}
                       >
-                        <Trash2 className="h-4 w-4" />
-                        Remover
+                        <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        <span className="hidden sm:inline">Remover</span>
+                        <span className="sm:hidden">Remover</span>
                       </Button>
                     )}
                   </CardFooter>

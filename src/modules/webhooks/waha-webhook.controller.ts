@@ -428,11 +428,213 @@ export class WahaWebhookController {
       }
     }
 
+    // Se é uma mensagem enviada pelo usuário (fromMe=true) e tem tempId, 
+    // verificar se já existe uma mensagem com esse tempId para atualizar ao invés de criar
+    // Isso evita duplicação: a mensagem otimista criada pelo backend será atualizada com o messageId do WhatsApp
+    let existingMessage = null;
+    if (fromMe && tempId) {
+      this.logger.log(`[DUPLICATE FIX] Verificando mensagem existente com tempId=${tempId} fromMe=${fromMe} conversationId=${conversation.id} tenantId=${connection.tenantId}`);
+      
+      // Buscar por tempId na mesma conversa e tenant
+      // Priorizar mensagens sem messageId (ainda não confirmadas pelo WhatsApp)
+      // Não filtrar por senderType e direction - a mensagem otimista pode ter valores diferentes
+      
+      // Primeira tentativa: buscar mensagem sem messageId (otimista ainda não confirmada)
+      existingMessage = await this.prisma.message.findFirst({
+        where: {
+          tempId: tempId,
+          tenantId: connection.tenantId,
+          conversationId: conversation.id,
+          messageId: null, // Mensagem otimista ainda não confirmada
+        },
+        include: {
+          conversation: {
+            include: {
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  tags: true,
+                  profilePictureURL: true,
+                },
+              },
+              assignedUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc', // Pegar a mais recente
+        },
+      });
+
+      if (existingMessage) {
+        this.logger.log(
+          `[DUPLICATE FIX] Mensagem otimista encontrada! Atualizando mensagem id=${existingMessage.id} tempId=${tempId} (sem messageId) -> newMessageId=${messageId || 'null'} senderType=${existingMessage.senderType} direction=${existingMessage.direction}`,
+        );
+      } else {
+        // Segunda tentativa: buscar qualquer mensagem com o tempId (caso já tenha messageId diferente)
+        const fallbackMessage = await this.prisma.message.findFirst({
+          where: {
+            tempId: tempId,
+            tenantId: connection.tenantId,
+            conversationId: conversation.id,
+            // Se messageId for fornecido, verificar se já existe mensagem com esse messageId
+            ...(messageId ? { messageId: messageId } : {}),
+          },
+          include: {
+            conversation: {
+              include: {
+                lead: {
+                  select: {
+                    id: true,
+                    name: true,
+                    phone: true,
+                    tags: true,
+                    profilePictureURL: true,
+                  },
+                },
+                assignedUser: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+        if (fallbackMessage) {
+          this.logger.log(
+            `[DUPLICATE FIX] Mensagem encontrada em busca alternativa! Atualizando mensagem id=${fallbackMessage.id} tempId=${tempId} existingMessageId=${fallbackMessage.messageId || 'null'} newMessageId=${messageId || 'null'}`,
+          );
+          existingMessage = fallbackMessage;
+        } else {
+          // Terceira tentativa: busca ampla apenas por tempId (sem outros filtros)
+          const broadMessage = await this.prisma.message.findFirst({
+            where: {
+              tempId: tempId,
+              tenantId: connection.tenantId,
+              conversationId: conversation.id,
+            },
+            include: {
+              conversation: {
+                include: {
+                  lead: {
+                    select: {
+                      id: true,
+                      name: true,
+                      phone: true,
+                      tags: true,
+                      profilePictureURL: true,
+                    },
+                  },
+                  assignedUser: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          });
+
+          if (broadMessage) {
+            this.logger.log(
+              `[DUPLICATE FIX] Mensagem encontrada em busca ampla! Atualizando mensagem id=${broadMessage.id} tempId=${tempId} existingMessageId=${broadMessage.messageId || 'null'} newMessageId=${messageId || 'null'}`,
+            );
+            existingMessage = broadMessage;
+          } else {
+            this.logger.warn(
+              `[DUPLICATE FIX] Nenhuma mensagem existente encontrada com tempId=${tempId} conversationId=${conversation.id} tenantId=${connection.tenantId}. Criando nova mensagem.`,
+            );
+          }
+        }
+      }
+    }
+
+    // Verificar também se já existe mensagem com o mesmo messageId (evitar duplicação por messageId)
+    if (!existingMessage && messageId) {
+      const existingByMessageId = await this.prisma.message.findFirst({
+        where: {
+          messageId: messageId,
+          tenantId: connection.tenantId,
+          conversationId: conversation.id,
+        },
+      });
+
+      if (existingByMessageId) {
+        this.logger.warn(
+          `[DUPLICATE FIX] Mensagem já existe com messageId=${messageId}. Ignorando webhook para evitar duplicação. Mensagem existente: id=${existingByMessageId.id} tempId=${existingByMessageId.tempId || 'null'}`,
+        );
+        // Retornar a mensagem existente sem criar nova
+        return;
+      }
+    }
+
     this.logger.log(
-      `Criando mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply} replyMessageId=${replyMessageId || 'N/A'} replyText=${replyText ? replyText.substring(0, 50) : 'N/A'} replyToId=${replyToId || 'N/A'}`,
+      `${existingMessage ? 'Atualizando' : 'Criando'} mensagem no banco de dados: tenantId=${connection.tenantId} conversationId=${conversation.id} leadId=${lead.id} direction=${direction} senderType=${senderType} contentType=${contentType} fromMe=${fromMe} reply=${isReply} replyMessageId=${replyMessageId || 'N/A'} replyText=${replyText ? replyText.substring(0, 50) : 'N/A'} replyToId=${replyToId || 'N/A'} tempId=${tempId || 'N/A'} messageId=${messageId || 'N/A'}`,
     );
 
-    const message = await this.prisma.message.create({
+    // Se encontrou mensagem existente com tempId, atualizar ao invés de criar
+    // Isso evita duplicação: a mensagem otimista será atualizada com os dados do WhatsApp
+    const message = existingMessage
+      ? await this.prisma.message.update({
+          where: { id: existingMessage.id },
+          data: {
+            // Atualizar campos que vêm do WhatsApp (confirmação de envio)
+            messageId: messageId || existingMessage.messageId, // ID do WhatsApp (importante!)
+            timestamp: timestamp || existingMessage.timestamp, // Timestamp do WhatsApp
+            // Atualizar conteúdo apenas se tiver mudado (pode ter sido processado diferente)
+            contentUrl: contentUrl || existingMessage.contentUrl,
+            contentText: resolvedContentText || existingMessage.contentText,
+            // Atualizar campos de reply se necessário
+            reply: isReply !== undefined ? isReply : existingMessage.reply,
+            replyText: replyText || existingMessage.replyText,
+            replyMessageId: replyMessageId || existingMessage.replyMessageId,
+            // Manter tempId para referência
+            tempId: existingMessage.tempId,
+          },
+          include: {
+            conversation: {
+              include: {
+                lead: {
+                  select: {
+                    id: true,
+                    name: true,
+                    phone: true,
+                    tags: true,
+                    profilePictureURL: true,
+                  },
+                },
+                assignedUser: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : await this.prisma.message.create({
       data: {
         tenantId: connection.tenantId,
         connectionId: connection.id,
@@ -562,7 +764,7 @@ export class WahaWebhookController {
     };
 
     this.logger.log(
-      `Mensagem criada com sucesso. ID: ${message.id}, emitindo via WebSocket para tenant: ${connection.tenantId}, conversationId: ${updatedConversation.id}`,
+      `Mensagem ${existingMessage ? 'atualizada' : 'criada'} com sucesso. ID: ${message.id}${existingMessage ? ` (atualizada do tempId=${tempId})` : ''}, messageId=${message.messageId || 'null'}, emitindo via WebSocket para tenant: ${connection.tenantId}, conversationId: ${updatedConversation.id}`,
     );
 
     const server = this.messagesGateway.server;

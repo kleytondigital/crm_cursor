@@ -3,7 +3,7 @@
 import { useChat } from '@/contexts/ChatContext'
 import MessageBubble from './MessageBubble'
 import DateDivider from './DateDivider'
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { Message } from '@/types'
 import { messagesAPI } from '@/lib/api'
 import { format, isSameDay } from 'date-fns'
@@ -82,13 +82,19 @@ export default function MessageList({
   }
 
   // Callback para registrar referências de mensagens
-  const setMessageRef = (messageId: string, element: HTMLDivElement | null) => {
+  const setMessageRef = useCallback((messageId: string, element: HTMLDivElement | null) => {
+    if (!messageId) return
+    
     if (element) {
-      messageRefsRef.current.set(messageId, element)
+      // Verificar se o elemento ainda está no DOM antes de adicionar
+      if (element.isConnected) {
+        messageRefsRef.current.set(messageId, element)
+      }
     } else {
+      // Remover ref apenas se o elemento foi desmontado
       messageRefsRef.current.delete(messageId)
     }
-  }
+  }, [])
 
   // Handler para excluir mensagem
   const handleDeleteMessage = async (message: Message) => {
@@ -126,10 +132,21 @@ export default function MessageList({
   const messagesWithDividers = useMemo(() => {
     if (messages.length === 0) return []
 
-    const result: Array<{ type: 'message' | 'divider'; data: Message | Date }> = []
+    const result: Array<{ type: 'message' | 'divider'; data: Message | Date; key: string }> = []
     let lastDate: Date | null = null
 
-    messages.forEach((message, index) => {
+    // Criar um Set para garantir unicidade de mensagens (por ID)
+    const seenIds = new Set<string>()
+    const uniqueMessages = messages.filter((msg) => {
+      if (seenIds.has(msg.id)) {
+        console.warn(`[MessageList] Mensagem duplicada detectada, removendo: id=${msg.id}`)
+        return false
+      }
+      seenIds.add(msg.id)
+      return true
+    })
+
+    uniqueMessages.forEach((message, index) => {
       // Obter data da mensagem (usar timestamp se disponível, senão createdAt)
       const messageDate = message.timestamp 
         ? new Date(message.timestamp) 
@@ -143,21 +160,37 @@ export default function MessageList({
         (lastDate && !isSameDay(messageDate, lastDate))
 
       if (shouldAddDivider) {
-        result.push({ type: 'divider', data: messageDate })
+        // Usar uma key estável para o divisor baseada na data (formato YYYY-MM-DD)
+        const dateKey = `${messageDate.getFullYear()}-${String(messageDate.getMonth() + 1).padStart(2, '0')}-${String(messageDate.getDate()).padStart(2, '0')}`
+        result.push({ type: 'divider', data: messageDate, key: `divider-${dateKey}` })
         lastDate = messageDate
       }
 
-      result.push({ type: 'message', data: message })
+      result.push({ type: 'message', data: message, key: message.id })
     })
 
     return result
   }, [messages])
 
+  // Limpar refs de mensagens que não existem mais
   useEffect(() => {
-    // Se a conversa mudou, sempre fazer scroll
+    const currentMessageIds = new Set(messages.map((m) => m.id))
+    
+    // Remover refs de mensagens que não estão mais na lista
+    messageRefsRef.current.forEach((_, messageId) => {
+      if (!currentMessageIds.has(messageId)) {
+        messageRefsRef.current.delete(messageId)
+      }
+    })
+  }, [messages])
+
+  useEffect(() => {
+    // Se a conversa mudou, sempre fazer scroll e limpar refs
     if (selectedConversation?.id !== lastConversationIdRef.current) {
       lastConversationIdRef.current = selectedConversation?.id || null
       lastMessageCountRef.current = messages.length
+      // Limpar todas as refs ao mudar de conversa
+      messageRefsRef.current.clear()
       // Aguardar um pouco para garantir que o DOM foi atualizado
       setTimeout(() => scrollToBottom('auto'), 100)
       return
@@ -193,21 +226,33 @@ export default function MessageList({
               <p className="text-sm">Nenhuma mensagem ainda. Comece a conversar!</p>
             </div>
           ) : (
-            messagesWithDividers.map((item, index) => {
+            messagesWithDividers.map((item) => {
               if (item.type === 'divider') {
                 return (
                   <DateDivider 
-                    key={`divider-${index}-${item.data instanceof Date ? item.data.getTime() : item.data}`}
+                    key={item.key}
                     date={item.data as Date}
                   />
                 )
               }
 
               const message = item.data as Message
+              // Garantir que a key seja estável e única
+              // Usar message.id como key (garantir que seja string)
+              const messageKey = String(message.id || message.tempId || `temp-${Date.now()}-${Math.random()}`)
+              
               return (
                 <div
-                  key={message.id}
-                  ref={(el) => setMessageRef(message.id, el)}
+                  key={messageKey}
+                  ref={(el) => {
+                    // Atualizar ref de forma segura
+                    if (el && message.id) {
+                      setMessageRef(message.id, el)
+                    } else if (!el && message.id) {
+                      // Elemento foi desmontado, limpar ref
+                      setMessageRef(message.id, null)
+                    }
+                  }}
                   id={`message-${message.id}`}
                   data-message-id={message.id}
                   data-message-whatsapp-id={message.messageId || undefined}

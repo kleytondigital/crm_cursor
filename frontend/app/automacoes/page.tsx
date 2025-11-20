@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import BottomNavigation from '@/components/BottomNavigation'
 import ConfigureTemplateModal from '@/components/admin/ConfigureTemplateModal'
 
 interface WorkflowTemplate {
@@ -128,7 +129,7 @@ export default function AutomacoesPage() {
     <div className="flex min-h-screen flex-col">
       <Navigation />
       
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-6 pb-8 pt-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-8 pt-4 md:pt-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">Automações</h1>
@@ -325,6 +326,7 @@ export default function AutomacoesPage() {
       </main>
 
       <Footer />
+      <BottomNavigation />
 
       {/* Modal de Configuração */}
       {showConfigureModal && selectedTemplate && (
