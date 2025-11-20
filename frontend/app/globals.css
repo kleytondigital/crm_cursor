@@ -65,6 +65,25 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Safe area para iOS no PWA standalone */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Estilo para PWA standalone */
+@media (display-mode: standalone) {
+  body {
+    /* Remove padding extra em modo standalone */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 .message-item.highlight-message {
   animation: highlightPulse 2s ease-in-out;
 }

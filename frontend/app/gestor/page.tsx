@@ -105,7 +105,6 @@ function GestorContent() {
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const { departments, users, loadingList } = useAttendances()
 
@@ -161,41 +160,77 @@ function GestorContent() {
     <div className="flex min-h-screen flex-col bg-background text-text-primary">
       <Navigation />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
-        {/* Menu Mobile */}
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
+        {/* Menu Mobile - Acordeon */}
         {isMobile && (
-          <div className="w-full lg:hidden mb-4">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-background-subtle/60 px-4 py-3 text-sm font-medium text-white shadow-inner-glow"
-            >
-              <div className="flex items-center gap-2">
-                {menuItems.find((m) => m.id === selectedSection)?.icon}
-                <span>{menuItems.find((m) => m.id === selectedSection)?.label || 'Menu'}</span>
-              </div>
-              <Menu className="h-4 w-4" />
-            </button>
-            {mobileMenuOpen && (
-              <div className="mt-2 rounded-2xl border border-white/10 bg-background-subtle/95 p-2 shadow-lg backdrop-blur-md">
-                {menuItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedSection(item.id)
-                      setMobileMenuOpen(false)
-                    }}
-                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                      selectedSection === item.id
-                        ? 'bg-brand-primary/20 text-white'
-                        : 'text-text-muted hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="w-full lg:hidden">
+            <div className="rounded-2xl border border-white/10 bg-background-subtle/60 shadow-inner-glow overflow-hidden">
+              {menuItems.map((item) => {
+                const isExpanded = expandedMenus.has(item.id || '')
+                const isSelected = selectedSection === item.id
+                
+                return (
+                  <div key={item.id} className="border-b border-white/5 last:border-b-0">
+                    <button
+                      onClick={() => {
+                        if (item.hasSubmenu) {
+                          // Toggle submenu
+                          setExpandedMenus((prev) => {
+                            const newSet = new Set(prev)
+                            if (newSet.has(item.id || '')) {
+                              newSet.delete(item.id || '')
+                            } else {
+                              newSet.clear()
+                              newSet.add(item.id || '')
+                            }
+                            return newSet
+                          })
+                          if (!isExpanded) {
+                            setSelectedSection(item.id)
+                          }
+                        } else {
+                          // Selecionar seção diretamente
+                          handleMenuClick(item.id)
+                          setExpandedMenus(new Set())
+                        }
+                      }}
+                      className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition ${
+                        isSelected
+                          ? 'bg-brand-primary/20 text-white'
+                          : 'text-text-muted hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </div>
+                      {item.hasSubmenu && (
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      )}
+                    </button>
+                    
+                    {/* Submenu items */}
+                    {item.hasSubmenu && isExpanded && item.submenu && (
+                      <div className="bg-background-muted/40 px-4 pb-2 space-y-1">
+                        {item.submenu.map((subitem) => (
+                          <button
+                            key={subitem.id}
+                            onClick={() => {
+                              handleSubmenuClick(subitem.id)
+                              setExpandedMenus(new Set())
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-text-muted transition hover:bg-white/5 hover:text-white"
+                          >
+                            <ChevronRight className="h-3 w-3" />
+                            <span>{subitem.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 

@@ -549,7 +549,7 @@ export default function MessageInput({
             </button>
 
             {showAttachments && (
-              <div className="absolute bottom-14 left-0 z-40 w-56 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
+              <div className="absolute bottom-full left-0 mb-2 z-50 w-56 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
                 <ul className="flex flex-col gap-1">
                   {onScheduleClick && (
                     <li>

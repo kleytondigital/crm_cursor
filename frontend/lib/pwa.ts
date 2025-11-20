@@ -48,13 +48,31 @@ export function canInstallPWA(): Promise<BeforeInstallPromptEvent | null> {
  */
 export async function installPWA(): Promise<boolean> {
   try {
-    const deferredPrompt = await canInstallPWA()
+    // Tentar usar o deferredPrompt global primeiro
+    let deferredPrompt = deferredPromptGlobal
+    
+    // Se não houver, tentar obter um novo
     if (!deferredPrompt) {
+      deferredPrompt = await canInstallPWA()
+    }
+
+    if (!deferredPrompt) {
+      console.warn('[PWA] DeferredPrompt não disponível')
+      // Para iOS, mostrar instruções
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        alert('Para instalar no iOS:\n1. Toque no botão Compartilhar (ícone de caixa com seta)\n2. Toque em "Adicionar à Tela de Início"')
+      }
       return false
     }
 
+    // Mostrar prompt de instalação
     deferredPrompt.prompt()
+    
+    // Aguardar escolha do usuário
     const { outcome } = await deferredPrompt.userChoice
+    
+    // Limpar o deferredPrompt após uso
+    deferredPromptGlobal = null
     
     if (outcome === 'accepted') {
       console.log('[PWA] Usuário aceitou instalar o PWA')
@@ -65,6 +83,7 @@ export async function installPWA(): Promise<boolean> {
     }
   } catch (error) {
     console.error('[PWA] Erro ao instalar PWA:', error)
+    deferredPromptGlobal = null
     return false
   }
 }

@@ -173,14 +173,21 @@ export default function MessageList({
   }, [messages, selectedConversation])
 
   return (
-    <div className="flex h-full w-full flex-col bg-background-subtle/40" style={{ height: '100%', minHeight: 0 }}>
+    <div className="flex h-full w-full flex-col bg-background-subtle/40" style={{ height: '100%', minHeight: 0, width: '100%' }}>
       {/* Área de mensagens (scrollável) */}
       <div
         ref={containerRef}
-        className="flex-1 w-full overflow-y-auto px-3 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10"
-        style={{ WebkitOverflowScrolling: 'touch', minHeight: 0, maxHeight: '100%', height: '100%' }}
+        className="w-full overflow-y-auto px-3 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10"
+        style={{ 
+          WebkitOverflowScrolling: 'touch', 
+          minHeight: 0, 
+          height: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          position: 'relative'
+        }}
       >
-        <div className="flex w-full flex-col gap-3">
+        <div className="flex w-full flex-col gap-3" style={{ minHeight: 'min-content' }}>
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-text-muted">
               <p className="text-sm">Nenhuma mensagem ainda. Comece a conversar!</p>

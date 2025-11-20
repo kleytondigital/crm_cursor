@@ -15,19 +15,40 @@ export default function ChatLayout() {
   const showSidebar = !isMobile || !selectedConversation
   const showChatArea = !isMobile || selectedConversation
 
-  // Calcular altura no mobile considerando header e bottom nav
-  const mobileHeight = isMobile 
-    ? 'calc(100vh - 120px)' // Header menor no mobile + espaço para bottom nav
-    : 'calc(100vh - 140px)' // Desktop
+  // No mobile quando chat está selecionado, ocupar 100vh (fullscreen)
+  // No desktop ou lista: altura normal
+  const getContainerStyle = () => {
+    if (isMobile && selectedConversation) {
+      // Fullscreen no mobile quando chat selecionado
+      return {
+        position: 'fixed' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: '100vh',
+        width: '100vw',
+        zIndex: 1000,
+        borderRadius: 0,
+      }
+    }
+    // Altura normal para desktop ou lista
+    const mobileHeight = isMobile 
+      ? 'calc(100vh - 120px)'
+      : 'calc(100vh - 140px)'
+    return {
+      height: isMobile ? mobileHeight : 'calc(100vh - 140px)',
+      minHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
+      maxHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
+    }
+  }
 
   return (
     <div 
-      className="flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-background-subtle/80 backdrop-blur-xl shadow-glow lg:flex-row"
-      style={{
-        height: isMobile ? mobileHeight : 'calc(100vh - 140px)',
-        minHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
-        maxHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
-      }}
+      className={`flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-background-subtle/80 backdrop-blur-xl shadow-glow lg:flex-row ${
+        isMobile && selectedConversation ? 'fixed inset-0 z-[1000] rounded-none' : ''
+      }`}
+      style={getContainerStyle()}
     >
       {/* Sidebar - esconder no mobile quando chat estiver selecionado */}
       {showSidebar && (
@@ -40,9 +61,9 @@ export default function ChatLayout() {
 
       {/* Chat Area - esconder no mobile quando nenhum chat estiver selecionado */}
       {showChatArea && (
-        <div className={`flex flex-1 flex-col ${
+        <div className={`flex flex-1 flex-col h-full ${
           isMobile && !selectedConversation ? 'hidden' : ''
-        }`}>
+        }`} style={{ minHeight: 0, height: '100%' }}>
           {selectedConversation ? <ChatArea /> : <EmptyState />}
         </div>
       )}

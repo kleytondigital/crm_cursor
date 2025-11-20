@@ -11,13 +11,20 @@ const PRECACHE_URLS = [
 
 // Instalação do Service Worker
 self.addEventListener('install', (event) => {
+  console.log('[Service Worker] Instalando versão:', CACHE_NAME)
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[Service Worker] Cache aberto')
         return cache.addAll(PRECACHE_URLS.map(url => new Request(url, { cache: 'reload' })))
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[Service Worker] Instalação concluída. Ativando...')
+        return self.skipWaiting()
+      })
+      .catch((error) => {
+        console.error('[Service Worker] Erro na instalação:', error)
+      })
   )
 })
 
@@ -131,6 +138,13 @@ self.addEventListener('fetch', (event) => {
         })
       })
   )
+})
+
+// Listener para mensagens do cliente (atualizações)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 // Push notifications
