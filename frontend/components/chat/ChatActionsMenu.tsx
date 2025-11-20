@@ -32,20 +32,40 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
   }, [conversation.leadId])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false)
-      }
+    if (!menuOpen) {
+      return
     }
 
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside)
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node
+      
+      // Verificar se o clique foi dentro do menu
+      if (menuRef.current && menuRef.current.contains(target)) {
+        // Verificar se não foi no próprio botão de toggle
+        const toggleButton = menuRef.current.querySelector('button')
+        if (toggleButton && toggleButton.contains(target)) {
+          // Clicou no botão de toggle, não fechar (o toggle já foi feito)
+          return
+        }
+        // Clicou dentro do menu, não fechar
+        return
+      }
+      
+      // Clicou fora do menu, fechar
+      console.log('[ChatActionsMenu] Clique fora do menu, fechando')
+      setMenuOpen(false)
     }
+
+    // Usar setTimeout para evitar que o evento de abertura seja capturado como clique fora
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside, true)
+      document.addEventListener('touchstart', handleClickOutside, true)
+    }, 0)
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
+      clearTimeout(timeoutId)
+      document.removeEventListener('mousedown', handleClickOutside, true)
+      document.removeEventListener('touchstart', handleClickOutside, true)
     }
   }, [menuOpen])
 
@@ -138,7 +158,12 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
     <>
       <div className="relative" ref={menuRef}>
         <button
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('[ChatActionsMenu] Toggle menu:', !menuOpen)
+            setMenuOpen(!menuOpen)
+          }}
           className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
           disabled={loading}
         >
@@ -151,9 +176,19 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
 
         {menuOpen && (
           <div 
-            className="absolute right-0 top-12 z-[100] min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl" 
-            style={{ zIndex: 100 }}
-            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 top-12 min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl" 
+            style={{ 
+              zIndex: 9999, 
+              position: 'absolute',
+              visibility: 'visible',
+              opacity: 1,
+              display: 'block'
+            }}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              console.log('[ChatActionsMenu] Click no menu')
+            }}
           >
             <div className="flex flex-col p-1">
             {menuItems.map((item) => {

@@ -215,19 +215,35 @@ export default function MessageInput({
     }
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (
-        attachmentsRef.current &&
-        !attachmentsRef.current.contains(event.target as Node)
-      ) {
-        setShowAttachments(false)
+      const target = event.target as Node
+      
+      // Verificar se o clique foi dentro do container do menu
+      if (attachmentsRef.current && attachmentsRef.current.contains(target)) {
+        // Verificar se não foi no próprio botão de toggle
+        const toggleButton = attachmentsRef.current.querySelector('button')
+        if (toggleButton && toggleButton.contains(target)) {
+          // Clicou no botão de toggle, não fechar
+          return
+        }
+        // Clicou dentro do menu, não fechar
+        return
       }
+      
+      // Clicou fora do menu, fechar
+      console.log('[MessageInput] Clique fora do menu, fechando')
+      setShowAttachments(false)
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('touchstart', handleClickOutside)
+    // Usar setTimeout para evitar que o evento de abertura seja capturado como clique fora
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside, true)
+      document.addEventListener('touchstart', handleClickOutside, true)
+    }, 0)
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
+      clearTimeout(timeoutId)
+      document.removeEventListener('mousedown', handleClickOutside, true)
+      document.removeEventListener('touchstart', handleClickOutside, true)
     }
   }, [showAttachments])
 
@@ -561,7 +577,7 @@ export default function MessageInput({
   }, [selectedConversation])
 
   return (
-    <div className="flex flex-col gap-2 md:gap-3 w-full max-w-full overflow-hidden" data-message-input-container>
+    <div className="flex flex-col gap-2 md:gap-3 w-full max-w-full overflow-visible" data-message-input-container style={{ overflow: 'visible' }}>
       {audioPreview && (
         <div className="flex items-center gap-2 md:gap-4 rounded-2xl border border-brand-primary/30 bg-[#d9fdd3] px-3 md:px-4 py-2 md:py-3 text-sm text-black shadow-inner">
           <audio controls src={audioPreview.url} className="max-w-xs flex-1" />
@@ -613,10 +629,15 @@ export default function MessageInput({
               <Calendar className="h-4 w-4 md:h-5 md:w-5" />
             </button>
           )}
-          <div className="relative flex-shrink-0" ref={attachmentsRef}>
+          <div className="relative flex-shrink-0" ref={attachmentsRef} style={{ position: 'relative', overflow: 'visible', zIndex: 10000 }}>
             <button
               type="button"
-              onClick={() => setShowAttachments((prev) => !prev)}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('[MessageInput] Toggle attachments:', !showAttachments)
+                setShowAttachments((prev) => !prev)
+              }}
               className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white"
               title="Anexar"
             >
@@ -625,16 +646,29 @@ export default function MessageInput({
 
             {showAttachments && (
               <div 
-                className="absolute bottom-full left-0 mb-2 z-[100] w-60 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl" 
-                style={{ zIndex: 100 }}
-                onClick={(e) => e.stopPropagation()}
+                className="absolute bottom-full left-0 mb-2 w-60 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl" 
+                style={{ 
+                  zIndex: 9999, 
+                  position: 'absolute',
+                  visibility: 'visible',
+                  opacity: 1,
+                  display: 'block'
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('[MessageInput] Click no menu de anexos')
+                }}
               >
                 <ul className="flex flex-col gap-1">
                   {onScheduleClick && (
                     <li>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          console.log('[MessageInput] Agendar mensagem clicado')
                           setShowAttachments(false)
                           onScheduleClick()
                         }}
@@ -653,7 +687,12 @@ export default function MessageInput({
                       <li key={option.key}>
                         <button
                           type="button"
-                          onClick={() => handleAttachmentSelect(option.key)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            console.log('[MessageInput] Anexo selecionado:', option.key)
+                            handleAttachmentSelect(option.key)
+                          }}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-white transition hover:bg-white/5"
                         >
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary/10 text-brand-secondary">

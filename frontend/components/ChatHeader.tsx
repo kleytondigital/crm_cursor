@@ -125,8 +125,8 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
   }
 
   return (
-    <div className="flex items-center justify-between gap-1 md:gap-2 px-1 md:px-0 min-w-0 w-full max-w-full overflow-hidden">
-      <div className="flex items-center gap-1.5 md:gap-3 flex-1 min-w-0 overflow-hidden max-w-full">
+    <div className="flex items-center justify-between gap-1 md:gap-2 px-1 md:px-0 min-w-0 w-full max-w-full overflow-visible" style={{ overflow: 'visible' }}>
+      <div className="flex items-center gap-1.5 md:gap-3 flex-1 min-w-0 overflow-visible max-w-full" style={{ overflow: 'visible' }}>
         {/* Botão voltar no mobile */}
         {isMobile && (
           <button
@@ -184,7 +184,7 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
         </div>
       </div>
 
-      <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 md:gap-2 flex-shrink-0 relative" style={{ position: 'relative', overflow: 'visible' }}>
         {onViewSchedulingHistory && (
           <Button
             variant="ghost"
@@ -197,7 +197,9 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
             <span className="text-xs hidden md:inline">Agendamentos</span>
           </Button>
         )}
-        <ChatActionsMenu conversation={conversation} onRefresh={loadConversations} />
+        <div className="relative" style={{ position: 'relative', overflow: 'visible', zIndex: 10000 }}>
+          <ChatActionsMenu conversation={conversation} onRefresh={loadConversations} />
+        </div>
       </div>
     </div>
   )
