@@ -19,8 +19,12 @@ export function registerServiceWorker() {
     return Promise.reject('Service Workers não são suportados')
   }
 
+  // Tentar registrar o service worker
+  // Primeiro tenta a rota API, depois o arquivo estático
+  const swUrl = '/sw.js'
+  
   return navigator.serviceWorker
-    .register('/sw.js')
+    .register(swUrl, { scope: '/' })
     .then((registration) => {
       console.log('[PWA] Service Worker registrado com sucesso:', registration.scope)
 

@@ -32,7 +32,7 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
   }, [conversation.leadId])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false)
       }
@@ -40,10 +40,12 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
 
     if (menuOpen) {
       document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
     }
   }, [menuOpen])
 
@@ -148,7 +150,11 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl">
+          <div 
+            className="absolute right-0 top-12 z-[100] min-w-[200px] rounded-lg border border-white/10 bg-background-subtle/95 shadow-glow backdrop-blur-xl" 
+            style={{ zIndex: 100 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex flex-col p-1">
             {menuItems.map((item) => {
               const Icon = item.icon

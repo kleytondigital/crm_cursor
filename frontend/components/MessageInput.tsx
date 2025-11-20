@@ -624,7 +624,11 @@ export default function MessageInput({
             </button>
 
             {showAttachments && (
-              <div className="absolute bottom-full left-0 mb-2 z-50 w-60 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl">
+              <div 
+                className="absolute bottom-full left-0 mb-2 z-[100] w-60 rounded-2xl border border-white/10 bg-background-card/95 p-2 shadow-glow backdrop-blur-xl" 
+                style={{ zIndex: 100 }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <ul className="flex flex-col gap-1">
                   {onScheduleClick && (
                     <li>
