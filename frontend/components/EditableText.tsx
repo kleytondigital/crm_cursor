@@ -12,6 +12,8 @@ interface EditableTextProps {
   inputClassName?: string
   maxLength?: number
   validate?: (value: string) => boolean | string
+  getEditValue?: (displayValue: string) => string // Função para transformar valor ao entrar em edição
+  formatDisplayValue?: (value: string) => string // Função para formatar valor ao exibir
 }
 
 export default function EditableText({
