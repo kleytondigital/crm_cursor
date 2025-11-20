@@ -16,6 +16,7 @@ import {
   onMessageError,
   offMessageError,
 } from '@/lib/socket'
+import { showNewMessageNotification, hasNotificationPermission } from '@/lib/pushNotifications'
 
 interface ChatContextType {
   conversations: Conversation[]
@@ -23,7 +24,7 @@ interface ChatContextType {
   messages: Message[]
   loading: boolean
   error: string | null
-  selectConversation: (conversation: Conversation) => void
+  selectConversation: (conversation: Conversation | null) => void
   selectConversationByLeadId: (leadId: string) => Promise<void>
   sendMessage: (content: string, contentType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'DOCUMENT', file?: File, replyTo?: string, action?: 'reply') => Promise<void>
   loadConversations: () => Promise<void>
@@ -77,6 +78,35 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       
       // Usar ref para obter o valor atual de selectedConversation
       const currentSelectedConversation = selectedConversationRef.current
+
+      // Mostrar notificação se:
+      // 1. A mensagem não é do usuário atual (senderType === 'LEAD')
+      // 2. A conversa não está selecionada ou não está visível
+      // 3. Há permissão para notificações
+      if (
+        message.senderType === 'LEAD' &&
+        (!currentSelectedConversation || currentSelectedConversation.id !== message.conversationId) &&
+        hasNotificationPermission() &&
+        typeof window !== 'undefined' &&
+        !document.hasFocus()
+      ) {
+        // Buscar nome do lead para notificação
+        const leadName = conversation?.lead?.name || 
+                        currentSelectedConversation?.lead?.name || 
+                        'Contato'
+        const messageText = message.contentText || 
+                           (message.contentType === 'IMAGE' ? '📷 Imagem' :
+                            message.contentType === 'AUDIO' ? '🎤 Áudio' :
+                            message.contentType === 'VIDEO' ? '🎥 Vídeo' :
+                            message.contentType === 'DOCUMENT' ? '📄 Documento' :
+                            'Nova mensagem')
+        
+        showNewMessageNotification(
+          leadName,
+          messageText,
+          message.conversationId
+        )
+      }
       
       // Sempre adicionar mensagem se for da conversa selecionada
       if (currentSelectedConversation && message.conversationId === currentSelectedConversation.id) {
@@ -479,7 +509,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [selectedConversation?.id, loadMessages]) // Apenas quando o ID da conversa mudar
 
-  const selectConversation = useCallback((conversation: Conversation) => {
+  const selectConversation = useCallback((conversation: Conversation | null) => {
+    // Se está limpando (null), sair da conversa atual
+    if (!conversation) {
+      if (selectedConversation) {
+        leaveConversation(selectedConversation.id)
+      }
+      setSelectedConversation(null)
+      setMessages([])
+      selectedLeadIdRef.current = null
+      return
+    }
+
     // Se já está selecionada, não fazer nada
     if (selectedConversation?.id === conversation.id) {
       return

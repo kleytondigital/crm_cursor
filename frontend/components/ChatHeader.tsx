@@ -5,7 +5,8 @@ import { Conversation } from '@/types'
 import ChatActionsMenu from './chat/ChatActionsMenu'
 import EditableText from './EditableText'
 import { useChat } from '@/contexts/ChatContext'
-import { Calendar } from 'lucide-react'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { Calendar, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { leadsAPI } from '@/lib/api'
 
@@ -15,7 +16,8 @@ interface ChatHeaderProps {
 }
 
 export default function ChatHeader({ conversation, onViewSchedulingHistory }: ChatHeaderProps) {
-  const { loadConversations } = useChat()
+  const { loadConversations, selectConversation } = useChat()
+  const isMobile = useIsMobile()
   const [imageError, setImageError] = useState(false)
   const [leadName, setLeadName] = useState(conversation.lead.name)
   const [leadPhone, setLeadPhone] = useState(conversation.lead.phone)
@@ -113,30 +115,46 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
     }
   }
 
+  const handleBackToConversations = () => {
+    // Limpar conversa selecionada para voltar à lista
+    selectConversation(null)
+  }
+
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between gap-2 px-2 md:px-0">
+      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+        {/* Botão voltar no mobile */}
+        {isMobile && (
+          <button
+            onClick={handleBackToConversations}
+            className="flex-shrink-0 p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition-colors"
+            title="Voltar para conversas"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
+
         {showImage ? (
           <img
             src={conversation.lead.profilePictureURL!}
             alt={leadName}
-            className="h-12 w-12 rounded-2xl object-cover"
+            className="h-10 w-10 md:h-12 md:w-12 rounded-2xl object-cover flex-shrink-0"
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-secondary/20 text-lg font-semibold text-brand-secondary">
+          <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-2xl bg-brand-secondary/20 text-base md:text-lg font-semibold text-brand-secondary flex-shrink-0">
             {leadName.charAt(0).toUpperCase()}
           </div>
         )}
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
           <EditableText
             value={leadName}
             onSave={handleUpdateName}
             placeholder="Sem nome"
             validate={validateName}
             className="group"
-            labelClassName="text-lg font-semibold text-white cursor-pointer hover:text-brand-secondary/80 transition-colors"
+            labelClassName="text-base md:text-lg font-semibold text-white cursor-pointer hover:text-brand-secondary/80 transition-colors truncate"
             maxLength={100}
           />
           <EditableText
@@ -145,7 +163,7 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
             placeholder="Sem telefone"
             validate={validatePhone}
             className="group"
-            labelClassName="text-sm text-text-muted cursor-pointer hover:text-text-primary transition-colors"
+            labelClassName="text-xs md:text-sm text-text-muted cursor-pointer hover:text-text-primary transition-colors truncate"
             maxLength={20}
             getEditValue={(displayValue) => {
               // Ao entrar em modo de edição, mostrar apenas os números (sem @c.us)
@@ -160,17 +178,17 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
         {onViewSchedulingHistory && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onViewSchedulingHistory}
-            className="h-9 gap-2 text-text-muted hover:text-brand-secondary"
+            className="h-8 md:h-9 gap-1 md:gap-2 text-text-muted hover:text-brand-secondary hidden sm:flex"
             title="Histórico de agendamentos"
           >
             <Calendar className="h-4 w-4" />
-            <span className="text-xs">Agendamentos</span>
+            <span className="text-xs hidden md:inline">Agendamentos</span>
           </Button>
         )}
         <ChatActionsMenu conversation={conversation} onRefresh={loadConversations} />

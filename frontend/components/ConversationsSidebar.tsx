@@ -53,37 +53,37 @@ export default function ConversationsSidebar() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-background-muted to-background-card px-5 pb-6 pt-8">
+    <div className="flex h-full w-full flex-col md:h-auto">
+      <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-background-muted to-background-card px-3 pb-4 pt-4 md:px-5 md:pb-6 md:pt-8">
         <div className="absolute inset-0 bg-hero-grid opacity-70" />
         <div className="relative z-10 space-y-1">
           {/* <p className="text-xs uppercase tracking-[0.3em] text-text-muted">Painel LiveOps</p> */}
-          <h2 className="text-2xl font-bold text-white">Conversas</h2>
-          <p className="text-sm text-text-muted">
+          <h2 className="text-xl md:text-2xl font-bold text-white">Conversas</h2>
+          <p className="hidden md:block text-sm text-text-muted">
             Acompanhe atendimentos em tempo real e priorize leads quentes.
           </p>
         </div>
       </div>
 
-      <div className="border-b border-white/5 bg-background-subtle/70 p-4">
-        <div className="flex items-center gap-3">
+      <div className="border-b border-white/5 bg-background-subtle/70 p-3 md:p-4">
+        <div className="flex items-center gap-2 md:gap-3">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Search className="pointer-events-none absolute left-2 md:left-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
-              placeholder="Buscar por nome, telefone ou tag..."
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-full border border-white/10 bg-background-muted/80 py-2 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+              className="w-full rounded-full border border-white/10 bg-background-muted/80 py-1.5 md:py-2 pl-8 md:pl-10 pr-3 md:pr-4 text-xs md:text-sm text-text-primary placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
             />
           </div>
-          <button className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-background-muted/80 text-text-muted transition hover:text-white">
-            <Filter className="h-4 w-4" />
+          <button className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-full border border-white/10 bg-background-muted/80 text-text-muted transition hover:text-white">
+            <Filter className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ height: 'calc(100vh - 200px)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {loading && conversations.length === 0 ? (
           <div className="flex h-full items-center justify-center text-text-muted">
             Carregando conversas...

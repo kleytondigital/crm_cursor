@@ -6,6 +6,7 @@ import ChatLayout from '@/components/ChatLayout'
 import { ChatProvider, useChat } from '@/contexts/ChatContext'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import BottomNavigation from '@/components/BottomNavigation'
 
 function ChatContent() {
   const searchParams = useSearchParams()
@@ -69,7 +70,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navigation />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-6 pb-8 pt-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-8 pt-4 md:pt-6">
         <section className="flex flex-1 flex-col">
           <ChatProvider>
             <Suspense fallback={<div className="flex h-full items-center justify-center">Carregando...</div>}>
@@ -79,6 +80,7 @@ export default function Home() {
         </section>
       </main>
       <Footer />
+      <BottomNavigation />
     </div>
   )
 }
