@@ -1,6 +1,17 @@
 'use client'
 
 /**
+ * Tipo para o evento beforeinstallprompt
+ */
+export interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+// Variável global para armazenar o deferredPrompt
+let deferredPromptGlobal: BeforeInstallPromptEvent | null = null
+
+/**
  * Registra o Service Worker para PWA
  */
 export function registerServiceWorker() {
@@ -30,16 +41,25 @@ export function registerServiceWorker() {
  * Verifica se o PWA pode ser instalado
  */
 export function canInstallPWA(): Promise<BeforeInstallPromptEvent | null> {
+  // Se já temos o deferredPrompt armazenado, retornar imediatamente
+  if (deferredPromptGlobal) {
+    return Promise.resolve(deferredPromptGlobal)
+  }
+
   return new Promise((resolve) => {
     const handler = (e: Event) => {
       e.preventDefault()
+      deferredPromptGlobal = e as BeforeInstallPromptEvent
       window.removeEventListener('beforeinstallprompt', handler)
-      resolve(e as BeforeInstallPromptEvent)
+      resolve(deferredPromptGlobal)
     }
     window.addEventListener('beforeinstallprompt', handler)
     
-    // Timeout de 1 segundo para evitar espera indefinida
-    setTimeout(() => resolve(null), 1000)
+    // Timeout de 2 segundos para evitar espera indefinida
+    setTimeout(() => {
+      window.removeEventListener('beforeinstallprompt', handler)
+      resolve(deferredPromptGlobal || null)
+    }, 2000)
   })
 }
 
@@ -49,7 +69,7 @@ export function canInstallPWA(): Promise<BeforeInstallPromptEvent | null> {
 export async function installPWA(): Promise<boolean> {
   try {
     // Tentar usar o deferredPrompt global primeiro
-    let deferredPrompt = deferredPromptGlobal
+    let deferredPrompt: BeforeInstallPromptEvent | null = deferredPromptGlobal
     
     // Se não houver, tentar obter um novo
     if (!deferredPrompt) {
@@ -59,7 +79,7 @@ export async function installPWA(): Promise<boolean> {
     if (!deferredPrompt) {
       console.warn('[PWA] DeferredPrompt não disponível')
       // Para iOS, mostrar instruções
-      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      if (typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
         alert('Para instalar no iOS:\n1. Toque no botão Compartilhar (ícone de caixa com seta)\n2. Toque em "Adicionar à Tela de Início"')
       }
       return false
@@ -86,13 +106,5 @@ export async function installPWA(): Promise<boolean> {
     deferredPromptGlobal = null
     return false
   }
-}
-
-/**
- * Tipo para o evento beforeinstallprompt
- */
-export interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
