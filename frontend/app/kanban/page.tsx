@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { Settings } from 'lucide-react'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import BottomNavigation from '@/components/BottomNavigation'
 import PipelineStageModal from '@/components/admin/PipelineStageModal'
 import { PipelineStage, pipelineStagesAPI } from '@/lib/api/pipeline-stages'
 
@@ -88,38 +89,39 @@ export default function KanbanPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navigation />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-6 pb-8 pt-6">
-        <section className="overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-r from-background-muted to-background-card p-8 shadow-inner-glow">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-8 pt-4 md:pt-6">
+        <section className="overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-r from-background-muted to-background-card p-4 md:p-8 shadow-inner-glow">
+          <div className="flex flex-col gap-4 md:gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-text-muted">Pipeline Neural</p>
-              <h1 className="mt-3 text-3xl font-bold text-white">Kanban de Leads</h1>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">
+              <h1 className="mt-2 md:mt-3 text-xl md:text-3xl font-bold text-white">Kanban de Leads</h1>
+              <p className="mt-1 md:mt-2 max-w-2xl text-xs md:text-sm text-text-muted">
                 Arraste oportunidades entre estágios, sincronize com o CRM e visualize o desempenho da equipe em tempo real.
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
               {isAdmin && (
                 <button
                   onClick={() => {
                     setSelectedStage(null)
                     setShowStageModal(true)
                   }}
-                  className="flex items-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-5 py-3 text-sm font-medium text-brand-secondary transition hover:bg-brand-primary/20 hover:border-brand-primary/50 shadow-glow"
+                  className="flex items-center justify-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-3 md:px-5 py-2 md:py-3 text-xs md:text-sm font-medium text-brand-secondary transition hover:bg-brand-primary/20 hover:border-brand-primary/50 shadow-glow"
                   title="Gerenciar estágios do pipeline"
                 >
-                  <Settings className="h-4 w-4" />
-                  Gerenciar Estágios
+                  <Settings className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Gerenciar Estágios</span>
+                  <span className="sm:hidden">Estágios</span>
                 </button>
               )}
-              <div className="rounded-3xl border border-white/10 bg-background-muted/60 px-5 py-4 shadow-inner-glow">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-brand-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
+              <div className="rounded-3xl border border-white/10 bg-background-muted/60 px-3 md:px-5 py-3 md:py-4 shadow-inner-glow">
+                <div className="flex items-center gap-2 md:gap-4">
+                  <div className="rounded-full bg-brand-primary/20 px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-brand-secondary">
                     {stages.length} Estágios
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-text-muted">Pipeline ativo</p>
-                    <p className="text-lg font-semibold text-white">Tempo Real</p>
+                    <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Pipeline ativo</p>
+                    <p className="text-sm md:text-lg font-semibold text-white">Tempo Real</p>
                   </div>
                 </div>
               </div>
@@ -138,6 +140,7 @@ export default function KanbanPage() {
         </section>
       </main>
       <Footer />
+      <BottomNavigation />
 
       {/* Modal de Gerenciamento de Estágios */}
       {showStageModal && (

@@ -177,7 +177,8 @@ export default function MessageList({
       {/* Área de mensagens (scrollável) */}
       <div
         ref={containerRef}
-        className="flex-1 w-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10"
+        className="flex-1 w-full overflow-y-auto px-3 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10"
+        style={{ WebkitOverflowScrolling: 'touch', minHeight: 0 }}
       >
         <div className="flex w-full flex-col gap-3">
           {messages.length === 0 ? (

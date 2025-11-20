@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageCircle, Kanban, Headphones, Calendar } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { MessageCircle, Kanban, Headphones, Calendar, LayoutDashboard } from 'lucide-react'
 
 interface NavItem {
   href: string
@@ -16,16 +17,38 @@ const navigationItems: NavItem[] = [
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
+  { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
 ]
 
 export default function BottomNavigation() {
   const pathname = usePathname()
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | 'SUPER_ADMIN' | null>(null)
 
-  // Filtrar itens baseado no role (se necessário)
-  const filteredItems = navigationItems.filter((item) => {
-    // Adicionar lógica de filtro se necessário
-    return true
-  })
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const userStr = localStorage.getItem('user')
+        if (userStr) {
+          const user = JSON.parse(userStr)
+          setUserRole(user.role || null)
+        }
+      } catch (error) {
+        console.error('Erro ao obter role do usuário:', error)
+      }
+    }
+  }, [])
+
+  // Filtrar itens baseado no role
+  const filteredItems = useMemo(() => {
+    if (userRole === 'SUPER_ADMIN') {
+      return [] // Super Admin não vê itens do dashboard normal
+    }
+    const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER'
+    return navigationItems.filter((item) => {
+      if (item.adminOnly) return isAdmin
+      return true
+    })
+  }, [userRole])
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-background-subtle/95 backdrop-blur-xl lg:hidden">

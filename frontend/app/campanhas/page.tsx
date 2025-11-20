@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import BottomNavigation from '@/components/BottomNavigation'
 import { Campaign, CampaignStatus, ScheduledContentType } from '@/types'
 import { schedulerAPI, connectionsAPI, leadsAPI } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -346,13 +347,13 @@ export default function CampanhasPage() {
   return (
     <div className="min-h-screen bg-background-base">
       <Navigation />
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <main className="mx-auto max-w-7xl px-3 md:px-6 py-4 md:py-8 pb-20 md:pb-8">
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Campanhas</h1>
-            <p className="text-sm text-text-muted">Gerencie campanhas de mensagens em massa</p>
+            <h1 className="text-xl md:text-2xl font-bold text-white">Campanhas</h1>
+            <p className="text-xs md:text-sm text-text-muted">Gerencie campanhas de mensagens em massa</p>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
+          <Button onClick={() => handleOpenDialog()} className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             Nova Campanha
           </Button>
@@ -368,7 +369,7 @@ export default function CampanhasPage() {
             <p className="mt-4 text-sm text-text-muted">Nenhuma campanha cadastrada</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map((campaign) => (
               <div
                 key={campaign.id}
@@ -668,6 +669,7 @@ export default function CampanhasPage() {
         </Dialog>
       </main>
       <Footer />
+      <BottomNavigation />
     </div>
   )
 }

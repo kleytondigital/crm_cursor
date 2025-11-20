@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import BottomNavigation from '@/components/BottomNavigation'
 import { AttendancesProvider, useAttendances } from '@/contexts/AttendancesContext'
 import DepartmentManager from '@/components/attendances/DepartmentManager'
 import UserManager from '@/components/attendances/UserManager'
@@ -156,7 +157,7 @@ function GestorContent() {
     <div className="flex min-h-screen flex-col bg-background text-text-primary">
       <Navigation />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-6 pb-10 pt-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
         {/* Sidebar */}
         <aside className="hidden w-[280px] shrink-0 flex-col gap-4 rounded-3xl border border-white/5 bg-background-subtle/60 p-5 shadow-inner-glow lg:flex">
           <div>
@@ -279,12 +280,12 @@ function GestorContent() {
         </aside>
 
         {/* Conteúdo principal */}
-        <main className="flex-1 rounded-3xl border border-white/5 bg-background-subtle/60 p-6 shadow-inner-glow">
+        <main className="flex-1 rounded-3xl border border-white/5 bg-background-subtle/60 p-4 md:p-6 shadow-inner-glow">
           {selectedSection === 'dashboard' && (
             <div className="flex flex-col gap-4">
               <header>
-                <h2 className="text-2xl font-semibold text-white">Dashboard do Gestor</h2>
-                <p className="mt-1 text-sm text-text-muted">
+                <h2 className="text-xl md:text-2xl font-semibold text-white">Dashboard do Gestor</h2>
+                <p className="mt-1 text-xs md:text-sm text-text-muted">
                   Visão geral das configurações e estatísticas do sistema.
                 </p>
               </header>
@@ -368,6 +369,7 @@ function GestorContent() {
         </main>
       </div>
       <Footer />
+      <BottomNavigation />
     </div>
   )
 }

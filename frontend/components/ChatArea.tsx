@@ -26,22 +26,22 @@ export default function ChatArea() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background-subtle/40">
-      <div className="border-b border-white/5 bg-background-subtle/80 px-6 py-5 shadow-inner-glow">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-background-subtle/40">
+      <div className="border-b border-white/5 bg-background-subtle/80 px-3 py-3 md:px-6 md:py-5 shadow-inner-glow flex-shrink-0">
         <ChatHeader
           conversation={selectedConversation}
           onViewSchedulingHistory={() => setHistoryDialogOpen(true)}
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
           <div className="flex h-full w-full items-center justify-center text-text-muted">
             Carregando mensagens...
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch', minHeight: 0 }}>
               <MessageList
                 replyToMessage={replyToMessage}
                 setReplyToMessage={setReplyToMessage}
@@ -59,7 +59,7 @@ export default function ChatArea() {
         )}
       </div>
 
-      <div className="border-t border-white/5 bg-background-muted/60 px-6 py-4">
+      <div className="border-t border-white/5 bg-background-muted/60 px-3 py-3 md:px-6 md:py-4 flex-shrink-0">
         <MessageInput 
           onScheduleClick={() => setScheduleDialogOpen(true)}
           replyTo={replyToMessage}

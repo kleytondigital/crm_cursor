@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
+import BottomNavigation from '@/components/BottomNavigation'
 import { AttendancesProvider, useAttendances } from '@/contexts/AttendancesContext'
 import AttendanceDashboard from '@/components/attendances/AttendanceDashboard'
 import { ToastProvider, useToast } from '@/contexts/ToastContext'
@@ -56,10 +57,11 @@ export default function AttendancesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navigation />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-6 pb-10 pt-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
         <AttendancesWithProviders />
       </main>
       <Footer />
+      <BottomNavigation />
     </div>
   )
 }

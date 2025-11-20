@@ -83,7 +83,11 @@ export default function ConversationsSidebar() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ height: 'calc(100vh - 200px)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex-1 overflow-y-auto" style={{ 
+        maxHeight: 'calc(100vh - 180px)',
+        WebkitOverflowScrolling: 'touch',
+        overflowY: 'auto'
+      }}>
         {loading && conversations.length === 0 ? (
           <div className="flex h-full items-center justify-center text-text-muted">
             Carregando conversas...
