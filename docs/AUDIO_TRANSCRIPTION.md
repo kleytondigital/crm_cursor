@@ -27,7 +27,7 @@ WhatsApp → WAHA Webhook → CRM (salva áudio) → n8n (transcreve) → CRM (a
 
 4. **Atualização no CRM**: O n8n envia a transcrição de volta para o CRM via:
    ```
-   PATCH /webhooks/n8n/messages/{messageId}/transcription
+   POST /webhooks/n8n/messages/{messageId}/transcription
    X-API-Key: {apiKey}
    Body: { transcriptionText: "texto transcrito" }
    ```
@@ -99,7 +99,7 @@ O workflow contém os seguintes nodes:
 
 ### Node 4: HTTP Request (Atualizar CRM)
 
-- **Method**: PATCH
+- **Method**: POST
 - **URL**: `{{ $env.CRM_API_URL }}/webhooks/n8n/messages/{{ $('Webhook Trigger').first().json.body.messageId }}/transcription`
 - **Send Headers**: Sim
 - **Headers**:
@@ -124,7 +124,7 @@ O workflow contém os seguintes nodes:
 ### Atualizar Transcrição da Mensagem
 
 ```http
-PATCH /webhooks/n8n/messages/{messageId}/transcription
+POST /webhooks/n8n/messages/{messageId}/transcription
 X-API-Key: crm_...
 Content-Type: application/json
 
@@ -198,7 +198,7 @@ Para mensagens de áudio recebidas sem transcrição ainda, o frontend exibe um 
 1. Verifique que `CRM_API_URL` no n8n aponta para o **backend** (ex: `https://backcrm.aoseudispor.com.br`), **NÃO** para o frontend
 2. Teste manualmente o endpoint:
    ```bash
-   curl -X PATCH https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
+   curl -X POST https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
      -H "X-API-Key: {sua-api-key}" \
      -H "Content-Type: application/json" \
      -d '{"transcriptionText":"teste"}'
@@ -237,7 +237,7 @@ Para mensagens de áudio recebidas sem transcrição ainda, o frontend exibe um 
    - ❌ Errado: `https://crm.aoseudispor.com.br` (frontend)
 2. Teste manualmente o endpoint:
    ```bash
-   curl -X PATCH https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
+   curl -X POST https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
      -H "X-API-Key: {sua-api-key}" \
      -H "Content-Type: application/json" \
      -d '{"transcriptionText":"teste"}'
@@ -313,7 +313,7 @@ POST https://seu-n8n.com/webhook/audio-transcription
 ### 4. n8n atualiza CRM
 
 ```
-PATCH https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/550e8400-e29b-41d4-a716-446655440000/transcription
+POST https://backcrm.aoseudispor.com.br/webhooks/n8n/messages/550e8400-e29b-41d4-a716-446655440000/transcription
 X-API-Key: crm_abc123...
 {
   "transcriptionText": "Olá, gostaria de saber mais sobre o produto."

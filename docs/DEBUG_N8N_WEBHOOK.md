@@ -40,7 +40,7 @@ Deve retornar: `{ "message": "N8N Webhooks Controller está funcionando" }`
 ### 4. Testar endpoint de transcrição manualmente
 
 ```bash
-curl -X PATCH https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/21d879b7-c9c1-45c5-95f8-c4853808c2c0/transcription \
+curl -X POST https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/21d879b7-c9c1-45c5-95f8-c4853808c2c0/transcription \
   -H "X-API-Key: crm_5c3c76dbdc8b46564c93d3784583fda4ae6a9e71623fef8c47a064604476f1ee" \
   -H "Content-Type: application/json" \
   -d '{"transcriptionText":"teste"}'

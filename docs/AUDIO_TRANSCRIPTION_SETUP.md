@@ -58,7 +58,7 @@ Você deve ver logs como:
 
 ```bash
 # Substitua {messageId} por um ID real de mensagem de áudio
-curl -X PATCH https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
+curl -X POST https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription \
   -H "X-API-Key: crm_5c3c76dbdc8b46564c93d3784583fda4ae6a9e71623fef8c47a064604476f1ee" \
   -H "Content-Type: application/json" \
   -d '{"transcriptionText":"teste de transcrição"}'
@@ -94,7 +94,7 @@ curl -X PATCH https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/{messa
 ## Endpoint de Transcrição
 
 ```
-PATCH https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription
+POST https://backendcrm.aoseudispor.com.br/webhooks/n8n/messages/{messageId}/transcription
 X-API-Key: crm_5c3c76dbdc8b46564c93d3784583fda4ae6a9e71623fef8c47a064604476f1ee
 Content-Type: application/json
 

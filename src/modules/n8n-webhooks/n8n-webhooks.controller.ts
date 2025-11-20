@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Patch,
   Param,
   Body,
   UseGuards,
@@ -137,7 +136,7 @@ export class N8nWebhooksController {
     return this.n8nWebhooksService.getMessagesByLeadId(leadId, tenantId);
   }
 
-  @Patch('messages/:messageId/transcription')
+  @Post('messages/:messageId/transcription')
   updateMessageTranscription(
     @Param('messageId') messageId: string,
     @Body() dto: UpdateMessageTranscriptionDto,
