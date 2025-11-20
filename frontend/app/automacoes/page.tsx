@@ -9,6 +9,7 @@ import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import BottomNavigation from '@/components/BottomNavigation'
 import ConfigureTemplateModal from '@/components/admin/ConfigureTemplateModal'
+import PromptConfigModal from '@/components/admin/PromptConfigModal'
 
 interface WorkflowTemplate {
   id: string
@@ -24,11 +25,14 @@ interface WorkflowInstance {
   name: string
   isActive: boolean
   webhookUrl?: string
+  config?: Record<string, any>
+  generatedPrompt?: string | null
   template: {
     id: string
     name: string
     category?: string
     icon?: string
+    variables?: Record<string, any>
   }
   aiAgent?: {
     id: string
@@ -47,6 +51,8 @@ export default function AutomacoesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
   const [showConfigureModal, setShowConfigureModal] = useState(false)
+  const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null)
+  const [showPromptModal, setShowPromptModal] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -232,6 +238,11 @@ export default function AutomacoesPage() {
                     variant="ghost"
                     size="sm"
                     className="gap-2"
+                    onClick={() => {
+                      setSelectedInstance(instance)
+                      setShowPromptModal(true)
+                    }}
+                    title="Configurar Prompt"
                   >
                     <Settings className="h-4 w-4" />
                   </Button>
@@ -328,18 +339,32 @@ export default function AutomacoesPage() {
       <Footer />
       <BottomNavigation />
 
-      {/* Modal de Configuração */}
-      {showConfigureModal && selectedTemplate && (
-        <ConfigureTemplateModal
-          template={selectedTemplate}
-          onClose={() => {
-            setShowConfigureModal(false)
-            setSelectedTemplate(null)
-          }}
-          onSuccess={handleConfigureSuccess}
-        />
-      )}
-    </div>
-  )
-}
+            {/* Modal de Configuração */}
+            {showConfigureModal && selectedTemplate && (
+              <ConfigureTemplateModal
+                template={selectedTemplate}
+                onClose={() => {
+                  setShowConfigureModal(false)
+                  setSelectedTemplate(null)
+                }}
+                onSuccess={handleConfigureSuccess}
+              />
+            )}
+
+            {/* Modal de Configuração de Prompt */}
+            {showPromptModal && selectedInstance && (
+              <PromptConfigModal
+                instance={selectedInstance}
+                onClose={() => {
+                  setShowPromptModal(false)
+                  setSelectedInstance(null)
+                }}
+                onSuccess={() => {
+                  loadData()
+                }}
+              />
+            )}
+          </div>
+        )
+      }
 

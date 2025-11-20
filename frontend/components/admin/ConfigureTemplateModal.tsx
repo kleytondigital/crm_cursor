@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Eye, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
 
@@ -29,6 +29,8 @@ export default function ConfigureTemplateModal({
   const [config, setConfig] = useState<Record<string, any>>(initialConfig)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const handleVariableChange = (varName: string, value: any) => {
     setConfig((prev) => ({
@@ -38,18 +40,46 @@ export default function ConfigureTemplateModal({
   }
 
   const validateForm = () => {
+    setError('')
+    const errors: Record<string, string> = {}
+
+    // Validar nome
     if (!name.trim()) {
       setError('Nome da automação é obrigatório')
       return false
     }
 
-    // Validar campos obrigatórios
+    // Validar cada campo
     for (const [varName, varConfig] of Object.entries(template.variables || {})) {
       const varConfigTyped = varConfig as any
-      if (varConfigTyped.required && !config[varName]) {
-        setError(`Campo "${varConfigTyped.label}" é obrigatório`)
-        return false
+      const value = config[varName]
+
+      // Campo obrigatório vazio
+      if (varConfigTyped.required && (!value || (typeof value === 'string' && !value.trim()))) {
+        errors[varName] = 'Este campo é obrigatório'
       }
+
+      // Validação de tipo number
+      if (varConfigTyped.type === 'number' && value !== undefined && value !== null && value !== '') {
+        const numValue = typeof value === 'string' ? parseFloat(value) : value
+        if (isNaN(numValue)) {
+          errors[varName] = 'Deve ser um número válido'
+        }
+      }
+
+      // Validação de select
+      if (varConfigTyped.type === 'select' && value && varConfigTyped.options) {
+        if (!varConfigTyped.options.includes(value)) {
+          errors[varName] = 'Opção inválida'
+        }
+      }
+    }
+
+    setValidationErrors(errors)
+
+    if (Object.keys(errors).length > 0) {
+      setError('Corrija os erros nos campos antes de continuar')
+      return false
     }
 
     return true
@@ -83,16 +113,32 @@ export default function ConfigureTemplateModal({
     }
   }
 
-  const renderVariableField = (varName: string, varConfig: any) => {
+  const renderVariableField = (varName: string, varConfig: any, hasError: boolean = false) => {
     const value = config[varName]
+
+    const baseInputClasses = `w-full rounded-xl border px-4 py-3 text-white placeholder:text-text-muted focus:outline-none ${
+      hasError
+        ? 'border-red-500/50 bg-red-500/5 focus:border-red-500'
+        : 'border-white/10 bg-background-muted focus:border-brand-primary'
+    }`
 
     switch (varConfig.type) {
       case 'textarea':
         return (
           <textarea
             value={value || ''}
-            onChange={(e) => handleVariableChange(varName, e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-background-muted px-4 py-3 text-white placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
+            onChange={(e) => {
+              handleVariableChange(varName, e.target.value)
+              // Limpar erro quando começar a digitar
+              if (validationErrors[varName]) {
+                setValidationErrors((prev) => {
+                  const newErrors = { ...prev }
+                  delete newErrors[varName]
+                  return newErrors
+                })
+              }
+            }}
+            className={baseInputClasses}
             rows={4}
             placeholder={varConfig.description || varConfig.label}
           />
@@ -102,8 +148,18 @@ export default function ConfigureTemplateModal({
         return (
           <select
             value={value || ''}
-            onChange={(e) => handleVariableChange(varName, e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-background-muted px-4 py-3 text-white focus:border-brand-primary focus:outline-none"
+            onChange={(e) => {
+              handleVariableChange(varName, e.target.value)
+              // Limpar erro quando selecionar
+              if (validationErrors[varName]) {
+                setValidationErrors((prev) => {
+                  const newErrors = { ...prev }
+                  delete newErrors[varName]
+                  return newErrors
+                })
+              }
+            }}
+            className={baseInputClasses}
           >
             <option value="">Selecione...</option>
             {varConfig.options?.map((option: string) => (
@@ -119,8 +175,19 @@ export default function ConfigureTemplateModal({
           <input
             type="number"
             value={value || ''}
-            onChange={(e) => handleVariableChange(varName, parseFloat(e.target.value) || 0)}
-            className="w-full rounded-xl border border-white/10 bg-background-muted px-4 py-3 text-white placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
+            onChange={(e) => {
+              const numValue = e.target.value ? parseFloat(e.target.value) : ''
+              handleVariableChange(varName, numValue)
+              // Limpar erro quando começar a digitar
+              if (validationErrors[varName]) {
+                setValidationErrors((prev) => {
+                  const newErrors = { ...prev }
+                  delete newErrors[varName]
+                  return newErrors
+                })
+              }
+            }}
+            className={baseInputClasses}
             placeholder={varConfig.description || varConfig.label}
           />
         )
@@ -130,8 +197,18 @@ export default function ConfigureTemplateModal({
           <input
             type="text"
             value={value || ''}
-            onChange={(e) => handleVariableChange(varName, e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-background-muted px-4 py-3 text-white placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
+            onChange={(e) => {
+              handleVariableChange(varName, e.target.value)
+              // Limpar erro quando começar a digitar
+              if (validationErrors[varName]) {
+                setValidationErrors((prev) => {
+                  const newErrors = { ...prev }
+                  delete newErrors[varName]
+                  return newErrors
+                })
+              }
+            }}
+            className={baseInputClasses}
             placeholder={varConfig.description || varConfig.label}
           />
         )
@@ -186,20 +263,99 @@ export default function ConfigureTemplateModal({
             <div className="space-y-4">
               <h4 className="text-lg font-semibold text-white">Configurações</h4>
 
-              {Object.entries(template.variables).map(([varName, varConfig]: [string, any]) => (
-                <div key={varName}>
-                  <label className="mb-2 block text-sm font-medium text-text-muted">
-                    {varConfig.label}
-                    {varConfig.required && <span className="text-red-400"> *</span>}
-                  </label>
-                  {varConfig.description && (
-                    <p className="mb-2 text-xs text-text-muted">{varConfig.description}</p>
-                  )}
-                  {renderVariableField(varName, varConfig)}
-                </div>
-              ))}
+              {Object.entries(template.variables).map(([varName, varConfig]: [string, any]) => {
+                const hasError = !!validationErrors[varName]
+                return (
+                  <div key={varName}>
+                    <label className={`mb-2 block text-sm font-medium ${
+                      hasError ? 'text-red-400' : 'text-text-muted'
+                    }`}>
+                      {varConfig.label}
+                      {varConfig.required && <span className="text-red-400"> *</span>}
+                    </label>
+                    {varConfig.description && (
+                      <p className="mb-2 text-xs text-text-muted">{varConfig.description}</p>
+                    )}
+                    <div>
+                      {renderVariableField(varName, varConfig, hasError)}
+                      {hasError && (
+                        <p className="mt-1 text-xs text-red-400">{validationErrors[varName]}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
+
+          {/* Preview dos Valores */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-white">Preview da Configuração</h4>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPreview(!showPreview)}
+                className="gap-2"
+              >
+                {showPreview ? (
+                  <>
+                    <X className="h-4 w-4" />
+                    Ocultar
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4" />
+                    Ver Preview
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {showPreview && (
+              <div className="rounded-xl border border-brand-primary/30 bg-background-muted/60 p-4">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-brand-secondary">Nome da Automação:</p>
+                    <p className="mt-1 text-sm text-white">{name || <span className="text-text-muted italic">Não definido</span>}</p>
+                  </div>
+                  
+                  {Object.keys(config).length > 0 && (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-brand-secondary">Valores Configurados:</p>
+                      <div className="space-y-2">
+                        {Object.entries(config).map(([varName, value]) => {
+                          const varConfig = template.variables?.[varName]
+                          if (!varConfig) return null
+                          
+                          return (
+                            <div key={varName} className="rounded-lg border border-white/5 bg-background-card/60 px-3 py-2">
+                              <p className="text-xs font-semibold text-white">
+                                {varConfig.label || varName}
+                              </p>
+                              <p className="mt-1 text-xs text-text-muted">
+                                {value !== undefined && value !== null && value !== ''
+                                  ? String(value)
+                                  : <span className="italic">Não definido</span>
+                                }
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {Object.keys(config).length === 0 && (
+                    <p className="text-xs text-text-muted italic">
+                      Nenhuma variável configurada
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Botões */}

@@ -544,17 +544,18 @@ model WorkflowTemplate {
 }
 
 model WorkflowInstance {
-  id            String   @id @default(uuid())
-  templateId    String
-  n8nWorkflowId String?  // ID do workflow criado no n8n
-  webhookUrl    String?  // URL do webhook retornado pelo n8n
-  name          String
-  config        Json     // Configurações personalizadas pelo tenant (valores das variáveis)
-  aiAgentId     String?
-  tenantId      String
-  isActive      Boolean  @default(false) // false até ser ativado no n8n
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(uuid())
+  templateId     String
+  n8nWorkflowId  String?  // ID do workflow criado no n8n
+  webhookUrl     String?  // URL do webhook retornado pelo n8n
+  name           String
+  config         Json     // Configurações personalizadas pelo tenant (valores das variáveis)
+  generatedPrompt String? @db.Text // Prompt gerado pelo webhook especialista
+  aiAgentId      String?
+  tenantId       String
+  isActive       Boolean  @default(false) // false até ser ativado no n8n
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   template WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   aiAgent  AIAgent?         @relation(fields: [aiAgentId], references: [id], onDelete: SetNull)

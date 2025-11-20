@@ -44,6 +44,8 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const [jsonError, setJsonError] = useState('')
 
   const addVariable = () => {
     setVariables([
@@ -71,6 +73,8 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
   }
 
   const validateForm = () => {
+    setError('')
+
     if (!name.trim()) {
       setError('Nome é obrigatório')
       return false
@@ -82,23 +86,70 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
     }
 
     // Validar JSON
+    let parsedJson: any
     try {
-      JSON.parse(workflowJson)
-    } catch (e) {
-      setError('JSON do workflow inválido')
+      parsedJson = JSON.parse(workflowJson)
+    } catch (e: any) {
+      setError('JSON do workflow inválido: ' + e.message)
       return false
     }
 
-    // Validar variáveis
-    for (const variable of variables) {
+    // Validar estrutura básica do workflow n8n
+    if (!parsedJson.name && !parsedJson.nodes) {
+      setError('JSON do workflow deve ter pelo menos "name" ou "nodes"')
+      return false
+    }
+
+    // Validar variáveis únicas
+    const variableNames = variables.map(v => v.name.trim().toLowerCase()).filter(Boolean)
+    const uniqueNames = new Set(variableNames)
+    if (variableNames.length !== uniqueNames.size) {
+      setError('Variáveis devem ter nomes únicos')
+      return false
+    }
+
+    // Validar cada variável
+    for (let i = 0; i < variables.length; i++) {
+      const variable = variables[i]
+      
       if (!variable.name.trim()) {
-        setError('Todas as variáveis precisam ter um nome')
+        setError(`Variável ${i + 1}: Nome é obrigatório`)
         return false
       }
+
+      // Validar nome da variável (sem espaços, caracteres especiais)
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(variable.name.trim())) {
+        setError(`Variável "${variable.name}": Nome deve conter apenas letras, números e underscore, e começar com letra ou underscore`)
+        return false
+      }
+
       if (!variable.label.trim()) {
-        setError(`Variável "${variable.name}" precisa ter um label`)
+        setError(`Variável "${variable.name}": Label é obrigatório`)
         return false
       }
+
+      // Validar opções para select
+      if (variable.type === 'select' && (!variable.options || variable.options.length === 0)) {
+        setError(`Variável "${variable.name}": Tipo select precisa ter pelo menos uma opção`)
+        return false
+      }
+    }
+
+    // Verificar se variáveis usadas no JSON existem na definição
+    const jsonString = JSON.stringify(parsedJson)
+    const variableMatches = jsonString.match(/\{\{([^}]+)\}\}/g) || []
+    const usedVariables = new Set(
+      variableMatches
+        .map(match => match.replace(/\{\{|\}\}/g, '').trim().split('|')[0].trim())
+        .filter(Boolean)
+    )
+
+    const definedVariables = new Set(variables.map(v => v.name.trim()).filter(Boolean))
+    const undefinedVariables = Array.from(usedVariables).filter(v => !definedVariables.has(v))
+    
+    if (undefinedVariables.length > 0) {
+      setError(`Variáveis usadas no JSON mas não definidas: ${undefinedVariables.join(', ')}`)
+      return false
     }
 
     return true
@@ -251,17 +302,64 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
               </a>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <textarea
                 value={workflowJson}
-                onChange={(e) => setWorkflowJson(e.target.value)}
+                onChange={(e) => {
+                  setWorkflowJson(e.target.value)
+                  setJsonError('')
+                  // Validar JSON em tempo real
+                  if (e.target.value.trim()) {
+                    try {
+                      JSON.parse(e.target.value)
+                    } catch (err: any) {
+                      setJsonError('JSON inválido: ' + err.message)
+                    }
+                  }
+                }}
                 rows={12}
-                className="w-full rounded-xl border border-white/10 bg-background-muted px-4 py-3 font-mono text-sm text-white placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
+                className={`w-full rounded-xl border px-4 py-3 font-mono text-sm text-white placeholder:text-text-muted focus:outline-none ${
+                  jsonError
+                    ? 'border-red-500/50 bg-red-500/5'
+                    : 'border-white/10 bg-background-muted focus:border-brand-primary'
+                }`}
                 placeholder={`{\n  "name": "Meu Workflow",\n  "nodes": [...],\n  "connections": {...}\n}`}
               />
-              <p className="mt-2 text-xs text-text-muted">
-                Cole o JSON exportado do n8n. Use &#123;&#123;nomeVariavel&#125;&#125; para marcar variáveis editáveis.
-              </p>
+              {jsonError && (
+                <p className="text-xs text-red-400">{jsonError}</p>
+              )}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-text-muted">
+                  Cole o JSON exportado do n8n. Use &#123;&#123;nomeVariavel&#125;&#125; para marcar variáveis editáveis.
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (workflowJson.trim()) {
+                      try {
+                        const parsed = JSON.parse(workflowJson)
+                        setShowPreview(!showPreview)
+                      } catch {
+                        setJsonError('JSON inválido. Não é possível visualizar preview.')
+                      }
+                    }
+                  }}
+                  className="text-xs"
+                  disabled={!workflowJson.trim() || !!jsonError}
+                >
+                  {showPreview ? 'Ocultar Preview' : 'Ver Preview'}
+                </Button>
+              </div>
+              {showPreview && workflowJson.trim() && !jsonError && (
+                <div className="rounded-xl border border-brand-primary/30 bg-background-muted/60 p-4">
+                  <p className="mb-2 text-xs font-semibold text-brand-secondary">Preview do JSON:</p>
+                  <pre className="max-h-64 overflow-auto text-xs text-white">
+                    {JSON.stringify(JSON.parse(workflowJson), null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
 

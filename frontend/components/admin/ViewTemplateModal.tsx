@@ -106,13 +106,78 @@ export default function ViewTemplateModal({ template, onClose, onEdit }: ViewTem
 
           {/* JSON do Workflow */}
           <div className="space-y-3">
-            <h4 className="text-lg font-semibold text-white">JSON do Workflow</h4>
-            
-            <div className="rounded-xl border border-white/10 bg-background-muted p-4">
-              <pre className="max-h-96 overflow-auto text-xs text-white">
-                {JSON.stringify(template.n8nWorkflowData, null, 2)}
-              </pre>
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-white">JSON do Workflow</h4>
+              {template.n8nWorkflowData && (
+                <div className="text-xs text-text-muted">
+                  {template.n8nWorkflowData.nodes?.length || 0} nodes •{' '}
+                  {Object.keys(template.n8nWorkflowData.connections || {}).length} conexões
+                </div>
+              )}
             </div>
+            
+            {template.n8nWorkflowData ? (
+              <div className="space-y-3">
+                {/* Resumo do Workflow */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-background-muted/60 p-3">
+                    <p className="text-xs text-text-muted">Nome do Workflow</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {template.n8nWorkflowData.name || 'Sem nome'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-background-muted/60 p-3">
+                    <p className="text-xs text-text-muted">Status</p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {template.n8nWorkflowData.active ? 'Ativo' : 'Inativo'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Lista de Nodes */}
+                {template.n8nWorkflowData.nodes && Array.isArray(template.n8nWorkflowData.nodes) && (
+                  <div className="rounded-xl border border-white/10 bg-background-muted/60 p-4">
+                    <p className="mb-2 text-xs font-semibold text-text-muted">Nodes do Workflow</p>
+                    <div className="space-y-2">
+                      {template.n8nWorkflowData.nodes.slice(0, 10).map((node: any, index: number) => (
+                        <div
+                          key={index}
+                          className="rounded-lg border border-white/5 bg-background-card/60 px-3 py-2 text-xs"
+                        >
+                          <p className="font-semibold text-white">
+                            {node.name || `Node ${index + 1}`}
+                          </p>
+                          <p className="text-text-muted">
+                            {node.type || 'Sem tipo'}
+                          </p>
+                        </div>
+                      ))}
+                      {template.n8nWorkflowData.nodes.length > 10 && (
+                        <p className="text-xs text-text-muted">
+                          ... e mais {template.n8nWorkflowData.nodes.length - 10} nodes
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* JSON Completo (colapsável) */}
+                <details className="rounded-xl border border-white/10 bg-background-muted p-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-white">
+                    Ver JSON Completo
+                  </summary>
+                  <div className="mt-4 max-h-96 overflow-auto">
+                    <pre className="text-xs text-white">
+                      {JSON.stringify(template.n8nWorkflowData, null, 2)}
+                    </pre>
+                  </div>
+                </details>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-white/10 bg-background-muted/40 p-6 text-center">
+                <p className="text-sm text-text-muted">JSON do workflow não disponível</p>
+              </div>
+            )}
           </div>
 
           {/* Informações de Criação */}

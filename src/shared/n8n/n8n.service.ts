@@ -114,5 +114,70 @@ export class N8nService {
       );
     }
   }
+
+  /**
+   * Chamar webhook especialista em criação de prompts estruturados
+   */
+  async createPrompt(payload: {
+    type: 'system' | 'user';
+    variables?: Array<Record<string, any>>;
+    prompt_ajuste?: string;
+    text_ajuste?: string;
+  }): Promise<{ prompt: string }> {
+    const webhookUrl =
+      this.configService.get<string>('N8N_WEBHOOK_CREATE_PROMPT') ||
+      '';
+
+    if (!webhookUrl) {
+      this.logger.error('N8N_WEBHOOK_CREATE_PROMPT não configurado');
+      throw new InternalServerErrorException(
+        'Webhook de criação de prompt não configurado no ambiente',
+      );
+    }
+
+    try {
+      this.logger.log(
+        `Chamando webhook de criação de prompt - Type: ${payload.type}`,
+      );
+
+      const response = await axios.post<{ prompt: string }>(webhookUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey ? { 'X-N8N-API-KEY': this.apiKey } : {}),
+        },
+        timeout: 60000, // 60 segundos para criação de prompt (pode demorar)
+      });
+
+      if (!response.data || !response.data.prompt) {
+        throw new InternalServerErrorException(
+          'Webhook não retornou prompt válido',
+        );
+      }
+
+      this.logger.log(
+        `Prompt criado com sucesso. Tamanho: ${response.data.prompt.length} caracteres`,
+      );
+
+      return response.data;
+    } catch (error) {
+      if (this.isAxiosError(error)) {
+        const status = error.response?.status ?? 500;
+        const data = error.response?.data ?? {
+          message: 'Erro ao criar prompt',
+        };
+        this.logger.error(
+          `Erro ao criar prompt: status=${status} data=${JSON.stringify(data)}`,
+        );
+        throw new HttpException(data, status);
+      }
+
+      this.logger.error(
+        `Erro inesperado ao criar prompt: ${error?.message || error}`,
+      );
+      throw new InternalServerErrorException(
+        'Erro interno ao criar prompt',
+      );
+    }
+  }
 }
 

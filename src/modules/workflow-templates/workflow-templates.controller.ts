@@ -15,6 +15,7 @@ import { CreateWorkflowTemplateDto } from './dto/create-template.dto';
 import { UpdateWorkflowTemplateDto } from './dto/update-template.dto';
 import { CreateWorkflowInstanceDto } from './dto/create-instance.dto';
 import { UpdateWorkflowInstanceDto } from './dto/update-instance.dto';
+import { CreatePromptDto } from './dto/create-prompt.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 
 @Controller('workflow-templates')
@@ -162,6 +163,42 @@ export class WorkflowTemplatesController {
       role: req.user.role,
     };
     return this.workflowTemplatesService.removeInstance(id, context);
+  }
+
+  // ============= PROMPT MANAGEMENT =============
+
+  @Post('instances/:id/prompt')
+  createOrAdjustPrompt(
+    @Param('id') id: string,
+    @Body() dto: CreatePromptDto,
+    @Request() req: any,
+  ) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.createOrAdjustPrompt(id, dto, context);
+  }
+
+  @Get('instances/:id/prompt')
+  getPrompt(@Param('id') id: string, @Request() req: any) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.getPrompt(id, context);
+  }
+
+  @Delete('instances/:id/prompt')
+  clearPrompt(@Param('id') id: string, @Request() req: any) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.clearPrompt(id, context);
   }
 }
 
