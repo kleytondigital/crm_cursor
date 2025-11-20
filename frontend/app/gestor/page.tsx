@@ -20,7 +20,9 @@ import {
   X,
   ShieldAlert,
   Bot,
+  Menu,
 } from 'lucide-react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
@@ -98,10 +100,12 @@ const configHelpItems = [
 
 function GestorContent() {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const [selectedSection, setSelectedSection] = useState<MenuSection>('dashboard')
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const { departments, users, loadingList } = useAttendances()
 
@@ -158,6 +162,43 @@ function GestorContent() {
       <Navigation />
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
+        {/* Menu Mobile */}
+        {isMobile && (
+          <div className="w-full lg:hidden mb-4">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-background-subtle/60 px-4 py-3 text-sm font-medium text-white shadow-inner-glow"
+            >
+              <div className="flex items-center gap-2">
+                {menuItems.find((m) => m.id === selectedSection)?.icon}
+                <span>{menuItems.find((m) => m.id === selectedSection)?.label || 'Menu'}</span>
+              </div>
+              <Menu className="h-4 w-4" />
+            </button>
+            {mobileMenuOpen && (
+              <div className="mt-2 rounded-2xl border border-white/10 bg-background-subtle/95 p-2 shadow-lg backdrop-blur-md">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedSection(item.id)
+                      setMobileMenuOpen(false)
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                      selectedSection === item.id
+                        ? 'bg-brand-primary/20 text-white'
+                        : 'text-text-muted hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Sidebar */}
         <aside className="hidden w-[280px] shrink-0 flex-col gap-4 rounded-3xl border border-white/5 bg-background-subtle/60 p-5 shadow-inner-glow lg:flex">
           <div>

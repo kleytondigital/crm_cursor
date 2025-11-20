@@ -71,15 +71,15 @@ function StatCard({
   icon: React.ReactNode
 }) {
   return (
-    <div className="rounded-3xl border border-white/5 bg-background-subtle/60 p-6 shadow-inner-glow transition hover:border-brand-secondary/40 hover:shadow-glow">
+    <div className="rounded-3xl border border-white/5 bg-background-subtle/60 p-3 md:p-6 shadow-inner-glow transition hover:border-brand-secondary/40 hover:shadow-glow">
       <div className="flex items-center justify-between">
-        <div className="text-brand-secondary">{icon}</div>
-        <span className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-text-muted">
+        <div className="text-brand-secondary scale-75 md:scale-100">{icon}</div>
+        <span className="rounded-full bg-white/5 px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs uppercase tracking-wide text-text-muted">
           {description}
         </span>
       </div>
-      <p className="mt-6 text-xs uppercase tracking-[0.35em] text-text-muted">{title}</p>
-      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+      <p className="mt-3 md:mt-6 text-[10px] md:text-xs uppercase tracking-[0.35em] text-text-muted">{title}</p>
+      <p className="mt-1 md:mt-2 text-xl md:text-3xl font-semibold text-white">{value}</p>
     </div>
   )
 }
@@ -241,31 +241,31 @@ function FiltersBar({
   onReset: () => void
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-3xl border border-white/5 bg-background-subtle/70 p-4 shadow-inner-glow">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-2 md:gap-3 rounded-3xl border border-white/5 bg-background-subtle/70 p-3 md:p-4 shadow-inner-glow">
+      <div className="flex items-center gap-2 md:gap-3">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+          <Search className="pointer-events-none absolute left-2 md:left-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
           <Input
             value={filters.search ?? ''}
             onChange={(event) => onChange({ search: event.target.value })}
-            placeholder="Buscar por nome, telefone..."
-            className="w-full rounded-full border border-white/10 bg-background-muted/80 py-2 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+            placeholder="Buscar..."
+            className="w-full rounded-full border border-white/10 bg-background-muted/80 py-1.5 md:py-2 pl-8 md:pl-10 pr-3 md:pr-4 text-xs md:text-sm text-text-primary placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
           />
         </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={onReset}
-          className="h-10 w-10 rounded-full border border-white/10 bg-background-soft/80 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary"
+          className="h-8 w-8 md:h-10 md:w-10 rounded-full border border-white/10 bg-background-soft/80 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary flex-shrink-0"
           title="Limpar filtros"
         >
-          <XCircle className="h-4 w-4" />
+          <XCircle className="h-3.5 w-3.5 md:h-4 md:w-4" />
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 md:gap-3 grid-cols-1 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-text-muted">Status</span>
+          <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Status</span>
           <div className="relative">
             <SortIcon />
             <select
@@ -273,7 +273,7 @@ function FiltersBar({
               onChange={(event) =>
                 onChange({ status: event.target.value ? (event.target.value as AttendanceStatus) : undefined })
               }
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-3 py-2 text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
             >
               <option value="">Todos</option>
               <option value="OPEN">Disponível</option>
@@ -281,11 +281,11 @@ function FiltersBar({
               <option value="TRANSFERRED">Transferido</option>
               <option value="CLOSED">Encerrado</option>
             </select>
-            <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-text-muted">Prioridade</span>
+          <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Prioridade</span>
           <div className="relative">
             <select
               value={filters.priority ?? ''}
@@ -294,28 +294,28 @@ function FiltersBar({
                   priority: event.target.value ? (event.target.value as AttendancePriority) : undefined,
                 })
               }
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-3 py-2 text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
             >
               <option value="">Todas</option>
               <option value="HIGH">Alta</option>
               <option value="NORMAL">Normal</option>
               <option value="LOW">Baixa</option>
             </select>
-            <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
           </div>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 md:gap-3 grid-cols-1 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-text-muted">Departamento</span>
+          <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Departamento</span>
           <div className="relative">
             <select
               value={filters.departmentId ?? ''}
               onChange={(event) =>
                 onChange({ departmentId: event.target.value || undefined })
               }
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-3 py-2 text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
             >
               <option value="">Todos</option>
               {departments.map((department) => (
@@ -324,17 +324,17 @@ function FiltersBar({
                 </option>
               ))}
             </select>
-            <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
           </div>
         </div>
-        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-background-muted/80 px-4 py-3 text-sm text-text-primary">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-rose-300" />
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-background-muted/80 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm text-text-primary">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 text-rose-300" />
             <span>Somente urgentes</span>
           </div>
           <button
             onClick={toggleUrgent}
-            className={`h-5 w-10 rounded-full border transition ${
+            className={`h-5 w-10 rounded-full border transition flex-shrink-0 ${
               urgent ? 'border-rose-400 bg-rose-400/40' : 'border-white/10 bg-white/5'
             }`}
           >
@@ -685,7 +685,7 @@ export default function AttendanceDashboard() {
 
   return (
     <>
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:gap-4 grid-cols-2 sm:grid-cols-2 xl:grid-cols-4">
         {topStats.map((stat) => (
           <StatCard
             key={stat.title}
@@ -697,8 +697,8 @@ export default function AttendanceDashboard() {
         ))}
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-        <div className="flex flex-col gap-4">
+      <section className="flex flex-col gap-4 md:gap-5 lg:flex-row lg:grid lg:grid-cols-[360px_1fr]">
+        <div className="flex flex-col gap-3 md:gap-4 w-full lg:w-auto">
           <FiltersBar
             filters={filters}
             departments={departments}
@@ -713,21 +713,22 @@ export default function AttendanceDashboard() {
             }
           />
 
-          <Card className="rounded-3xl border border-white/5 bg-background-subtle/60 p-4 shadow-inner-glow">
+          <Card className="rounded-3xl border border-white/5 bg-background-subtle/60 p-3 md:p-4 shadow-inner-glow">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">Fila inteligente</h3>
+              <h3 className="text-xs md:text-sm font-semibold text-white">Fila inteligente</h3>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-2 rounded-full border border-white/10 bg-white/5 text-xs uppercase tracking-wide text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary"
+                className="h-7 md:h-8 gap-1 md:gap-2 rounded-full border border-white/10 bg-white/5 text-[10px] md:text-xs uppercase tracking-wide text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary"
                 onClick={refresh}
               >
-                Atualizar
+                <span className="hidden sm:inline">Atualizar</span>
+                <span className="sm:hidden">↻</span>
               </Button>
             </div>
-            <div className="mt-3 flex flex-col gap-2">
+            <div className="mt-2 md:mt-3 flex flex-col gap-2 max-h-[200px] md:max-h-none overflow-y-auto">
               {smartQueue.length === 0 ? (
-                <p className="text-xs text-text-muted">Nenhum atendimento disponível na fila.</p>
+                <p className="text-[10px] md:text-xs text-text-muted">Nenhum atendimento disponível na fila.</p>
               ) : (
                 smartQueue.slice(0, 5).map((item) => (
                   <SmartQueueItem key={item.id} item={item} />
@@ -736,14 +737,14 @@ export default function AttendanceDashboard() {
             </div>
           </Card>
 
-          <div className="flex flex-col gap-2 rounded-3xl border border-white/5 bg-background-subtle/60 p-4 shadow-inner-glow">
+          <div className="flex flex-col gap-2 rounded-3xl border border-white/5 bg-background-subtle/60 p-3 md:p-4 shadow-inner-glow">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">Atendimentos</h3>
-              {loadingList && <Loader2 className="h-4 w-4 animate-spin text-brand-secondary" />}
+              <h3 className="text-xs md:text-sm font-semibold text-white">Atendimentos</h3>
+              {loadingList && <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin text-brand-secondary" />}
             </div>
-            <div className="flex max-h-[600px] flex-col gap-3 overflow-y-auto pr-1">
+            <div className="flex max-h-[400px] md:max-h-[600px] flex-col gap-2 md:gap-3 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
               {attendances.length === 0 && !loadingList ? (
-                <p className="text-sm text-text-muted">Nenhum atendimento encontrado com os filtros atuais.</p>
+                <p className="text-xs md:text-sm text-text-muted">Nenhum atendimento encontrado com os filtros atuais.</p>
               ) : (
                 attendances.map((attendance) => (
                   <AttendanceListItem
@@ -759,7 +760,7 @@ export default function AttendanceDashboard() {
           </div>
         </div>
 
-        <div className="min-h-[680px]">
+        <div className="min-h-[400px] md:min-h-[680px] w-full lg:w-auto">
           {loadingDetails && selectedAttendance ? (
             <div className="flex h-full items-center justify-center rounded-3xl border border-white/5 bg-background-subtle/60">
               <Loader2 className="h-8 w-8 animate-spin text-brand-secondary" />

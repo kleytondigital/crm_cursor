@@ -26,6 +26,7 @@ export default function ChatLayout() {
       style={{
         height: isMobile ? mobileHeight : 'calc(100vh - 140px)',
         minHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
+        maxHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
       }}
     >
       {/* Sidebar - esconder no mobile quando chat estiver selecionado */}
