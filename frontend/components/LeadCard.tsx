@@ -58,13 +58,13 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`cursor-move rounded-2xl border border-white/10 bg-background-subtle/80 p-4 shadow-inner-glow transition-all ${
+          className={`w-full cursor-move rounded-2xl border border-white/10 bg-background-subtle/80 p-3 sm:p-4 shadow-inner-glow transition-all ${
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
         >
-          <h3 className="mb-2 line-clamp-2 text-base font-semibold text-white">{getDisplayName()}</h3>
+          <h3 className="mb-2 line-clamp-2 text-sm sm:text-base font-semibold text-white">{getDisplayName()}</h3>
 
-          <div className="mb-3 flex items-center text-sm text-text-muted">
+          <div className="mb-3 flex items-center text-xs sm:text-sm text-text-muted">
             <Phone className="mr-2 h-4 w-4 text-brand-secondary" />
             <span className="truncate">{formatPhone(lead.phone)}</span>
           </div>
@@ -74,7 +74,7 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
               {lead.tags.slice(0, 3).map((tag, tagIndex) => (
                 <span
                   key={tagIndex}
-                  className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-wide text-text-muted"
+                  className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] sm:text-[11px] uppercase tracking-wide text-text-muted"
                 >
                   <Tag className="h-3 w-3 text-brand-secondary" />
                   {tag}
@@ -86,7 +86,7 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-t border-white/5 pt-3 text-xs text-text-muted">
+          <div className="flex items-center gap-2 border-t border-white/5 pt-3 text-[11px] text-text-muted">
             <Calendar className="h-3 w-3 text-brand-secondary" />
             <span>Criado em {formatDate(lead.createdAt)}</span>
           </div>
@@ -94,14 +94,14 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               onClick={() => router.push(`/leads/${lead.id}`)}
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] sm:text-xs uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
             >
               <FileText className="h-3.5 w-3.5" />
               Ver dados
             </button>
             <button
               onClick={handleOpenChat}
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] sm:text-xs uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Abrir chat

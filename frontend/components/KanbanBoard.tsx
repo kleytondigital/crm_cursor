@@ -151,9 +151,9 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
         </div>
       )}
 
-      <div className="flex-1 overflow-x-auto px-6 py-6">
+      <div className="flex-1 px-3 py-4 sm:px-6 sm:py-6 overflow-visible lg:overflow-x-auto">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-6" style={{ minWidth: 'max-content' }}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6 lg:min-w-max">
             {stages.map((stage) => (
               <KanbanColumn
                 key={stage.id}

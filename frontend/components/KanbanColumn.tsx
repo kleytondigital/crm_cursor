@@ -42,10 +42,10 @@ export default function KanbanColumn({ stage, leads, onEdit }: KanbanColumnProps
 
   return (
     <div
-      className="flex min-w-[280px] flex-col rounded-3xl border-2 bg-background-muted/60 shadow-inner-glow"
-      style={{ height: 'calc(100vh - 320px)', ...borderStyle }}
+      className="flex w-full min-w-full sm:min-w-[280px] lg:min-w-[320px] lg:w-[340px] flex-col rounded-3xl border-2 bg-background-muted/60 shadow-inner-glow lg:h-[calc(100vh-320px)]"
+      style={{ ...borderStyle }}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-white/5 px-5 py-4">
+      <div className="flex items-start justify-between gap-2 border-b border-white/5 px-4 py-3 md:px-5 md:py-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span 
@@ -79,11 +79,11 @@ export default function KanbanColumn({ stage, leads, onEdit }: KanbanColumnProps
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 overflow-y-auto px-4 py-5 transition ${
+            className={`flex-1 overflow-visible lg:overflow-y-auto px-3 py-4 md:px-4 md:py-5 transition ${
               snapshot.isDraggingOver ? 'bg-white/5' : 'bg-transparent'
-            }`}
+            } lg:h-[calc(100vh-420px)]`}
           >
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {leads.map((lead, index) => (
                 <LeadCard key={lead.id} lead={lead} index={index} />
               ))}

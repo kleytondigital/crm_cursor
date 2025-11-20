@@ -125,11 +125,6 @@ function GestorContent() {
   }, [searchQuery])
 
   const handleMenuClick = (itemId: MenuSection) => {
-    if (itemId === 'connections') {
-      // Para conexões, redirecionar para a página
-      router.push('/connections')
-      return
-    }
     if (itemId === 'departments' && menuItems.find((m) => m.id === 'departments')?.hasSubmenu) {
       setExpandedMenus((prev) => {
         const newSet = new Set(prev)
@@ -199,10 +194,6 @@ function GestorContent() {
                           if (!isExpanded) {
                             setSelectedSection(item.id)
                           }
-                        } else if (item.id === 'connections') {
-                          // Redirecionar para conexões
-                          router.push('/connections')
-                          setExpandedMenus(new Set())
                         } else {
                           // Selecionar seção diretamente
                           handleMenuClick(item.id)

@@ -94,7 +94,7 @@ export default function ChatArea() {
           zIndex: 10,
           width: '100%',
           maxWidth: '100%',
-          overflow: 'hidden'
+          overflow: 'visible'
         }}
       >
         <MessageInput 
