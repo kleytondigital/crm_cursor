@@ -485,67 +485,121 @@ export default function MessageInput({
     }
   }
 
+  // Hook para ajustar posição quando teclado aparecer (mobile)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('visualViewport' in window)) return
+
+    const handleViewportChange = () => {
+      const viewport = window.visualViewport
+      if (!viewport) return
+
+      // Encontrar o container do input
+      const inputContainer = document.querySelector('[data-message-input-container]') as HTMLElement
+      const chatArea = inputContainer?.closest('[data-chat-area]') as HTMLElement
+      
+      if (inputContainer && chatArea) {
+        const viewportBottom = viewport.height + viewport.offsetTop
+        const windowHeight = window.innerHeight
+        const keyboardHeight = Math.max(0, windowHeight - viewportBottom)
+
+        const threshold = 150 // Threshold para considerar teclado visível
+        
+        if (keyboardHeight > threshold) {
+          // Teclado visível - scroll para manter input visível
+          document.body.classList.add('keyboard-visible')
+          
+          // Scroll suave para manter input visível após um delay
+          setTimeout(() => {
+            const inputFooter = inputContainer?.parentElement as HTMLElement
+            if (inputFooter) {
+              inputFooter.scrollIntoView({ behavior: 'smooth', block: 'end' })
+            }
+          }, 200)
+        } else {
+          // Teclado oculto - voltar ao normal
+          document.body.classList.remove('keyboard-visible')
+        }
+      }
+    }
+
+    const viewport = window.visualViewport
+    if (viewport) {
+      viewport.addEventListener('resize', handleViewportChange)
+      viewport.addEventListener('scroll', handleViewportChange)
+      
+      // Trigger inicial
+      setTimeout(handleViewportChange, 100)
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange)
+        window.visualViewport.removeEventListener('scroll', handleViewportChange)
+      }
+    }
+  }, [selectedConversation])
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2 md:gap-3 w-full max-w-full overflow-hidden" data-message-input-container>
       {audioPreview && (
-        <div className="flex items-center gap-4 rounded-2xl border border-brand-primary/30 bg-[#d9fdd3] px-4 py-3 text-sm text-black shadow-inner">
-          <audio controls src={audioPreview.url} className="max-w-xs" />
-          <div className="flex gap-2">
+        <div className="flex items-center gap-2 md:gap-4 rounded-2xl border border-brand-primary/30 bg-[#d9fdd3] px-3 md:px-4 py-2 md:py-3 text-sm text-black shadow-inner">
+          <audio controls src={audioPreview.url} className="max-w-xs flex-1" />
+          <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={handleSubmitRecordedAudio}
-              className="flex items-center gap-1 rounded-full bg-brand-primary px-3 py-1 text-xs font-semibold text-white transition hover:bg-brand-primary/90"
+              className="flex items-center gap-1 rounded-full bg-brand-primary px-2 md:px-3 py-1 text-xs font-semibold text-white transition hover:bg-brand-primary/90"
             >
-              <Check className="h-4 w-4" />
-              Enviar
+              <Check className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Enviar</span>
             </button>
             <button
               onClick={handleDiscardRecording}
-              className="flex items-center gap-1 rounded-full border border-black/20 px-3 py-1 text-xs font-semibold text-black/80 transition hover:border-black/40 hover:text-black"
+              className="flex items-center gap-1 rounded-full border border-black/20 px-2 md:px-3 py-1 text-xs font-semibold text-black/80 transition hover:border-black/40 hover:text-black"
             >
-              <Trash2 className="h-4 w-4" />
-              Descartar
+              <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Descartar</span>
             </button>
           </div>
         </div>
       )}
 
       {recordingError && (
-        <p className="text-xs text-brand-danger/80">{recordingError}</p>
+        <p className="text-xs text-brand-danger/80 px-2">{recordingError}</p>
       )}
 
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-2 md:gap-3 w-full">
         {/* Timer de gravação visual */}
         {isRecording && (
-          <div className="flex items-center gap-3 rounded-full border border-red-500/50 bg-red-500/10 px-4 py-2 animate-pulse">
+          <div className="flex items-center gap-2 md:gap-3 rounded-full border border-red-500/50 bg-red-500/10 px-3 md:px-4 py-1.5 md:py-2 animate-pulse flex-shrink-0">
             <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-sm font-mono font-semibold text-red-400">
+              <div className="h-2 w-2 md:h-3 md:w-3 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs md:text-sm font-mono font-semibold text-red-400">
                 {formattedTime}
               </span>
             </div>
-            <span className="text-xs text-text-muted">Gravando...</span>
+            <span className="text-[10px] md:text-xs text-text-muted hidden sm:inline">Gravando...</span>
           </div>
         )}
 
-        <div className="flex flex-1 items-center gap-2 rounded-full border border-white/10 bg-background-muted/70 px-4 py-2 shadow-inner-glow">
+        <div className="flex flex-1 items-center gap-1 md:gap-1.5 md:gap-2 rounded-full border border-white/10 bg-background-muted/70 px-2 md:px-4 py-1.5 md:py-2 shadow-inner-glow min-w-0 relative max-w-full">
           {onScheduleClick && !isRecording && (
             <button
               type="button"
               onClick={onScheduleClick}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-brand-secondary transition hover:bg-brand-secondary/20 hover:text-brand-secondary"
+              className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full text-brand-secondary transition hover:bg-brand-secondary/20 hover:text-brand-secondary flex-shrink-0"
               title="Agendar Mensagem"
             >
-              <Calendar className="h-5 w-5" />
+              <Calendar className="h-4 w-4 md:h-5 md:w-5" />
             </button>
           )}
-          <div className="relative" ref={attachmentsRef}>
+          <div className="relative flex-shrink-0" ref={attachmentsRef}>
             <button
               type="button"
               onClick={() => setShowAttachments((prev) => !prev)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white"
               title="Anexar"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-4 w-4 md:h-5 md:w-5" />
             </button>
 
             {showAttachments && (
@@ -618,30 +672,30 @@ export default function MessageInput({
           {!isRecording && (
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-white/10 hover:text-white flex-shrink-0"
               title="Emojis"
             >
-              <Smile className="h-5 w-5" />
+              <Smile className="h-4 w-4 md:h-5 md:w-5" />
             </button>
           )}
 
           {/* Indicador de resposta/edição */}
           {(replyTo || editMessage) && !isRecording && (
-            <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-background-muted/60 px-3 py-2 text-xs">
+            <div className="absolute bottom-full left-0 right-0 mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-background-muted/60 px-2 md:px-3 py-1.5 md:py-2 text-xs z-10">
               {editMessage ? (
                 <>
-                  <Edit2 className="h-3 w-3 text-yellow-400" />
-                  <span className="flex-1 text-text-muted">
-                    Editando: {editMessage.contentText?.substring(0, 50)}
-                    {editMessage.contentText && editMessage.contentText.length > 50 ? '...' : ''}
+                  <Edit2 className="h-3 w-3 text-yellow-400 flex-shrink-0" />
+                  <span className="flex-1 text-text-muted truncate">
+                    Editando: {editMessage.contentText?.substring(0, 40)}
+                    {editMessage.contentText && editMessage.contentText.length > 40 ? '...' : ''}
                   </span>
                 </>
               ) : replyTo ? (
                 <>
-                  <Reply className="h-3 w-3 text-blue-400" />
-                  <span className="flex-1 text-text-muted">
-                    Respondendo: {replyTo.contentText?.substring(0, 50)}
-                    {replyTo.contentText && replyTo.contentText.length > 50 ? '...' : ''}
+                  <Reply className="h-3 w-3 text-blue-400 flex-shrink-0" />
+                  <span className="flex-1 text-text-muted truncate">
+                    Respondendo: {replyTo.contentText?.substring(0, 40)}
+                    {replyTo.contentText && replyTo.contentText.length > 40 ? '...' : ''}
                   </span>
                 </>
               ) : null}
@@ -652,7 +706,7 @@ export default function MessageInput({
                   onReplyCancel?.()
                   setText('')
                 }}
-                className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                className="rounded-full p-1 hover:bg-white/10 transition-colors flex-shrink-0"
                 title="Cancelar"
               >
                 <X className="h-3 w-3 text-text-muted" />
@@ -662,19 +716,36 @@ export default function MessageInput({
 
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value)
+              // Ajustar altura automaticamente
+              e.target.style.height = 'auto'
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`
+            }}
             onKeyPress={handleKeyPress}
-            placeholder={editMessage ? "Digite o novo texto da mensagem..." : replyTo ? "Digite sua resposta..." : "Digite uma mensagem..."}
+            onFocus={(e) => {
+              // Ajustar altura quando focar
+              e.target.style.height = 'auto'
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`
+            }}
+            placeholder={editMessage ? "Digite..." : replyTo ? "Digite..." : "Digite uma mensagem..."}
             rows={1}
-            className="flex-1 max-h-32 resize-none border-0 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+            className="flex-1 min-w-0 max-h-32 resize-none border-0 bg-transparent text-xs md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
             disabled={isRecording}
+            style={{ 
+              paddingTop: '0.375rem',
+              paddingBottom: '0.375rem',
+              lineHeight: '1.5',
+              minHeight: '1.5rem',
+              maxHeight: '8rem'
+            }}
           />
         </div>
 
         <button
           type="button"
           onClick={handlePrimaryAction}
-          className={`flex h-12 w-12 items-center justify-center rounded-full transition shadow-lg ${
+          className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full transition shadow-lg flex-shrink-0 ${
             isRecording
               ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
               : hasText
@@ -684,11 +755,11 @@ export default function MessageInput({
           title={isRecording ? 'Parar gravação' : hasText ? 'Enviar mensagem' : 'Gravar áudio'}
         >
           {isRecording ? (
-            <StopCircle className="h-6 w-6" />
+            <StopCircle className="h-5 w-5 md:h-6 md:w-6" />
           ) : hasText ? (
-            <Send className="h-5 w-5" />
+            <Send className="h-4 w-4 md:h-5 md:w-5" />
           ) : (
-            <Mic className="h-5 w-5" />
+            <Mic className="h-4 w-4 md:h-5 md:w-5" />
           )}
         </button>
       </div>

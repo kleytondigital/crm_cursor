@@ -26,7 +26,11 @@ export default function ChatArea() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-background-subtle/40" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div 
+      className="flex h-full min-h-0 flex-1 flex-col bg-background-subtle/40" 
+      style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      data-chat-area
+    >
       <div className="border-b border-white/5 bg-background-subtle/80 px-3 py-3 md:px-6 md:py-5 shadow-inner-glow flex-shrink-0" style={{ flexShrink: 0 }}>
         <ChatHeader
           conversation={selectedConversation}
@@ -79,7 +83,20 @@ export default function ChatArea() {
         )}
       </div>
 
-      <div className="border-t border-white/5 bg-background-muted/60 px-3 py-3 md:px-6 md:py-4 flex-shrink-0" style={{ flexShrink: 0 }}>
+      <div 
+        className="border-t border-white/5 bg-background-muted/60 px-2 md:px-3 lg:px-6 py-2 md:py-3 lg:py-4 flex-shrink-0" 
+        style={{ 
+          flexShrink: 0,
+          paddingBottom: typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches 
+            ? 'max(0.5rem, env(safe-area-inset-bottom))' 
+            : '0.5rem',
+          position: 'relative',
+          zIndex: 10,
+          width: '100%',
+          maxWidth: '100%',
+          overflow: 'hidden'
+        }}
+      >
         <MessageInput 
           onScheduleClick={() => setScheduleDialogOpen(true)}
           replyTo={replyToMessage}

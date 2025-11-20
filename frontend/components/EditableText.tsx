@@ -117,7 +117,7 @@ export default function EditableText({
 
   if (isEditing) {
     return (
-      <div className={`relative flex items-center gap-2 ${className}`}>
+      <div className={`relative flex items-center gap-1 md:gap-2 min-w-0 ${className}`}>
         <input
           ref={inputRef}
           type="text"
@@ -127,26 +127,27 @@ export default function EditableText({
           disabled={isSaving}
           maxLength={maxLength}
           placeholder={placeholder}
-          className={`flex-1 bg-background-subtle border border-brand-secondary/40 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-secondary/50 disabled:opacity-50 ${inputClassName}`}
+          className={`flex-1 min-w-0 bg-background-subtle border border-brand-secondary/40 rounded-lg px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-secondary/50 disabled:opacity-50 ${inputClassName}`}
+          style={{ maxWidth: '100%' }}
         />
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="p-1.5 rounded-lg bg-brand-secondary/20 hover:bg-brand-secondary/30 text-brand-secondary transition-colors disabled:opacity-50"
+          className="p-1 md:p-1.5 rounded-lg bg-brand-secondary/20 hover:bg-brand-secondary/30 text-brand-secondary transition-colors disabled:opacity-50 flex-shrink-0"
           title="Salvar"
         >
-          <Check className="h-4 w-4" />
+          <Check className="h-3 w-3 md:h-4 md:w-4" />
         </button>
         <button
           onClick={handleCancel}
           disabled={isSaving}
-          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-text-muted transition-colors disabled:opacity-50"
+          className="p-1 md:p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-text-muted transition-colors disabled:opacity-50 flex-shrink-0"
           title="Cancelar"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3 w-3 md:h-4 md:w-4" />
         </button>
         {error && (
-          <span className="absolute -bottom-5 left-0 text-xs text-rose-400 whitespace-nowrap">{error}</span>
+          <span className="absolute -bottom-5 left-0 text-[10px] md:text-xs text-rose-400 whitespace-nowrap max-w-full truncate">{error}</span>
         )}
       </div>
     )
@@ -154,18 +155,19 @@ export default function EditableText({
 
   return (
     <div
-      className={`relative group flex items-center gap-2 ${className}`}
+      className={`relative group flex items-center gap-1 md:gap-2 min-w-0 max-w-full ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={() => setIsHovered(true)}
     >
-      <span className={labelClassName}>{displayValue || placeholder}</span>
+      <span className={`${labelClassName} min-w-0 flex-1`} style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayValue || placeholder}</span>
       {isHovered && (
         <button
           onClick={handleStartEdit}
-          className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-text-muted hover:text-brand-secondary transition-colors opacity-0 group-hover:opacity-100"
+          className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-text-muted hover:text-brand-secondary transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
           title="Editar"
         >
-          <Edit2 className="h-3.5 w-3.5" />
+          <Edit2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
         </button>
       )}
     </div>

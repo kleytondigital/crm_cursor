@@ -16,7 +16,7 @@ interface ChatHeaderProps {
 }
 
 export default function ChatHeader({ conversation, onViewSchedulingHistory }: ChatHeaderProps) {
-  const { loadConversations, selectConversation } = useChat()
+  const { loadConversations, selectConversation, clearSelectedConversation } = useChat()
   const isMobile = useIsMobile()
   const [imageError, setImageError] = useState(false)
   const [leadName, setLeadName] = useState(conversation.lead.name)
@@ -117,12 +117,16 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
 
   const handleBackToConversations = () => {
     // Limpar conversa selecionada para voltar à lista
-    selectConversation(null)
+    if (isMobile) {
+      clearSelectedConversation()
+    } else {
+      selectConversation(null)
+    }
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 px-2 md:px-0">
-      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+    <div className="flex items-center justify-between gap-1 md:gap-2 px-1 md:px-0 min-w-0 w-full max-w-full overflow-hidden">
+      <div className="flex items-center gap-1.5 md:gap-3 flex-1 min-w-0 overflow-hidden max-w-full">
         {/* Botão voltar no mobile */}
         {isMobile && (
           <button
@@ -147,14 +151,15 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
           </div>
         )}
 
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
+        <div className="flex flex-col gap-0.5 md:gap-1 min-w-0 flex-1 overflow-hidden">
           <EditableText
             value={leadName}
             onSave={handleUpdateName}
             placeholder="Sem nome"
             validate={validateName}
-            className="group"
-            labelClassName="text-base md:text-lg font-semibold text-white cursor-pointer hover:text-brand-secondary/80 transition-colors truncate"
+            className="group min-w-0"
+            labelClassName="text-sm md:text-base lg:text-lg font-semibold text-white cursor-pointer hover:text-brand-secondary/80 transition-colors truncate block max-w-full"
+            inputClassName="text-sm md:text-base lg:text-lg font-semibold w-full min-w-0 max-w-full"
             maxLength={100}
           />
           <EditableText
@@ -162,8 +167,9 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
             onSave={handleUpdatePhone}
             placeholder="Sem telefone"
             validate={validatePhone}
-            className="group"
-            labelClassName="text-xs md:text-sm text-text-muted cursor-pointer hover:text-text-primary transition-colors truncate"
+            className="group min-w-0"
+            labelClassName="text-[10px] md:text-xs lg:text-sm text-text-muted cursor-pointer hover:text-text-primary transition-colors truncate block max-w-full"
+            inputClassName="text-[10px] md:text-xs lg:text-sm w-full min-w-0 max-w-full"
             maxLength={20}
             getEditValue={(displayValue) => {
               // Ao entrar em modo de edição, mostrar apenas os números (sem @c.us)

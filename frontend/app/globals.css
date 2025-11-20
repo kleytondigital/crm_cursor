@@ -84,6 +84,29 @@ body {
   }
 }
 
+/* Ajustar viewport height dinâmico para mobile */
+@supports (height: 100dvh) {
+  html {
+    height: 100dvh;
+    height: 100vh; /* Fallback para navegadores antigos */
+  }
+}
+
+/* Prevenir scroll horizontal e ajustar para teclado mobile */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    position: relative;
+  }
+  
+  /* Ajustar quando teclado aparecer */
+  body.keyboard-visible {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
 .message-item.highlight-message {
   animation: highlightPulse 2s ease-in-out;
 }
