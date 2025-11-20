@@ -2,9 +2,11 @@
 
 import { useChat } from '@/contexts/ChatContext'
 import MessageBubble from './MessageBubble'
-import { useEffect, useRef, useState } from 'react'
+import DateDivider from './DateDivider'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { Message } from '@/types'
 import { messagesAPI } from '@/lib/api'
+import { format, isSameDay } from 'date-fns'
 
 interface MessageListProps {
   replyToMessage?: Message | null
@@ -120,6 +122,37 @@ export default function MessageList({
     }
   }
 
+  // Agrupar mensagens por data e adicionar divisores
+  const messagesWithDividers = useMemo(() => {
+    if (messages.length === 0) return []
+
+    const result: Array<{ type: 'message' | 'divider'; data: Message | Date }> = []
+    let lastDate: Date | null = null
+
+    messages.forEach((message, index) => {
+      // Obter data da mensagem (usar timestamp se disponível, senão createdAt)
+      const messageDate = message.timestamp 
+        ? new Date(message.timestamp) 
+        : new Date(message.createdAt)
+      
+      // Verificar se precisa adicionar divisor de data
+      // Adicionar divisor se:
+      // 1. É a primeira mensagem
+      // 2. A data mudou em relação à mensagem anterior
+      const shouldAddDivider = index === 0 || 
+        (lastDate && !isSameDay(messageDate, lastDate))
+
+      if (shouldAddDivider) {
+        result.push({ type: 'divider', data: messageDate })
+        lastDate = messageDate
+      }
+
+      result.push({ type: 'message', data: message })
+    })
+
+    return result
+  }, [messages])
+
   useEffect(() => {
     // Se a conversa mudou, sempre fazer scroll
     if (selectedConversation?.id !== lastConversationIdRef.current) {
@@ -152,26 +185,38 @@ export default function MessageList({
               <p className="text-sm">Nenhuma mensagem ainda. Comece a conversar!</p>
             </div>
           ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                ref={(el) => setMessageRef(message.id, el)}
-                id={`message-${message.id}`}
-                data-message-id={message.id}
-                data-message-whatsapp-id={message.messageId || undefined}
-                className="message-item"
-              >
-                <MessageBubble 
-                  message={message} 
-                  conversation={selectedConversation}
-                  allMessages={messages}
-                  onScrollToMessage={scrollToMessage}
-                  onReply={(msg) => setReplyToMessage?.(msg)}
-                  onEdit={(msg) => setEditMessage?.(msg)}
-                  onDelete={handleDeleteMessage}
-                />
-              </div>
-            ))
+            messagesWithDividers.map((item, index) => {
+              if (item.type === 'divider') {
+                return (
+                  <DateDivider 
+                    key={`divider-${index}-${item.data instanceof Date ? item.data.getTime() : item.data}`}
+                    date={item.data as Date}
+                  />
+                )
+              }
+
+              const message = item.data as Message
+              return (
+                <div
+                  key={message.id}
+                  ref={(el) => setMessageRef(message.id, el)}
+                  id={`message-${message.id}`}
+                  data-message-id={message.id}
+                  data-message-whatsapp-id={message.messageId || undefined}
+                  className="message-item"
+                >
+                  <MessageBubble 
+                    message={message} 
+                    conversation={selectedConversation}
+                    allMessages={messages}
+                    onScrollToMessage={scrollToMessage}
+                    onReply={(msg) => setReplyToMessage?.(msg)}
+                    onEdit={(msg) => setEditMessage?.(msg)}
+                    onDelete={handleDeleteMessage}
+                  />
+                </div>
+              )
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
