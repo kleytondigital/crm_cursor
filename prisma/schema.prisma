@@ -548,9 +548,12 @@ model WorkflowInstance {
   templateId     String
   n8nWorkflowId  String?  // ID do workflow criado no n8n
   webhookUrl     String?  // URL do webhook retornado pelo n8n
+  webhookName    String?  // Nome do webhook retornado pelo n8n
+  webhookPath    String?  // Path do webhook retornado pelo n8n
+  webhookUrlEditor String? // URL do editor do workflow no n8n
   name           String
   config         Json     // Configurações personalizadas pelo tenant (valores das variáveis)
-  generatedPrompt String? @db.Text // Prompt gerado pelo webhook especialista
+  generatedPrompt String? @db.Text // Prompt gerado pelo webhook especialista (agentPrompt)
   aiAgentId      String?
   tenantId       String
   isActive       Boolean  @default(false) // false até ser ativado no n8n

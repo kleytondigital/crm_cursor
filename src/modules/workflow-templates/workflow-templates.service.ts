@@ -3,6 +3,9 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { N8nApiService } from '@/shared/n8n-api/n8n-api.service';
@@ -16,6 +19,7 @@ import { UserRole } from '@prisma/client';
 import {
   processWorkflowTemplate,
 } from './helpers/variable-replacer';
+import { ConnectionsService } from '@/modules/connections/connections.service';
 
 interface AuthContext {
   userId: string;
@@ -25,10 +29,14 @@ interface AuthContext {
 
 @Injectable()
 export class WorkflowTemplatesService {
+  private readonly logger = new Logger(WorkflowTemplatesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly n8nApiService: N8nApiService,
     private readonly n8nService: N8nService,
+    @Inject(forwardRef(() => ConnectionsService))
+    private readonly connectionsService: ConnectionsService,
   ) {}
 
   // ============= TEMPLATES (Super Admin) =============
@@ -201,19 +209,25 @@ export class WorkflowTemplatesService {
     }
 
     // 4. Criar instância no banco com dados retornados pelo webhook gestor
-    // A resposta do webhook deve conter: webhookId, webhookName, agentPrompt
+    // A resposta do webhook deve conter: workflowId, webhookName, webhookPatch, agentPrompt, webhookUrl, webhookUrlEditor
     try {
       // Extrair dados da resposta do webhook
-      const webhookId = workflowData.webhookId || workflowData.workflowId || null;
-      const webhookUrl = workflowData.webhookUrl || workflowData.webhookName || null;
+      const workflowId = workflowData.workflowId || null;
+      const webhookUrl = workflowData.webhookUrl || null;
+      const webhookName = workflowData.webhookName || null;
+      const webhookPath = workflowData.webhookPatch || null; // Nota: "webhookPatch" parece ser "webhookPath"
+      const webhookUrlEditor = workflowData.webhookUrlEditor || null;
       const agentPrompt = workflowData.agentPrompt || null;
       const isActive = workflowData.active !== undefined ? workflowData.active : false;
 
       const instance = await this.prisma.workflowInstance.create({
         data: {
           templateId: template.id,
-          n8nWorkflowId: webhookId, // webhookId retornado pelo webhook
-          webhookUrl: webhookUrl, // webhookUrl ou webhookName retornado
+          n8nWorkflowId: workflowId, // workflowId retornado pelo webhook
+          webhookUrl: webhookUrl, // URL do webhook para receber eventos
+          webhookName: webhookName, // Nome do webhook
+          webhookPath: webhookPath, // Path do webhook
+          webhookUrlEditor: webhookUrlEditor, // URL do editor do workflow
           name: dto.name,
           config: dto.config,
           generatedPrompt: agentPrompt, // agentPrompt retornado pelo webhook
@@ -239,10 +253,26 @@ export class WorkflowTemplatesService {
         },
       });
 
+      // 5. Adicionar webhook do workflow na conexão do WhatsApp (se houver webhookUrl e conexões ativas)
+      if (webhookUrl && instance) {
+        try {
+          await this.addWorkflowWebhookToConnections(
+            context.tenantId,
+            webhookUrl,
+            instance.id,
+          );
+        } catch (error: any) {
+          // Logar erro mas não falhar - o workflow foi criado com sucesso
+          this.logger.warn(
+            `Erro ao adicionar webhook do workflow na conexão: ${error.message}`,
+          );
+        }
+      }
+
       return instance;
     } catch (error: any) {
       // Se falhar ao salvar no banco, tentar deletar o workflow criado no n8n
-      const webhookIdToDelete = workflowData?.webhookId || workflowData?.workflowId;
+      const webhookIdToDelete = workflowData?.workflowId;
       if (webhookIdToDelete) {
         try {
           await this.n8nApiService.deleteWorkflowViaManager(
@@ -485,6 +515,88 @@ export class WorkflowTemplatesService {
       throw new BadRequestException(
         `Erro ao remover instância do banco de dados: ${error.message || 'Erro desconhecido'}`,
       );
+    }
+  }
+
+  // ============= WEBHOOK CONNECTION =============
+
+  /**
+   * Adiciona o webhook do workflow nas conexões ativas do WhatsApp
+   * Usa a lógica das conexões para adicionar o webhook com event "message.any"
+   */
+  private async addWorkflowWebhookToConnections(
+    tenantId: string,
+    webhookUrl: string,
+    workflowInstanceId: string,
+  ) {
+    // Buscar todas as conexões ativas do tenant
+    const connections = await this.prisma.connection.findMany({
+      where: {
+        tenantId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (connections.length === 0) {
+      this.logger.log(
+        `Nenhuma conexão ativa encontrada para o tenant ${tenantId}. Webhook não será adicionado.`,
+      );
+      return;
+    }
+
+    // Para cada conexão ativa, adicionar o webhook do workflow
+    for (const connection of connections) {
+      try {
+        // Buscar webhooks existentes da conexão
+        const existingWebhooks = await this.connectionsService.getWebhooks(
+          connection.id,
+          tenantId,
+        );
+
+        // Verificar se o webhook já existe
+        const webhookExists = existingWebhooks.some(
+          (hook: any) => hook.url === webhookUrl,
+        );
+
+        if (webhookExists) {
+          this.logger.log(
+            `Webhook ${webhookUrl} já existe na conexão ${connection.name}`,
+          );
+          continue;
+        }
+
+        // Adicionar o novo webhook com event "message.any"
+        const newWebhooks = [
+          ...existingWebhooks.map((hook: any) => ({
+            url: hook.url,
+            events: hook.events || [],
+            hmac: hook.hmac || null,
+            retries: hook.retries || null,
+            customHeaders: hook.customHeaders || null,
+          })),
+          {
+            url: webhookUrl,
+            events: ['message.any'],
+            hmac: null,
+            retries: null,
+            customHeaders: null,
+          },
+        ];
+
+        // Atualizar webhooks da conexão
+        await this.connectionsService.updateWebhooks(connection.id, tenantId, {
+          webhooks: newWebhooks,
+        });
+
+        this.logger.log(
+          `Webhook do workflow ${workflowInstanceId} adicionado na conexão ${connection.name}`,
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Erro ao adicionar webhook na conexão ${connection.name}: ${error.message}`,
+        );
+        // Continuar para próxima conexão mesmo se houver erro
+      }
     }
   }
 

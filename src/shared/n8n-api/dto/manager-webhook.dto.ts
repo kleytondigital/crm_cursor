@@ -141,11 +141,12 @@ export interface ManagerWebhookResponseDto<T = any> {
  * Dados retornados ao criar um workflow
  */
 export interface CreateWorkflowResponseData {
-  webhookId?: string; // ID do webhook retornado pelo n8n
-  workflowId?: string; // ID do workflow (pode ser o mesmo que webhookId)
-  webhookUrl?: string; // URL do webhook
-  webhookName?: string; // Nome do webhook
-  agentPrompt?: string; // Prompt do agente gerado
+  workflowId: string; // ID do workflow criado no n8n
+  webhookName: string; // Nome do webhook retornado pelo n8n
+  webhookPatch: string; // Path do webhook retornado pelo n8n (nota: parece ser "Path" e não "Patch")
+  agentPrompt: string; // Prompt do agente gerado
+  webhookUrl: string; // URL do webhook para receber eventos
+  webhookUrlEditor?: string; // URL do editor do workflow no n8n
   status?: 'created';
   active?: boolean; // Status ativo/inativo
 }
