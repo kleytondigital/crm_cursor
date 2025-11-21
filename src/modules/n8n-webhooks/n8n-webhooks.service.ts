@@ -344,7 +344,7 @@ export class N8nWebhooksService {
   }
 
   private async findLeadByPhone(phone: string, tenantId: string | null) {
-    // Limpar telefone
+    // Limpar telefone (remove @c.us e caracteres especiais, mantém apenas números)
     const cleanPhone = this.cleanPhoneNumber(phone);
 
     if (!cleanPhone || cleanPhone.length < 10) {
@@ -353,31 +353,75 @@ export class N8nWebhooksService {
       );
     }
 
-    // Construir where clause (com ou sem tenantId, dependendo se a API Key é global)
+    // Construir where clause
+    // IMPORTANTE: No banco, o telefone pode estar salvo COM ou SEM @c.us/@lid
+    // Buscamos por ambos os formatos usando OR
     const where: any = {
-      phone: cleanPhone,
+      OR: [
+        // Buscar pelo telefone limpo (sem @c.us)
+        { phone: cleanPhone },
+        // Buscar pelo telefone com @c.us
+        { phone: `${cleanPhone}@c.us` },
+        // Buscar pelo telefone com @lid (outro formato do WhatsApp)
+        { phone: `${cleanPhone}@lid` },
+        // Buscar pelo telefone exatamente como foi enviado (caso não tenha @c.us)
+        ...(phone.includes('@') ? [{ phone: phone.trim() }] : []),
+      ],
     };
 
-    // Se tenantId for fornecido (API Key não global), filtrar por tenant
-    // Se tenantId for null (API Key global), buscar em todas as empresas
-    if (tenantId) {
+    // Se tenantId for fornecido e não for 'global' ou null (API Key não global), filtrar por tenant
+    // Se tenantId for null ou 'global' (API Key global), buscar em todas as empresas
+    if (tenantId && tenantId !== 'global' && tenantId !== null) {
       where.tenantId = tenantId;
     }
 
     try {
+      // Log detalhado da busca para debug
+      console.log('[findLeadByPhone] Buscando lead:', {
+        phone,
+        cleanPhone,
+        tenantId: tenantId || 'global',
+        searchConditions: where.OR,
+        whereClause: where,
+      });
+
       // Buscar lead no banco
       const lead = await this.prisma.lead.findFirst({
         where,
       });
 
       if (!lead) {
-        const tenantMessage = tenantId
+        // Tentar buscar sem filtro de tenant para debug
+        if (tenantId && tenantId !== 'global') {
+          const debugLead = await this.prisma.lead.findFirst({
+            where: {
+              OR: where.OR,
+            },
+          });
+
+          if (debugLead) {
+            console.warn('[findLeadByPhone] Lead encontrado em outra empresa:', {
+              phone,
+              cleanPhone,
+              leadTenantId: debugLead.tenantId,
+              requestedTenantId: tenantId,
+            });
+          }
+        }
+
+        const tenantMessage = tenantId && tenantId !== 'global'
           ? ` para a empresa (tenantId: ${tenantId})`
           : ' em nenhuma empresa (API Key global)';
         throw new NotFoundException(
           `Lead não encontrado para o telefone: ${cleanPhone} (original: ${phone})${tenantMessage}. Verifique se o telefone está correto e se o lead existe.`,
         );
       }
+
+      console.log('[findLeadByPhone] Lead encontrado:', {
+        leadId: lead.id,
+        phone: lead.phone,
+        tenantId: lead.tenantId,
+      });
 
       return lead;
     } catch (error: any) {
