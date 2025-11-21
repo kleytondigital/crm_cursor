@@ -283,7 +283,8 @@ export class N8nApiService {
         `Webhook gestor não retornou dados válidos: ${JSON.stringify(response)}`,
       );
       throw new BadRequestException(
-        'Webhook gestor não retornou dados do workflow criado. Verifique os logs para mais detalhes.',
+        `${JSON.stringify(response)} - Webhook gestor não retornou dados do workflow criado. Verifique os logs para mais detalhes.`,
+        
       );
     }
 
