@@ -212,13 +212,43 @@ export class WorkflowTemplatesService {
     // A resposta do webhook deve conter: workflowId, webhookName, webhookPatch, agentPrompt, webhookUrl, webhookUrlEditor
     try {
       // Extrair dados da resposta do webhook
+      // Formato retornado pelo webhook gestor:
+      // {
+      //   "workflowId": "7QFyGhRJsHMVNM9B",
+      //   "webhookName": "teste-bfq182nv",
+      //   "webhookPatch": "https://...webhook/bfq182nv", // URL completa do webhook (usar como webhookUrl)
+      //   "agentPrompt": "...",
+      //   "webhookUrl": "https://...editor/7QFyGhRJsHMVNM9B", // URL do editor (usar como webhookUrlEditor)
+      //   "status": "created",
+      //   "active": false
+      // }
       const workflowId = workflowData.workflowId || null;
-      const webhookUrl = workflowData.webhookUrl || null;
       const webhookName = workflowData.webhookName || null;
-      const webhookPath = workflowData.webhookPatch || null; // Nota: "webhookPatch" parece ser "webhookPath"
-      const webhookUrlEditor = workflowData.webhookUrlEditor || null;
       const agentPrompt = workflowData.agentPrompt || null;
       const isActive = workflowData.active !== undefined ? workflowData.active : false;
+      
+      // webhookPatch: URL completa do webhook OU apenas o path
+      // Exemplo: "https://controle-de-envio-n8n-webhook.y0q0vs.easypanel.host/webhook/bfq182nv"
+      // OU apenas: "bfq182nv"
+      const webhookPatchValue = workflowData.webhookPatch || null;
+      
+      // webhookUrl: URL completa do webhook para receber eventos
+      // Usar webhookPatch (que é a URL do webhook) como webhookUrl
+      const webhookUrl = webhookPatchValue || workflowData.webhookUrl || null;
+      
+      // webhookPath: extrair apenas o path do webhookPatch
+      // Se for URL completa, extrair o path. Se já for path, usar diretamente
+      let webhookPath = webhookPatchValue;
+      if (webhookPatchValue && webhookPatchValue.startsWith('http')) {
+        // Extrair apenas o path da URL (ex: /webhook/bfq182nv -> bfq182nv)
+        const pathMatch = webhookPatchValue.match(/\/webhook\/([^\/\?]+)/);
+        webhookPath = pathMatch ? pathMatch[1] : webhookPatchValue.split('/').pop()?.split('?')[0] || webhookPatchValue;
+      }
+      
+      // webhookUrlEditor: URL do editor do workflow
+      // Se webhookUrl (do retorno) for URL do editor, usar ele
+      const webhookUrlEditor = workflowData.webhookUrlEditor || 
+        (workflowData.webhookUrl && !webhookPatchValue ? workflowData.webhookUrl : null);
 
       const instance = await this.prisma.workflowInstance.create({
         data: {

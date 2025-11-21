@@ -66,39 +66,96 @@ export class N8nApiService {
         `Chamando webhook gestor - Action: ${payload.action}, Tenant: ${payload.tenantId}`,
       );
 
-      const response = await this.client.post<ManagerWebhookResponseDto<T>>(
+      const response = await this.client.post<any>(
         this.managerWebhookUrl,
         payload,
       );
 
-      // Log detalhado da resposta para debug
+      // Log detalhado da resposta bruta para debug
       this.logger.debug(
-        `Resposta do webhook gestor: ${JSON.stringify(response.data)}`,
+        `Resposta bruta do webhook gestor: ${JSON.stringify(response.data)}`,
       );
 
-      // Verificar se a resposta tem a estrutura esperada
-      if (!response.data) {
+      // Tratar diferentes formatos de resposta
+      let responseData: ManagerWebhookResponseDto<T>;
+
+      // Formato 1: Array com objeto que tem propriedade "response" contendo string JSON
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const firstItem = response.data[0];
+        if (firstItem.response && typeof firstItem.response === 'string') {
+          // A resposta está em uma string JSON dentro de response
+          try {
+            responseData = JSON.parse(firstItem.response);
+            this.logger.log(
+              'Resposta parseada de string JSON dentro de array',
+            );
+          } catch (parseError: any) {
+            this.logger.error(
+              `Erro ao fazer parse da string JSON: ${parseError.message}`,
+            );
+            throw new BadRequestException(
+              'Formato de resposta inválido: string JSON não pode ser parseada',
+            );
+          }
+        } else {
+          // Array direto com a resposta
+          responseData = firstItem as ManagerWebhookResponseDto<T>;
+          this.logger.log('Resposta extraída do primeiro item do array');
+        }
+      }
+      // Formato 2: Objeto direto
+      else if (response.data && typeof response.data === 'object') {
+        // Verificar se há propriedade "response" com string JSON
+        if (
+          (response.data as any).response &&
+          typeof (response.data as any).response === 'string'
+        ) {
+          try {
+            responseData = JSON.parse((response.data as any).response);
+            this.logger.log('Resposta parseada de string JSON em objeto');
+          } catch (parseError: any) {
+            this.logger.error(
+              `Erro ao fazer parse da string JSON: ${parseError.message}`,
+            );
+            throw new BadRequestException(
+              'Formato de resposta inválido: string JSON não pode ser parseada',
+            );
+          }
+        } else {
+          // Objeto direto com a estrutura esperada
+          responseData = response.data as ManagerWebhookResponseDto<T>;
+          this.logger.log('Resposta direta como objeto');
+        }
+      } else {
+        throw new BadRequestException(
+          'Formato de resposta inesperado do webhook gestor',
+        );
+      }
+
+      // Log detalhado da resposta processada para debug
+      this.logger.debug(
+        `Resposta processada do webhook gestor: ${JSON.stringify(responseData)}`,
+      );
+
+      // Verificar se a resposta processada tem a estrutura esperada
+      if (!responseData) {
         throw new BadRequestException(
           'Webhook gestor não retornou dados na resposta',
         );
       }
 
       // Verificar se success é false explicitamente
-      if (response.data.success === false) {
+      if (responseData.success === false) {
         const errorMessage =
-          response.data.error?.message ||
-          response.data.message ||
+          responseData.error?.message ||
+          responseData.message ||
           'Erro no webhook gestor';
         this.logger.error(
           `Webhook gestor retornou erro: ${errorMessage}`,
-          JSON.stringify(response.data.error),
+          JSON.stringify(responseData.error),
         );
         throw new BadRequestException(errorMessage);
       }
-
-      // Se success é true ou undefined/null, verificar se há dados ou erro
-      // Alguns webhooks podem retornar diretamente os dados ou ter uma estrutura diferente
-      const responseData = response.data;
 
       // Se há um campo error, mesmo sem success=false, tratar como erro
       if (responseData.error) {
@@ -203,16 +260,17 @@ export class N8nApiService {
       response &&
       ((response as any).workflowId ||
         (response as any).webhookUrl ||
-        (response as any).webhookName)
+        (response as any).webhookName ||
+        (response as any).webhookPatch)
     ) {
       // Dados diretamente na resposta (formato alternativo)
       const resp = response as any;
       workflowData = {
         workflowId: resp.workflowId || '',
         webhookName: resp.webhookName || '',
-        webhookPatch: resp.webhookPatch || '',
+        webhookPatch: resp.webhookPatch || '', // Pode vir como URL completa ou path
         agentPrompt: resp.agentPrompt || '',
-        webhookUrl: resp.webhookUrl || '',
+        webhookUrl: resp.webhookUrl || '', // URL do editor
         webhookUrlEditor: resp.webhookUrlEditor,
         status: resp.status,
         active: resp.active,
@@ -230,12 +288,17 @@ export class N8nApiService {
     }
 
     // Validar campos obrigatórios
-    if (!workflowData.workflowId && !workflowData.webhookUrl) {
+    // Pelo menos workflowId OU webhookPatch OU webhookUrl deve estar presente
+    if (
+      !workflowData.workflowId &&
+      !workflowData.webhookPatch &&
+      !workflowData.webhookUrl
+    ) {
       this.logger.error(
         `Dados do workflow incompletos: ${JSON.stringify(workflowData)}`,
       );
       throw new BadRequestException(
-        'Webhook gestor não retornou workflowId ou webhookUrl obrigatórios',
+        'Webhook gestor não retornou workflowId, webhookPatch ou webhookUrl obrigatórios',
       );
     }
 
