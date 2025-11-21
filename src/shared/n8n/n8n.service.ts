@@ -148,7 +148,7 @@ export class N8nService {
         timeout: 60000, // 60 segundos para criação de prompt (pode demorar)
       });
 
-      if (!response.data || !response.data.prompt) {
+      if (!response.data || !response.prompt) {
         throw new InternalServerErrorException(
           'Webhook não retornou prompt válido',
         );
@@ -175,7 +175,7 @@ export class N8nService {
         `Erro inesperado ao criar prompt: ${error?.message || error}`,
       );
       throw new InternalServerErrorException(
-        'Erro interno ao criar prompt',
+        `Erro interno ao criar prompt data=${JSON.stringify(error.response.data)}`,
       );
     }
   }
