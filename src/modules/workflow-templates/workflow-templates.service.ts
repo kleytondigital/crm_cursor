@@ -1271,11 +1271,49 @@ export class WorkflowTemplatesService {
       throw new BadRequestException('Prompt não pode estar vazio');
     }
 
+    // Validar campos obrigatórios para atualização no n8n
+    if (!instance.n8nWorkflowId) {
+      throw new BadRequestException(
+        'Instância não possui n8nWorkflowId. Não é possível atualizar o prompt no n8n.',
+      );
+    }
+
+    if (!instance.webhookPath) {
+      throw new BadRequestException(
+        'Instância não possui webhookPath. Não é possível atualizar o prompt no n8n.',
+      );
+    }
+
+    // Remover duplicatas de instruções de tools (gerenciamento de estágios)
+    const cleanedPrompt = this.removeDuplicateToolInstructions(prompt.trim());
+
+    // Atualizar prompt no n8n via webhook gestor
+    try {
+      await this.n8nApiService.updateWorkflowViaManager(
+        context.tenantId,
+        instance.n8nWorkflowId,
+        undefined, // workflowJson não é necessário para update de prompt apenas
+        undefined, // variables não é necessário para update de prompt apenas
+        instance.name, // automationName
+        instance.webhookPath, // webhookPatch
+        cleanedPrompt, // promptGerado
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Erro ao atualizar prompt no n8n: ${error.message}`,
+        error.stack,
+      );
+      // Não falhar completamente - ainda vamos salvar no banco local
+      throw new BadRequestException(
+        `Erro ao atualizar prompt no n8n: ${error.message || 'Erro desconhecido'}`,
+      );
+    }
+
     // Salvar prompt no banco
     const updatedInstance = await this.prisma.workflowInstance.update({
       where: { id: instanceId },
       data: {
-        generatedPrompt: prompt.trim(),
+        generatedPrompt: cleanedPrompt,
       },
       include: {
         template: {
@@ -1299,6 +1337,28 @@ export class WorkflowTemplatesService {
       prompt: updatedInstance.generatedPrompt || '',
       instance: updatedInstance,
     };
+  }
+
+  /**
+   * Remove instruções duplicadas de tools (gerenciamento de estágios)
+   */
+  private removeDuplicateToolInstructions(prompt: string): string {
+    // Pattern para detectar seção de "FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS"
+    const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs;
+    
+    const matches = prompt.match(kanbanPattern);
+    
+    // Se houver mais de uma ocorrência, manter apenas a primeira
+    if (matches && matches.length > 1) {
+      let cleanedPrompt = prompt;
+      // Remover todas as ocorrências
+      cleanedPrompt = cleanedPrompt.replace(kanbanPattern, '');
+      // Adicionar apenas a primeira ocorrência no final
+      cleanedPrompt = cleanedPrompt.trim() + '\n\n' + matches[0].trim();
+      return cleanedPrompt;
+    }
+    
+    return prompt;
   }
 
   /**

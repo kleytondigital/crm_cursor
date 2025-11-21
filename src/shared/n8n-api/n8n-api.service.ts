@@ -341,17 +341,22 @@ export class N8nApiService {
   async updateWorkflowViaManager(
     tenantId: string,
     workflowId: string,
-    workflowJson: any, // JSON do workflow processado (com variáveis substituídas)
-    variables: Record<string, any>, // Valores das variáveis para referência
+    workflowJson?: any, // JSON do workflow processado (com variáveis substituídas) - opcional
+    variables?: Record<string, any>, // Valores das variáveis para referência - opcional
     automationName?: string,
+    webhookPatch?: string, // Path do webhook - obrigatório para update de prompt
+    promptGerado?: string, // Prompt gerado - obrigatório para update de prompt
   ): Promise<UpdateWorkflowResponseData> {
     const payload: UpdateWorkflowRequestDto = {
       action: 'update',
       tenantId,
       workflowId,
-      workflowJson, // JSON do workflow processado
-      variables, // Valores das variáveis para referência
+      workflowJson, // JSON do workflow processado (opcional)
+      variables, // Valores das variáveis para referência (opcional)
       automationName,
+      webhookPatch, // Path do webhook (obrigatório para update de prompt)
+      promptGerado, // Prompt gerado (obrigatório para update de prompt)
+      workflowName: automationName, // workflowName é o mesmo que automationName
     };
 
     const response =

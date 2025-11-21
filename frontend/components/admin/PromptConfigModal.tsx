@@ -46,14 +46,19 @@ export default function PromptConfigModal({
 
   // Carregar prompt atual ao montar
   useEffect(() => {
-    if (instance.generatedPrompt) {
-      setGeneratedPrompt(instance.generatedPrompt)
-      setDirectEditPrompt(instance.generatedPrompt)
-      setPromptAjuste(instance.generatedPrompt)
-    } else {
-      loadCurrentPrompt()
-    }
+    loadCurrentPrompt()
   }, [instance.id])
+
+  // Carregar prompt quando mudar para abas que precisam dele
+  useEffect(() => {
+    if ((promptMode === 'edit' || promptMode === 'adjust') && !generatedPrompt && !directEditPrompt) {
+      loadCurrentPrompt()
+    } else if (promptMode === 'edit' && generatedPrompt) {
+      setDirectEditPrompt(generatedPrompt)
+    } else if (promptMode === 'adjust' && generatedPrompt) {
+      setPromptAjuste(generatedPrompt)
+    }
+  }, [promptMode])
 
   // Carregar estágios do pipeline quando Kanban for ativado
   useEffect(() => {
@@ -64,6 +69,15 @@ export default function PromptConfigModal({
 
   const loadCurrentPrompt = async () => {
     try {
+      // Primeiro, tentar usar o prompt que já vem na instance
+      if (instance.generatedPrompt) {
+        setGeneratedPrompt(instance.generatedPrompt)
+        setDirectEditPrompt(instance.generatedPrompt)
+        setPromptAjuste(instance.generatedPrompt)
+        return
+      }
+
+      // Se não tiver, buscar do servidor
       const data = await apiRequest<{ prompt: string | null }>(
         `/workflow-templates/instances/${instance.id}/prompt`
       )
@@ -71,9 +85,20 @@ export default function PromptConfigModal({
         setGeneratedPrompt(data.prompt)
         setDirectEditPrompt(data.prompt)
         setPromptAjuste(data.prompt)
+      } else {
+        // Se não houver prompt salvo, limpar os campos
+        setGeneratedPrompt(null)
+        setDirectEditPrompt('')
+        setPromptAjuste('')
       }
     } catch (error) {
       console.error('Erro ao carregar prompt:', error)
+      // Em caso de erro, tentar usar o prompt da instance
+      if (instance.generatedPrompt) {
+        setGeneratedPrompt(instance.generatedPrompt)
+        setDirectEditPrompt(instance.generatedPrompt)
+        setPromptAjuste(instance.generatedPrompt)
+      }
     }
   }
 
@@ -300,14 +325,17 @@ export default function PromptConfigModal({
     // Adicionar instruções ao prompt atual (ou criar um novo)
     let newPrompt = directEditPrompt || generatedPrompt || ''
     
-    // Remover instruções antigas de Kanban se existirem
-    const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?### REGRAS IMPORTANTES:.*?\n\n/gs
-    newPrompt = newPrompt.replace(kanbanPattern, '')
+    // Remover instruções antigas de Kanban se existirem (pattern melhorado)
+    const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs
+    newPrompt = newPrompt.replace(kanbanPattern, '').trim()
     
-    // Adicionar novas instruções
-    newPrompt += kanbanInstructions
+    // Adicionar novas instruções apenas se não existirem
+    if (!newPrompt.includes('## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS')) {
+      newPrompt += kanbanInstructions
+    }
     
     setDirectEditPrompt(newPrompt.trim())
+    setGeneratedPrompt(newPrompt.trim())
     setSuccessMessage('Instruções de Kanban adicionadas ao prompt! Agora salve o prompt para aplicar as alterações.')
     
     setTimeout(() => setSuccessMessage(''), 3000)
@@ -373,11 +401,17 @@ export default function PromptConfigModal({
           {/* Tabs */}
           <div className="flex gap-2 rounded-2xl border border-white/5 bg-background-muted/60 p-1.5">
             <button
-              onClick={() => {
+              onClick={async () => {
                 setPromptMode('edit')
                 setError('')
                 setSuccessMessage('')
                 setShowPreview(false)
+                // Carregar prompt quando entrar na aba de edição
+                if (!generatedPrompt && !directEditPrompt) {
+                  await loadCurrentPrompt()
+                } else if (generatedPrompt && directEditPrompt !== generatedPrompt) {
+                  setDirectEditPrompt(generatedPrompt)
+                }
               }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
                 promptMode === 'edit'
@@ -405,11 +439,17 @@ export default function PromptConfigModal({
               Criar Prompt
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 setPromptMode('adjust')
                 setError('')
                 setSuccessMessage('')
                 setShowPreview(false)
+                // Carregar prompt quando entrar na aba de ajuste
+                if (!generatedPrompt && !promptAjuste) {
+                  await loadCurrentPrompt()
+                } else if (generatedPrompt && promptAjuste !== generatedPrompt) {
+                  setPromptAjuste(generatedPrompt)
+                }
               }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
                 promptMode === 'adjust'
@@ -483,7 +523,11 @@ export default function PromptConfigModal({
                   onChange={(e) => setDirectEditPrompt(e.target.value)}
                   placeholder="Digite ou cole o prompt do agente aqui..."
                   rows={20}
-                  className="w-full rounded-xl border border-white/10 bg-background-muted/40 px-4 py-3 text-sm text-white placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 resize-none font-mono"
+                  className="w-full rounded-xl border border-white/10 bg-background-muted/40 px-4 py-3 text-sm text-white placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 resize-none font-mono leading-relaxed whitespace-pre-wrap break-words"
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+                    lineHeight: '1.6',
+                  }}
                 />
                 <p className="mt-2 text-xs text-text-muted">
                   Você pode editar o prompt diretamente aqui. Clique em "Salvar Prompt" para aplicar as alterações.

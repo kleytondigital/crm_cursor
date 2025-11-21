@@ -42,8 +42,11 @@ export interface UpdateWorkflowRequestDto extends ManagerWebhookRequestDto {
   action: 'update';
   workflowId: string;
   automationName?: string;
-  workflowJson: any; // JSON do workflow processado (com variáveis substituídas)
-  variables: Record<string, any>; // Valores das variáveis para referência
+  workflowJson?: any; // JSON do workflow processado (com variáveis substituídas) - opcional para update de prompt
+  variables?: Record<string, any>; // Valores das variáveis para referência - opcional para update de prompt
+  webhookPatch?: string; // Path do webhook - obrigatório para update de prompt
+  promptGerado?: string; // Prompt gerado - obrigatório para update de prompt
+  workflowName?: string; // Nome do workflow - obrigatório para update de prompt
 }
 
 /**
