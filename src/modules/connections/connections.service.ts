@@ -297,6 +297,56 @@ export class ConnectionsService {
     return { success: true };
   }
 
+  /**
+   * Listar automações (workflow instances) conectadas a uma conexão
+   */
+  async getInstancesForConnection(
+    connectionId: string,
+    tenantId: string,
+  ): Promise<any[]> {
+    const connection = await this.getConnectionOrThrow(connectionId, tenantId);
+
+    // Buscar webhooks da conexão
+    const webhooks = await this.getWebhooks(connectionId, tenantId);
+    const webhookUrls = webhooks.map((hook: any) => hook.url);
+
+    if (webhookUrls.length === 0) {
+      return [];
+    }
+
+    // Buscar instâncias de workflow que têm webhookUrl correspondente
+    const instances = await this.prisma.workflowInstance.findMany({
+      where: {
+        tenantId,
+        webhookUrl: {
+          in: webhookUrls,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        webhookUrl: true,
+        isActive: true,
+        template: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            icon: true,
+          },
+        },
+        aiAgent: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return instances;
+  }
+
   private async getConnectionOrThrow(id: string, tenantId: string) {
     const connection = await this.prisma.connection.findFirst({
       where: { id, tenantId },

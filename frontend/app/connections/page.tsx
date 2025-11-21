@@ -13,6 +13,7 @@ import {
   Power,
   Settings,
   ShieldAlert,
+  Bot,
 } from 'lucide-react';
 import {
   Dialog,
@@ -39,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer';
 import BottomNavigation from '@/components/BottomNavigation';
+import ManageConnectionAutomationsModal from '@/components/admin/ManageConnectionAutomationsModal';
 
 const DEFAULT_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_WAHA_WEBHOOK ||
@@ -205,6 +207,10 @@ export default function ConnectionsPage() {
   }>({ open: false, connection: null });
   const [webhooksLoading, setWebhooksLoading] = useState(false);
   const [webhooksError, setWebhooksError] = useState<string | null>(null);
+  const [automationsDialog, setAutomationsDialog] = useState<{
+    open: boolean;
+    connection: Connection | null;
+  }>({ open: false, connection: null });
   const [webhookForms, setWebhookForms] = useState<
     Array<{
       url: string;
@@ -831,6 +837,15 @@ export default function ConnectionsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 md:h-8 md:w-8 text-text-muted hover:text-white"
+                          onClick={() => setAutomationsDialog({ open: true, connection })}
+                          title="Gerenciar Automações"
+                        >
+                          <Bot className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 md:h-8 md:w-8 text-text-muted hover:text-white"
                           onClick={() => openWebhooksDialog(connection)}
                           title="Configurações avançadas"
                           disabled={webhooksLoading && webhooksDialog.connection?.id === connection.id}
@@ -1276,6 +1291,20 @@ export default function ConnectionsPage() {
           </DialogContent>
         </DialogPortal>
       </Dialog>
+
+      {/* Modal de Gerenciar Automações */}
+      {automationsDialog.open && automationsDialog.connection && (
+        <ManageConnectionAutomationsModal
+          connection={automationsDialog.connection}
+          onClose={() => setAutomationsDialog({ open: false, connection: null })}
+          onSuccess={() => {
+            // Recarregar dados da conexão se necessário
+            if (automationsDialog.connection) {
+              refreshConnection(automationsDialog.connection.id);
+            }
+          }}
+        />
+      )}
       </main>
       <Footer />
       <BottomNavigation />

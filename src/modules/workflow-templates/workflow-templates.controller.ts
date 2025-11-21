@@ -200,5 +200,53 @@ export class WorkflowTemplatesController {
     };
     return this.workflowTemplatesService.clearPrompt(id, context);
   }
+
+  // ============= CONNECTION MANAGEMENT =============
+
+  @Get('instances/:id/connections')
+  getConnectionsForInstance(@Param('id') id: string, @Request() req: any) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.getConnectionsForInstance(id, context);
+  }
+
+  @Post('instances/:id/connections/:connectionId')
+  connectInstanceToConnection(
+    @Param('id') id: string,
+    @Param('connectionId') connectionId: string,
+    @Request() req: any,
+  ) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.connectInstanceToConnection(
+      id,
+      connectionId,
+      context,
+    );
+  }
+
+  @Delete('instances/:id/connections/:connectionId')
+  disconnectInstanceFromConnection(
+    @Param('id') id: string,
+    @Param('connectionId') connectionId: string,
+    @Request() req: any,
+  ) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.disconnectInstanceFromConnection(
+      id,
+      connectionId,
+      context,
+    );
+  }
 }
 

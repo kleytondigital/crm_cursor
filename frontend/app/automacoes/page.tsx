@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bot, Plus, Power, PowerOff, Settings, Trash2 } from 'lucide-react'
+import { Bot, Plus, Power, PowerOff, Settings, Trash2, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
 import Navigation from '@/components/Navigation'
@@ -10,6 +10,7 @@ import Footer from '@/components/Footer'
 import BottomNavigation from '@/components/BottomNavigation'
 import ConfigureTemplateModal from '@/components/admin/ConfigureTemplateModal'
 import PromptConfigModal from '@/components/admin/PromptConfigModal'
+import ManageAutomationConnectionsModal from '@/components/admin/ManageAutomationConnectionsModal'
 
 interface WorkflowTemplate {
   id: string
@@ -53,6 +54,7 @@ export default function AutomacoesPage() {
   const [showConfigureModal, setShowConfigureModal] = useState(false)
   const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null)
   const [showPromptModal, setShowPromptModal] = useState(false)
+  const [showConnectionsModal, setShowConnectionsModal] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -240,6 +242,18 @@ export default function AutomacoesPage() {
                     className="gap-2"
                     onClick={() => {
                       setSelectedInstance(instance)
+                      setShowConnectionsModal(true)
+                    }}
+                    title="Gerenciar Conexões"
+                  >
+                    <Link2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      setSelectedInstance(instance)
                       setShowPromptModal(true)
                     }}
                     title="Configurar Prompt"
@@ -357,6 +371,20 @@ export default function AutomacoesPage() {
                 instance={selectedInstance}
                 onClose={() => {
                   setShowPromptModal(false)
+                  setSelectedInstance(null)
+                }}
+                onSuccess={() => {
+                  loadData()
+                }}
+              />
+            )}
+
+            {/* Modal de Gerenciar Conexões */}
+            {showConnectionsModal && selectedInstance && (
+              <ManageAutomationConnectionsModal
+                instance={selectedInstance}
+                onClose={() => {
+                  setShowConnectionsModal(false)
                   setSelectedInstance(null)
                 }}
                 onSuccess={() => {

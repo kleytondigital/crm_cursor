@@ -88,6 +88,14 @@ export class ConnectionsController {
     );
   }
 
+  @Get(':id/automations')
+  getInstancesForConnection(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.connectionsService.getInstancesForConnection(
+      id,
+      user.companyId,
+    );
+  }
+
   private ensureValidAction(action: string): asserts action is ConnectionAction {
     const allowed: ConnectionAction[] = [
       'start',

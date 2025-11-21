@@ -630,6 +630,198 @@ export class WorkflowTemplatesService {
     }
   }
 
+  // ============= CONNECTION MANAGEMENT =============
+
+  /**
+   * Listar conexões conectadas a uma instância de workflow
+   */
+  async getConnectionsForInstance(
+    instanceId: string,
+    context: AuthContext,
+  ): Promise<any[]> {
+    const instance = await this.findOneInstance(instanceId, context);
+
+    if (!instance.webhookUrl) {
+      return [];
+    }
+
+    // Buscar todas as conexões ativas do tenant
+    const connections = await this.prisma.connection.findMany({
+      where: {
+        tenantId: context.tenantId,
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        sessionName: true,
+        status: true,
+      },
+    });
+
+    // Para cada conexão, verificar se o webhook da instância está configurado
+    const connectedConnections = [];
+    for (const connection of connections) {
+      try {
+        const webhooks = await this.connectionsService.getWebhooks(
+          connection.id,
+          context.tenantId,
+        );
+        const isConnected = webhooks.some(
+          (hook: any) => hook.url === instance.webhookUrl,
+        );
+        if (isConnected) {
+          connectedConnections.push(connection);
+        }
+      } catch (error: any) {
+        this.logger.warn(
+          `Erro ao verificar webhooks da conexão ${connection.id}: ${error.message}`,
+        );
+      }
+    }
+
+    return connectedConnections;
+  }
+
+  /**
+   * Conectar instância de workflow a uma conexão específica
+   */
+  async connectInstanceToConnection(
+    instanceId: string,
+    connectionId: string,
+    context: AuthContext,
+  ): Promise<{ success: boolean }> {
+    const instance = await this.findOneInstance(instanceId, context);
+
+    if (!instance.webhookUrl) {
+      throw new BadRequestException(
+        'A instância não possui webhookUrl configurado',
+      );
+    }
+
+    // Verificar se a conexão existe e pertence ao tenant
+    const connection = await this.prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        tenantId: context.tenantId,
+      },
+    });
+
+    if (!connection) {
+      throw new NotFoundException('Conexão não encontrada');
+    }
+
+    if (connection.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'A conexão precisa estar ativa para conectar a automação',
+      );
+    }
+
+    // Buscar webhooks existentes
+    const existingWebhooks = await this.connectionsService.getWebhooks(
+      connectionId,
+      context.tenantId,
+    );
+
+    // Verificar se já está conectado
+    const isAlreadyConnected = existingWebhooks.some(
+      (hook: any) => hook.url === instance.webhookUrl,
+    );
+
+    if (isAlreadyConnected) {
+      return { success: true }; // Já está conectado
+    }
+
+    // Adicionar webhook da instância
+    const newWebhooks = [
+      ...existingWebhooks.map((hook: any) => ({
+        url: hook.url,
+        events: hook.events || [],
+        hmac: hook.hmac || null,
+        retries: hook.retries || null,
+        customHeaders: hook.customHeaders || null,
+      })),
+      {
+        url: instance.webhookUrl,
+        events: ['message.any'],
+        hmac: null,
+        retries: null,
+        customHeaders: null,
+      },
+    ];
+
+    await this.connectionsService.updateWebhooks(connectionId, context.tenantId, {
+      webhooks: newWebhooks,
+    });
+
+    this.logger.log(
+      `Automação ${instanceId} conectada à conexão ${connectionId}`,
+    );
+
+    return { success: true };
+  }
+
+  /**
+   * Desconectar instância de workflow de uma conexão específica
+   */
+  async disconnectInstanceFromConnection(
+    instanceId: string,
+    connectionId: string,
+    context: AuthContext,
+  ): Promise<{ success: boolean }> {
+    const instance = await this.findOneInstance(instanceId, context);
+
+    if (!instance.webhookUrl) {
+      throw new BadRequestException(
+        'A instância não possui webhookUrl configurado',
+      );
+    }
+
+    // Verificar se a conexão existe e pertence ao tenant
+    const connection = await this.prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        tenantId: context.tenantId,
+      },
+    });
+
+    if (!connection) {
+      throw new NotFoundException('Conexão não encontrada');
+    }
+
+    // Buscar webhooks existentes
+    const existingWebhooks = await this.connectionsService.getWebhooks(
+      connectionId,
+      context.tenantId,
+    );
+
+    // Remover webhook da instância
+    const filteredWebhooks = existingWebhooks.filter(
+      (hook: any) => hook.url !== instance.webhookUrl,
+    );
+
+    // Se não houve mudança, já estava desconectado
+    if (filteredWebhooks.length === existingWebhooks.length) {
+      return { success: true }; // Já estava desconectado
+    }
+
+    await this.connectionsService.updateWebhooks(connectionId, context.tenantId, {
+      webhooks: filteredWebhooks.map((hook: any) => ({
+        url: hook.url,
+        events: hook.events || [],
+        hmac: hook.hmac || null,
+        retries: hook.retries || null,
+        customHeaders: hook.customHeaders || null,
+      })),
+    });
+
+    this.logger.log(
+      `Automação ${instanceId} desconectada da conexão ${connectionId}`,
+    );
+
+    return { success: true };
+  }
+
   // ============= PROMPT MANAGEMENT =============
 
   /**
