@@ -377,18 +377,12 @@ export class WorkflowTemplatesService {
 
     // Se mudar a configuração, atualizar via webhook gestor
     if (dto.config && instance.n8nWorkflowId) {
-      // Validar variáveis se config mudou
+      // Processar workflow substituindo variáveis do CRM por valores fornecidos
       const template = await this.findOneTemplate(instance.templateId, context);
-      const validation = validateRequiredVariables(
-        template.variables as Record<string, any>,
-        dto.config,
+      const processedWorkflow = processWorkflowTemplate(
+        template.n8nWorkflowData as any,
+        dto.config || {},
       );
-
-      if (!validation.valid) {
-        throw new BadRequestException(
-          `Campos obrigatórios faltando: ${validation.missingFields.join(', ')}`,
-        );
-      }
 
       // Atualizar workflow via webhook gestor
       let workflowData;
@@ -396,7 +390,8 @@ export class WorkflowTemplatesService {
         workflowData = await this.n8nApiService.updateWorkflowViaManager(
           context.tenantId,
           instance.n8nWorkflowId,
-          dto.config,
+          processedWorkflow, // JSON do workflow processado
+          dto.config, // Valores das variáveis para referência
           dto.name,
         );
       } catch (error: any) {

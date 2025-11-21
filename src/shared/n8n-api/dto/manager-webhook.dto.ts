@@ -42,7 +42,8 @@ export interface UpdateWorkflowRequestDto extends ManagerWebhookRequestDto {
   action: 'update';
   workflowId: string;
   automationName?: string;
-  variables: Record<string, any>;
+  workflowJson: any; // JSON do workflow processado (com variáveis substituídas)
+  variables: Record<string, any>; // Valores das variáveis para referência
 }
 
 /**

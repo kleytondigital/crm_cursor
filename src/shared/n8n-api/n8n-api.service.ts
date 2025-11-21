@@ -138,14 +138,16 @@ export class N8nApiService {
   async updateWorkflowViaManager(
     tenantId: string,
     workflowId: string,
-    variables: Record<string, any>,
+    workflowJson: any, // JSON do workflow processado (com variáveis substituídas)
+    variables: Record<string, any>, // Valores das variáveis para referência
     automationName?: string,
   ): Promise<UpdateWorkflowResponseData> {
     const payload: UpdateWorkflowRequestDto = {
       action: 'update',
       tenantId,
       workflowId,
-      variables,
+      workflowJson, // JSON do workflow processado
+      variables, // Valores das variáveis para referência
       automationName,
     };
 

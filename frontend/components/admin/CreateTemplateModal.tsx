@@ -436,7 +436,7 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
             <div className="flex items-center justify-between">
               <h4 className="text-lg font-semibold text-white">Variáveis Editáveis</h4>
               <Button
-                onClick={addVariable}
+                onClick={() => addVariable()}
                 size="sm"
                 className="gap-2 bg-brand-primary text-white"
               >
