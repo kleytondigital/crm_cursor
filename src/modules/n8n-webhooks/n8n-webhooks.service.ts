@@ -29,8 +29,9 @@ export class N8nWebhooksService {
 
   // ============= LEADS =============
 
-  async updateLeadName(phone: string, dto: UpdateLeadNameDto, tenantId: string) {
-    const lead = await this.findLeadByPhone(phone, tenantId);
+  async updateLeadName(phone: string, dto: UpdateLeadNameDto, tenantId: string | null) {
+    const cleanPhone = this.cleanPhoneNumber(phone);
+    const lead = await this.findLeadByPhone(cleanPhone, tenantId);
 
     return this.prisma.lead.update({
       where: { id: lead.id },
@@ -38,8 +39,9 @@ export class N8nWebhooksService {
     });
   }
 
-  async updateLeadTags(phone: string, dto: UpdateLeadTagsDto, tenantId: string) {
-    const lead = await this.findLeadByPhone(phone, tenantId);
+  async updateLeadTags(phone: string, dto: UpdateLeadTagsDto, tenantId: string | null) {
+    const cleanPhone = this.cleanPhoneNumber(phone);
+    const lead = await this.findLeadByPhone(cleanPhone, tenantId);
 
     let newTags: string[];
 
@@ -69,18 +71,47 @@ export class N8nWebhooksService {
   async updateLeadStatus(
     phone: string,
     dto: UpdateLeadStatusDto,
-    tenantId: string,
+    tenantId: string | null,
   ) {
-    const lead = await this.findLeadByPhone(phone, tenantId);
+    try {
+      // Limpar e validar telefone
+      const cleanPhone = this.cleanPhoneNumber(phone);
+      
+      if (!cleanPhone || cleanPhone.length < 10) {
+        throw new BadRequestException(
+          `Telefone inválido: ${phone}. O telefone deve ter pelo menos 10 dígitos.`,
+        );
+      }
 
-    return this.prisma.lead.update({
-      where: { id: lead.id },
-      data: { status: dto.status },
-    });
+      // Buscar lead (com ou sem tenantId, dependendo se a API Key é global)
+      const lead = await this.findLeadByPhone(cleanPhone, tenantId);
+
+      // Atualizar status do lead
+      const updatedLead = await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { status: dto.status },
+      });
+
+      return updatedLead;
+    } catch (error: any) {
+      // Log detalhado do erro para debug
+      console.error('[updateLeadStatus] Erro ao atualizar status do lead:', {
+        phone,
+        cleanPhone: this.cleanPhoneNumber(phone),
+        tenantId: tenantId || 'global',
+        status: dto.status,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Re-throw o erro para que seja tratado pelo filtro de exceções
+      throw error;
+    }
   }
 
-  async getLeadByPhone(phone: string, tenantId: string) {
-    return this.findLeadByPhone(phone, tenantId);
+  async getLeadByPhone(phone: string, tenantId: string | null) {
+    const cleanPhone = this.cleanPhoneNumber(phone);
+    return this.findLeadByPhone(cleanPhone, tenantId);
   }
 
   // ============= ATTENDANCES =============
@@ -294,25 +325,82 @@ export class N8nWebhooksService {
 
   // ============= HELPERS =============
 
-  private async findLeadByPhone(phone: string, tenantId: string) {
+  /**
+   * Limpa o número de telefone removendo caracteres especiais e sufixos do WhatsApp
+   */
+  private cleanPhoneNumber(phone: string): string {
+    if (!phone || typeof phone !== 'string') {
+      return '';
+    }
+
     // Remover sufixo @c.us se presente (formato do WhatsApp)
     // Exemplo: "5562995473360@c.us" -> "5562995473360"
-    const cleanPhone = phone.replace(/@c\.us$/, '').trim();
+    let cleanPhone = phone.replace(/@c\.us$/i, '').trim();
 
-    const lead = await this.prisma.lead.findFirst({
-      where: {
-        phone: cleanPhone,
-        tenantId,
-      },
-    });
+    // Remover espaços e caracteres especiais (mantém apenas números)
+    cleanPhone = cleanPhone.replace(/\D/g, '');
 
-    if (!lead) {
-      throw new NotFoundException(
-        `Lead não encontrado para o telefone: ${cleanPhone}`,
+    return cleanPhone;
+  }
+
+  private async findLeadByPhone(phone: string, tenantId: string | null) {
+    // Limpar telefone
+    const cleanPhone = this.cleanPhoneNumber(phone);
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      throw new BadRequestException(
+        `Telefone inválido: ${phone}. O telefone deve ter pelo menos 10 dígitos após a limpeza.`,
       );
     }
 
-    return lead;
+    // Construir where clause (com ou sem tenantId, dependendo se a API Key é global)
+    const where: any = {
+      phone: cleanPhone,
+    };
+
+    // Se tenantId for fornecido (API Key não global), filtrar por tenant
+    // Se tenantId for null (API Key global), buscar em todas as empresas
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+
+    try {
+      // Buscar lead no banco
+      const lead = await this.prisma.lead.findFirst({
+        where,
+      });
+
+      if (!lead) {
+        const tenantMessage = tenantId
+          ? ` para a empresa (tenantId: ${tenantId})`
+          : ' em nenhuma empresa (API Key global)';
+        throw new NotFoundException(
+          `Lead não encontrado para o telefone: ${cleanPhone} (original: ${phone})${tenantMessage}. Verifique se o telefone está correto e se o lead existe.`,
+        );
+      }
+
+      return lead;
+    } catch (error: any) {
+      // Se não for NotFoundException, pode ser erro de banco de dados
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      // Log detalhado do erro para debug
+      console.error('[findLeadByPhone] Erro ao buscar lead:', {
+        phone,
+        cleanPhone,
+        tenantId: tenantId || 'global',
+        where,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Re-throw como BadRequestException para dar mais contexto
+      throw new BadRequestException(
+        `Erro ao buscar lead: ${error.message || 'Erro desconhecido'}`,
+      );
+    }
   }
 
   private async findActiveAttendance(leadId: string, tenantId: string) {

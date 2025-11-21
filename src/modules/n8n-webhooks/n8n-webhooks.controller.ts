@@ -59,7 +59,7 @@ export class N8nWebhooksController {
   updateLeadStatus(
     @Param('phone') phone: string,
     @Body() dto: UpdateLeadStatusDto,
-    @ApiKeyTenant() tenantId: string,
+    @ApiKeyTenant() tenantId: string | null,
   ) {
     return this.n8nWebhooksService.updateLeadStatus(phone, dto, tenantId);
   }
