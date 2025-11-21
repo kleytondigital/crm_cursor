@@ -1256,6 +1256,52 @@ export class WorkflowTemplatesService {
   }
 
   /**
+   * Atualizar prompt diretamente (edição manual)
+   */
+  async updatePrompt(
+    instanceId: string,
+    prompt: string,
+    context: AuthContext,
+  ): Promise<{ prompt: string; instance: any }> {
+    // Verificar se a instância existe e pertence ao tenant
+    const instance = await this.findOneInstance(instanceId, context);
+
+    // Validar prompt
+    if (!prompt || !prompt.trim()) {
+      throw new BadRequestException('Prompt não pode estar vazio');
+    }
+
+    // Salvar prompt no banco
+    const updatedInstance = await this.prisma.workflowInstance.update({
+      where: { id: instanceId },
+      data: {
+        generatedPrompt: prompt.trim(),
+      },
+      include: {
+        template: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            icon: true,
+          },
+        },
+        aiAgent: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      prompt: updatedInstance.generatedPrompt || '',
+      instance: updatedInstance,
+    };
+  }
+
+  /**
    * Obter prompt gerado da instância
    */
   async getPrompt(instanceId: string, context: AuthContext): Promise<{ prompt: string | null }> {

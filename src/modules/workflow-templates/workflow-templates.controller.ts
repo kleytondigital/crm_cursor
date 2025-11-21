@@ -191,6 +191,20 @@ export class WorkflowTemplatesController {
     return this.workflowTemplatesService.getPrompt(id, context);
   }
 
+  @Patch('instances/:id/prompt')
+  updatePrompt(
+    @Param('id') id: string,
+    @Body() dto: { prompt: string },
+    @Request() req: any,
+  ) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.updatePrompt(id, dto.prompt, context);
+  }
+
   @Delete('instances/:id/prompt')
   clearPrompt(@Param('id') id: string, @Request() req: any) {
     const context = {
