@@ -127,14 +127,23 @@ export interface ExportWorkflowRequestDto extends ManagerWebhookRequestDto {
  * Response do webhook gestor
  */
 export interface ManagerWebhookResponseDto<T = any> {
-  success: boolean;
+  success?: boolean; // Opcional - alguns webhooks podem não retornar explicitamente
   message?: string;
-  data?: T;
+  data?: T; // Os dados podem estar aqui ou diretamente na raiz da resposta
   error?: {
-    code: string;
+    code?: string;
     message: string;
     details?: any;
   };
+  // Campos que podem estar diretamente na resposta quando success não está presente
+  workflowId?: string;
+  webhookName?: string;
+  webhookPatch?: string;
+  agentPrompt?: string;
+  webhookUrl?: string;
+  webhookUrlEditor?: string;
+  status?: string;
+  active?: boolean;
 }
 
 /**

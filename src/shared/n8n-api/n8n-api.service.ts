@@ -71,30 +71,96 @@ export class N8nApiService {
         payload,
       );
 
-      if (!response.data.success) {
+      // Log detalhado da resposta para debug
+      this.logger.debug(
+        `Resposta do webhook gestor: ${JSON.stringify(response.data)}`,
+      );
+
+      // Verificar se a resposta tem a estrutura esperada
+      if (!response.data) {
         throw new BadRequestException(
-          response.data.error?.message || 'Erro no webhook gestor',
+          'Webhook gestor não retornou dados na resposta',
         );
       }
 
+      // Verificar se success é false explicitamente
+      if (response.data.success === false) {
+        const errorMessage =
+          response.data.error?.message ||
+          response.data.message ||
+          'Erro no webhook gestor';
+        this.logger.error(
+          `Webhook gestor retornou erro: ${errorMessage}`,
+          JSON.stringify(response.data.error),
+        );
+        throw new BadRequestException(errorMessage);
+      }
+
+      // Se success é true ou undefined/null, verificar se há dados ou erro
+      // Alguns webhooks podem retornar diretamente os dados ou ter uma estrutura diferente
+      const responseData = response.data;
+
+      // Se há um campo error, mesmo sem success=false, tratar como erro
+      if (responseData.error) {
+        const errorMessage =
+          responseData.error.message ||
+          responseData.error.code ||
+          'Erro no webhook gestor';
+        this.logger.error(
+          `Webhook gestor retornou erro: ${errorMessage}`,
+          JSON.stringify(responseData.error),
+        );
+        throw new BadRequestException(errorMessage);
+      }
+
+      // Se success é true ou não está definido (mas não há erro), considerar sucesso
+      // Pode ter data ou os dados podem estar diretamente na resposta
       this.logger.log(`Webhook gestor respondeu com sucesso: ${payload.action}`);
-      return response.data;
+      return responseData;
     } catch (error: any) {
+      // Se já é um BadRequestException, não fazer retry
+      if (error instanceof BadRequestException) {
+        this.logger.error(
+          `Erro validado do webhook gestor: ${error.message}`,
+        );
+        throw error;
+      }
+
       this.logger.error(
         `Erro ao chamar webhook gestor (tentativa ${retryCount + 1}/${this.maxRetries}): ${error.message}`,
         error.stack,
       );
 
-      // Retry com exponential backoff
-      if (retryCount < this.maxRetries - 1) {
+      // Log detalhado do erro para debug
+      if (error.response) {
+        this.logger.error(
+          `Detalhes da resposta de erro: Status ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`,
+        );
+      }
+
+      // Retry apenas para erros de rede/timeout, não para erros de validação
+      if (
+        retryCount < this.maxRetries - 1 &&
+        (error.code === 'ECONNREFUSED' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ECONNRESET' ||
+          error.response?.status >= 500)
+      ) {
         const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         this.logger.log(`Aguardando ${delay}ms antes de tentar novamente...`);
         await this.sleep(delay);
         return this.callManagerWebhook(payload, retryCount + 1);
       }
 
+      // Se o erro tem uma mensagem mais específica do axios, usar ela
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        'Erro desconhecido ao comunicar com webhook gestor';
+
       throw new BadRequestException(
-        `Erro ao comunicar com webhook gestor do n8n: ${error.message}`,
+        `Erro ao comunicar com webhook gestor do n8n: ${errorMessage}`,
       );
     }
   }
@@ -123,13 +189,57 @@ export class N8nApiService {
     const response =
       await this.callManagerWebhook<CreateWorkflowResponseData>(payload);
 
-    if (!response.data) {
+    // Verificar se a resposta tem dados
+    // Os dados podem estar em response.data ou diretamente na resposta
+    let workflowData: CreateWorkflowResponseData;
+
+    if (response && response.data) {
+      // Formato padrão: { success: true, data: {...} }
+      workflowData = response.data;
+      this.logger.log(
+        `Dados do workflow criado (em response.data): workflowId=${workflowData.workflowId}`,
+      );
+    } else if (
+      response &&
+      ((response as any).workflowId ||
+        (response as any).webhookUrl ||
+        (response as any).webhookName)
+    ) {
+      // Dados diretamente na resposta (formato alternativo)
+      const resp = response as any;
+      workflowData = {
+        workflowId: resp.workflowId || '',
+        webhookName: resp.webhookName || '',
+        webhookPatch: resp.webhookPatch || '',
+        agentPrompt: resp.agentPrompt || '',
+        webhookUrl: resp.webhookUrl || '',
+        webhookUrlEditor: resp.webhookUrlEditor,
+        status: resp.status,
+        active: resp.active,
+      };
+      this.logger.log(
+        `Dados do workflow criado (diretamente na resposta): workflowId=${workflowData.workflowId}`,
+      );
+    } else {
+      this.logger.error(
+        `Webhook gestor não retornou dados válidos: ${JSON.stringify(response)}`,
+      );
       throw new BadRequestException(
-        'Webhook gestor não retornou dados do workflow criado',
+        'Webhook gestor não retornou dados do workflow criado. Verifique os logs para mais detalhes.',
       );
     }
 
-    return response.data;
+    // Validar campos obrigatórios
+    if (!workflowData.workflowId && !workflowData.webhookUrl) {
+      this.logger.error(
+        `Dados do workflow incompletos: ${JSON.stringify(workflowData)}`,
+      );
+      throw new BadRequestException(
+        'Webhook gestor não retornou workflowId ou webhookUrl obrigatórios',
+      );
+    }
+
+    return workflowData;
   }
 
   /**
