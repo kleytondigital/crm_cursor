@@ -1,14 +1,16 @@
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Substitui variáveis no formato {{nomeVariavel}} por seus valores
+ * Substitui variáveis do CRM no formato {@nomeVariavel} por seus valores
+ * Ignora variáveis do n8n no formato {{variavel}} e {variavel} que não têm o prefixo @
  * Percorre recursivamente o objeto JSON do workflow
  */
 export function replaceVariables(
   workflowJson: any,
   variables: Record<string, any>,
 ): any {
-  // Se for string, procura por padrões {{variavel}} e substitui
+  // Se for string, procura por padrões {@variavel} (com prefixo @) e substitui
+  // Ignora padrões {{variavel}} (chaves duplas) e {variavel} (sem @) que são variáveis do n8n
   if (typeof workflowJson === 'string') {
     return replaceVariablesInString(workflowJson, variables);
   }
@@ -32,19 +34,46 @@ export function replaceVariables(
 }
 
 /**
- * Substitui variáveis em uma string
+ * Substitui variáveis do CRM em uma string
  * Suporta os formatos:
- * - {{variavel}} - substituição simples
- * - {{variavel|default}} - com valor padrão se variável não existir
+ * - {@variavel} - substituição simples (com prefixo @)
+ * - {@variavel|default} - com valor padrão se variável não existir
+ * 
+ * IMPORTANTE: 
+ * - Ignora variáveis do n8n no formato {{variavel}} (chaves duplas)
+ * - Ignora variáveis do n8n no formato {variavel} (sem prefixo @)
+ * - Apenas variáveis com prefixo @ são substituídas
  */
 function replaceVariablesInString(
   str: string,
   variables: Record<string, any>,
 ): string {
-  return str.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+  // Procurar apenas variáveis do CRM com prefixo {@variavel}
+  // Estratégia: proteger variáveis do n8n {{}} e {} (sem @), depois processar apenas {@variavel}
+  
+  // 1. Proteger variáveis do n8n {{}} substituindo por placeholder temporário
+  const n8nVariablePlaceholders = new Map<string, string>();
+  let placeholderIndex = 0;
+  const protectedStr1 = str.replace(/\{\{([^}]+)\}\}/g, (match) => {
+    const placeholder = `__N8N_VAR_DOUBLE_${placeholderIndex++}__`;
+    n8nVariablePlaceholders.set(placeholder, match);
+    return placeholder;
+  });
+
+  // 2. Proteger variáveis do n8n {} (sem prefixo @) substituindo por placeholder temporário
+  // Não capturar {@variavel} - essas são variáveis do CRM
+  const protectedStr2 = protectedStr1.replace(/\{([^@}][^}]*)\}/g, (match) => {
+    // Se não começa com @, é variável do n8n, proteger
+    const placeholder = `__N8N_VAR_SINGLE_${placeholderIndex++}__`;
+    n8nVariablePlaceholders.set(placeholder, match);
+    return placeholder;
+  });
+
+  // 3. Processar apenas variáveis do CRM com prefixo {@variavel}
+  const processedStr = protectedStr2.replace(/\{@([^}]+)\}/g, (match, varName) => {
     const trimmedVarName = varName.trim();
 
-    // Suporta formato com valor padrão: {{variavel|default}}
+    // Suporta formato com valor padrão: {@variavel|default}
     const [name, defaultValue] = trimmedVarName.split('|').map((s) => s.trim());
 
     // Se a variável existe, usa seu valor
@@ -62,6 +91,14 @@ function replaceVariablesInString(
     // Se não tem valor e não tem default, mantém o placeholder
     return match;
   });
+
+  // 4. Restaurar variáveis do n8n {{}} e {}
+  let finalStr = processedStr;
+  n8nVariablePlaceholders.forEach((original, placeholder) => {
+    finalStr = finalStr.replace(placeholder, original);
+  });
+
+  return finalStr;
 }
 
 /**

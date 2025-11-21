@@ -20,7 +20,12 @@ export default function ConfigureTemplateModal({
   const initialConfig = (() => {
     const config: Record<string, any> = {}
     Object.entries(template.variables || {}).forEach(([varName, varConfig]: [string, any]) => {
-      config[varName] = varConfig.default || ''
+      // Para multiselect, usar array vazio se não tiver default
+      if (varConfig.type === 'multiselect') {
+        config[varName] = Array.isArray(varConfig.default) ? varConfig.default : []
+      } else {
+        config[varName] = varConfig.default || ''
+      }
     })
     return config
   })()
@@ -71,6 +76,26 @@ export default function ConfigureTemplateModal({
       if (varConfigTyped.type === 'select' && value && varConfigTyped.options) {
         if (!varConfigTyped.options.includes(value)) {
           errors[varName] = 'Opção inválida'
+        }
+      }
+
+      // Validação de multiselect
+      if (varConfigTyped.type === 'multiselect') {
+        if (varConfigTyped.required && (!Array.isArray(value) || value.length === 0)) {
+          errors[varName] = 'Selecione pelo menos uma opção'
+        }
+        if (Array.isArray(value) && value.length > 0 && varConfigTyped.options) {
+          const invalidOptions = value.filter((v: string) => !varConfigTyped.options.includes(v))
+          if (invalidOptions.length > 0) {
+            errors[varName] = 'Opções inválidas: ' + invalidOptions.join(', ')
+          }
+        }
+      }
+
+      // Validação de arquivo
+      if (varConfigTyped.type?.startsWith('file_') && varConfigTyped.required) {
+        if (!value || (typeof value === 'string' && !value.trim())) {
+          errors[varName] = 'Arquivo é obrigatório'
         }
       }
     }
@@ -168,6 +193,129 @@ export default function ConfigureTemplateModal({
               </option>
             ))}
           </select>
+        )
+
+      case 'multiselect':
+        const selectedValues = Array.isArray(value) ? value : []
+        return (
+          <div className="space-y-2">
+            <select
+              multiple
+              value={selectedValues}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, option => option.value)
+                handleVariableChange(varName, selected)
+                // Limpar erro quando selecionar
+                if (validationErrors[varName]) {
+                  setValidationErrors((prev) => {
+                    const newErrors = { ...prev }
+                    delete newErrors[varName]
+                    return newErrors
+                  })
+                }
+              }}
+              className={`${baseInputClasses} min-h-[120px]`}
+              size={Math.min(6, varConfig.options?.length || 1)}
+            >
+              {varConfig.options?.map((option: string) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-muted">
+              {selectedValues.length > 0 
+                ? `${selectedValues.length} opção(ões) selecionada(s)` 
+                : 'Mantenha Ctrl (ou Cmd) pressionado para selecionar múltiplas opções'}
+            </p>
+          </div>
+        )
+
+      case 'file_document':
+      case 'file_image':
+      case 'file_audio':
+      case 'file_video':
+        // Definir extensões padrão baseado no tipo
+        const defaultExtensions = 
+          varConfig.type === 'file_document' 
+            ? '.pdf,.doc,.docx,.txt'
+            : varConfig.type === 'file_image'
+            ? '.jpg,.jpeg,.png,.gif,.webp'
+            : varConfig.type === 'file_audio'
+            ? '.mp3,.wav,.ogg,.m4a'
+            : varConfig.type === 'file_video'
+            ? '.mp4,.webm,.ogg,.mov'
+            : ''
+        
+        // Usar accept do config ou padrão
+        const acceptExtensions = varConfig.accept || defaultExtensions
+        
+        // Converter extensões para MIME types para o input file
+        const getMimeType = (ext: string): string => {
+          const extTrim = ext.trim().toLowerCase()
+          const mimeMap: Record<string, string> = {
+            '.pdf': 'application/pdf',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.txt': 'text/plain',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.ogg': 'audio/ogg',
+            '.m4a': 'audio/mp4',
+            '.mp4': 'video/mp4',
+            '.webm': 'video/webm',
+            '.mov': 'video/quicktime',
+          }
+          return mimeMap[extTrim] || ''
+        }
+        
+        const acceptMimeTypes = acceptExtensions
+          .split(',')
+          .map((ext: string) => getMimeType(ext))
+          .filter(Boolean)
+          .join(',')
+
+        return (
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept={acceptMimeTypes || acceptExtensions}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  // Para arquivos, podemos armazenar o File object ou a URL do arquivo
+                  // Por enquanto, vamos armazenar o nome do arquivo
+                  handleVariableChange(varName, file.name)
+                } else {
+                  handleVariableChange(varName, '')
+                }
+                // Limpar erro quando selecionar arquivo
+                if (validationErrors[varName]) {
+                  setValidationErrors((prev) => {
+                    const newErrors = { ...prev }
+                    delete newErrors[varName]
+                    return newErrors
+                  })
+                }
+              }}
+              className={`${baseInputClasses} file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-primary file:text-white hover:file:bg-brand-primary/90`}
+            />
+            {value && (
+              <p className="text-xs text-text-muted">
+                Arquivo selecionado: <span className="text-white font-medium">{String(value)}</span>
+              </p>
+            )}
+            {acceptExtensions && (
+              <p className="text-xs text-text-muted">
+                Tipos aceitos: {acceptExtensions}
+              </p>
+            )}
+          </div>
         )
 
       case 'number':
@@ -335,8 +483,10 @@ export default function ConfigureTemplateModal({
                                 {varConfig.label || varName}
                               </p>
                               <p className="mt-1 text-xs text-text-muted">
-                                {value !== undefined && value !== null && value !== ''
-                                  ? String(value)
+                                {value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)
+                                  ? Array.isArray(value)
+                                    ? value.join(', ')
+                                    : String(value)
                                   : <span className="italic">Não definido</span>
                                 }
                               </p>

@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { X, Plus, Trash2, Copy, PlusCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
 
 interface Variable {
   name: string
-  type: 'text' | 'textarea' | 'select' | 'number'
+  type: 'text' | 'textarea' | 'select' | 'number' | 'multiselect' | 'file_document' | 'file_image' | 'file_audio' | 'file_video'
   label: string
   description: string
   required: boolean
   default: string
   options?: string[]
+  accept?: string // Para tipos de arquivo: ex: ".pdf,.doc,.docx,.txt" para file_document
+  _optionsText?: string // Campo temporário para digitação livre de opções
 }
 
 interface CreateTemplateModalProps {
@@ -39,6 +41,7 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
           required: config.required || false,
           default: config.default || '',
           options: config.options || [],
+          accept: config.accept || undefined,
         }))
       : []
   )
@@ -47,29 +50,54 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
   const [showPreview, setShowPreview] = useState(false)
   const [jsonError, setJsonError] = useState('')
 
-  const addVariable = () => {
-    setVariables([
-      ...variables,
-      {
-        name: '',
-        type: 'text',
-        label: '',
-        description: '',
-        required: false,
-        default: '',
-        options: [],
-      },
-    ])
+  const addVariable = (afterIndex?: number) => {
+    const newVariable: Variable = {
+      name: '',
+      type: 'text',
+      label: '',
+      description: '',
+      required: false,
+      default: '',
+      options: [],
+    }
+
+    if (afterIndex !== undefined) {
+      // Inserir após o índice especificado
+      setVariables((prev) => {
+        const updated = [...prev]
+        updated.splice(afterIndex + 1, 0, newVariable)
+        return updated
+      })
+    } else {
+      // Adicionar ao final
+      setVariables((prev) => [...prev, newVariable])
+    }
+  }
+
+  const duplicateVariable = (index: number) => {
+    setVariables((prev) => {
+      const variableToDuplicate = prev[index]
+      const duplicated: Variable = {
+        ...variableToDuplicate,
+        name: variableToDuplicate.name ? `${variableToDuplicate.name}_copy` : '',
+        label: variableToDuplicate.label ? `${variableToDuplicate.label} (cópia)` : '',
+      }
+      const updated = [...prev]
+      updated.splice(index + 1, 0, duplicated)
+      return updated
+    })
   }
 
   const removeVariable = (index: number) => {
-    setVariables(variables.filter((_, i) => i !== index))
+    setVariables((prev) => prev.filter((_, i) => i !== index))
   }
 
   const updateVariable = (index: number, field: string, value: any) => {
-    const updated = [...variables]
-    updated[index] = { ...updated[index], [field]: value }
-    setVariables(updated)
+    setVariables((prev) => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
   }
 
   const validateForm = () => {
@@ -133,14 +161,51 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
         setError(`Variável "${variable.name}": Tipo select precisa ter pelo menos uma opção`)
         return false
       }
+
+      // Validar opções para multiselect
+      if (variable.type === 'multiselect' && (!variable.options || variable.options.length === 0)) {
+        setError(`Variável "${variable.name}": Tipo multiselect precisa ter pelo menos uma opção`)
+        return false
+      }
     }
 
-    // Verificar se variáveis usadas no JSON existem na definição
+    // Verificar se variáveis do CRM usadas no JSON existem na definição
+    // Variáveis do CRM: {@variavel} (com prefixo @)
+    // Variáveis do n8n: {{variavel}} (chaves duplas) e {variavel} (sem @) - ignorar essas
     const jsonString = JSON.stringify(parsedJson)
-    const variableMatches = jsonString.match(/\{\{([^}]+)\}\}/g) || []
+    
+    // Estratégia: proteger variáveis do n8n {{}} e {} (sem @),
+    // depois procurar apenas variáveis do CRM com prefixo {@variavel}
+    
+    // 1. Proteger variáveis do n8n {{}} substituindo por placeholder temporário
+    const n8nVariablePlaceholders = new Map<string, string>()
+    let placeholderIndex = 0
+    const protectedJsonString1 = jsonString.replace(/\{\{([^}]+)\}\}/g, (match) => {
+      const placeholder = `__N8N_VAR_DOUBLE_${placeholderIndex++}__`
+      n8nVariablePlaceholders.set(placeholder, match)
+      return placeholder
+    })
+    
+    // 2. Proteger variáveis do n8n {} (sem prefixo @) substituindo por placeholder temporário
+    // Não capturar {@variavel} - essas são variáveis do CRM
+    const protectedJsonString2 = protectedJsonString1.replace(/\{([^@}][^}]*)\}/g, (match) => {
+      // Se não começa com @, é variável do n8n, proteger
+      const placeholder = `__N8N_VAR_SINGLE_${placeholderIndex++}__`
+      n8nVariablePlaceholders.set(placeholder, match)
+      return placeholder
+    })
+    
+    // 3. Procurar apenas variáveis do CRM com prefixo {@variavel}
+    const variableMatches = protectedJsonString2.match(/\{@([^}]+)\}/g) || []
+    
     const usedVariables = new Set(
       variableMatches
-        .map(match => match.replace(/\{\{|\}\}/g, '').trim().split('|')[0].trim())
+        .map(match => {
+          // Remover chaves e prefixo @: {@variavel} -> variavel
+          const varName = match.replace(/^\{@|\}$/g, '').trim()
+          // Suporta formato com valor padrão: {@variavel|default}
+          return varName.split('|')[0].trim()
+        })
         .filter(Boolean)
     )
 
@@ -148,7 +213,7 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
     const undefinedVariables = Array.from(usedVariables).filter(v => !definedVariables.has(v))
     
     if (undefinedVariables.length > 0) {
-      setError(`Variáveis usadas no JSON mas não definidas: ${undefinedVariables.join(', ')}`)
+      setError(`Variáveis do CRM usadas no JSON mas não definidas: ${undefinedVariables.join(', ')}`)
       return false
     }
 
@@ -165,16 +230,19 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
     setLoading(true)
 
     try {
-      // Converter variáveis para formato esperado
+      // Converter variáveis para formato esperado (remover campos temporários)
       const variablesConfig: Record<string, any> = {}
       variables.forEach((v) => {
+        const { _optionsText, ...cleanVariable } = v // Remover campo temporário
         variablesConfig[v.name] = {
-          type: v.type,
-          label: v.label,
-          description: v.description,
-          required: v.required,
-          default: v.default,
-          ...(v.type === 'select' && v.options?.length ? { options: v.options } : {}),
+          type: cleanVariable.type,
+          label: cleanVariable.label,
+          description: cleanVariable.description,
+          required: cleanVariable.required,
+          default: cleanVariable.default,
+          ...(cleanVariable.type === 'select' && cleanVariable.options?.length ? { options: cleanVariable.options } : {}),
+          ...(cleanVariable.type === 'multiselect' && cleanVariable.options?.length ? { options: cleanVariable.options } : {}),
+          ...(cleanVariable.accept ? { accept: cleanVariable.accept } : {}),
         }
       })
 
@@ -330,7 +398,7 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
               )}
               <div className="flex items-center justify-between">
                 <p className="text-xs text-text-muted">
-                  Cole o JSON exportado do n8n. Use &#123;&#123;nomeVariavel&#125;&#125; para marcar variáveis editáveis.
+                  Cole o JSON exportado do n8n. Use &#123;&#64;nomeVariavel&#125; (com prefixo @) para marcar variáveis editáveis do CRM. Variáveis do n8n (&#123;&#123;variavel&#125;&#125; e &#123;variavel&#125;) serão mantidas como estão.
                 </p>
                 <Button
                   type="button"
@@ -394,12 +462,29 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
                       <span className="text-sm font-semibold text-white">
                         Variável {index + 1}
                       </span>
-                      <button
-                        onClick={() => removeVariable(index)}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => duplicateVariable(index)}
+                          className="text-brand-secondary hover:text-brand-primary transition-colors"
+                          title="Duplicar variável"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => addVariable(index)}
+                          className="text-brand-secondary hover:text-brand-primary transition-colors"
+                          title="Adicionar variável após esta"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => removeVariable(index)}
+                          className="text-red-400 hover:text-red-300 transition-colors"
+                          title="Remover variável"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -422,13 +507,48 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
                         </label>
                         <select
                           value={variable.type}
-                          onChange={(e) => updateVariable(index, 'type', e.target.value)}
+                          onChange={(e) => {
+                            const newType = e.target.value as Variable['type']
+                            // Atualizar o array de variáveis usando função para garantir estado atualizado
+                            setVariables((prev) => {
+                              const currentVariable = prev[index]
+                              // Criar nova variável com o tipo atualizado
+                              const updatedVariable: Variable = {
+                                ...currentVariable,
+                                type: newType,
+                                // Limpar opções se não for select/multiselect, manter se for
+                                options: (newType === 'select' || newType === 'multiselect') 
+                                  ? (currentVariable.options || [])
+                                  : undefined,
+                                // Limpar accept se não for tipo de arquivo
+                                // Definir accept padrão se for tipo de arquivo e não tiver
+                                accept: newType.startsWith('file_')
+                                  ? (currentVariable.accept || (
+                                      newType === 'file_document' ? '.pdf,.doc,.docx,.txt' :
+                                      newType === 'file_image' ? '.jpg,.jpeg,.png,.gif,.webp' :
+                                      newType === 'file_audio' ? '.mp3,.wav,.ogg,.m4a' :
+                                      newType === 'file_video' ? '.mp4,.webm,.ogg,.mov' :
+                                      undefined
+                                    ))
+                                  : undefined,
+                              }
+                              
+                              const updated = [...prev]
+                              updated[index] = updatedVariable
+                              return updated
+                            })
+                          }}
                           className="w-full rounded-lg border border-white/10 bg-background-card px-3 py-2 text-sm text-white focus:border-brand-primary focus:outline-none"
                         >
                           <option value="text">Texto</option>
                           <option value="textarea">Textarea</option>
                           <option value="select">Select</option>
+                          <option value="multiselect">Múltipla Seleção</option>
                           <option value="number">Número</option>
+                          <option value="file_document">Arquivo (PDF/DOC/TXT)</option>
+                          <option value="file_image">Arquivo de Imagem</option>
+                          <option value="file_audio">Arquivo de Áudio</option>
+                          <option value="file_video">Arquivo de Vídeo</option>
                         </select>
                       </div>
 
@@ -484,24 +604,93 @@ export default function CreateTemplateModal({ onClose, onSuccess, editTemplate }
                         </label>
                       </div>
 
-                      {variable.type === 'select' && (
+                      {/* Campo de Opções - apenas para select e multiselect */}
+                      {(variable.type === 'select' || variable.type === 'multiselect') && (
                         <div className="col-span-2">
                           <label className="mb-1 block text-xs text-text-muted">
-                            Opções (separadas por vírgula)
+                            Opções (separadas por vírgula) *
                           </label>
                           <input
                             type="text"
-                            value={variable.options?.join(', ') || ''}
-                            onChange={(e) =>
-                              updateVariable(
-                                index,
-                                'options',
-                                e.target.value.split(',').map((o) => o.trim()).filter(Boolean)
-                              )
-                            }
+                            value={variable._optionsText !== undefined 
+                              ? variable._optionsText 
+                              : (variable.options?.join(', ') || '')}
+                            onChange={(e) => {
+                              // Permitir digitação livre - armazenar texto temporário
+                              const inputValue = e.target.value
+                              updateVariable(index, '_optionsText', inputValue)
+                            }}
+                            onBlur={(e) => {
+                              // Processar opções apenas quando sair do campo (blur)
+                              const inputValue = e.target.value
+                              const optionsArray = inputValue
+                                .split(',')
+                                .map((o) => o.trim())
+                                .filter(Boolean)
+                              updateVariable(index, 'options', optionsArray)
+                              // Limpar campo temporário após processar
+                              updateVariable(index, '_optionsText', undefined)
+                            }}
+                            onKeyDown={(e) => {
+                              // Permitir Enter para confirmar opções
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const inputValue = e.currentTarget.value
+                                const optionsArray = inputValue
+                                  .split(',')
+                                  .map((o) => o.trim())
+                                  .filter(Boolean)
+                                updateVariable(index, 'options', optionsArray)
+                                updateVariable(index, '_optionsText', undefined)
+                                e.currentTarget.blur()
+                              }
+                            }}
                             className="w-full rounded-lg border border-white/10 bg-background-card px-3 py-2 text-sm text-white focus:border-brand-primary focus:outline-none"
-                            placeholder="Opção 1, Opção 2, Opção 3"
+                            placeholder="PIX, Cartão de Crédito, Boleto"
                           />
+                          <p className="mt-1 text-xs text-text-muted">
+                            {variable.type === 'multiselect' 
+                              ? 'O usuário poderá selecionar múltiplas opções. Digite as opções separadas por vírgula (ex: PIX, Cartão de Crédito, Boleto)'
+                              : 'O usuário poderá selecionar uma única opção. Digite as opções separadas por vírgula'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Campo Accept - apenas para tipos de arquivo */}
+                      {(variable.type === 'file_document' || 
+                        variable.type === 'file_image' || 
+                        variable.type === 'file_audio' || 
+                        variable.type === 'file_video') && (
+                        <div className="col-span-2">
+                          <label className="mb-1 block text-xs text-text-muted">
+                            Tipos de Arquivo Aceitos (separados por vírgula)
+                          </label>
+                          <input
+                            type="text"
+                            value={variable.accept || (() => {
+                              if (variable.type === 'file_document') return '.pdf,.doc,.docx,.txt'
+                              if (variable.type === 'file_image') return '.jpg,.jpeg,.png,.gif,.webp'
+                              if (variable.type === 'file_audio') return '.mp3,.wav,.ogg,.m4a'
+                              if (variable.type === 'file_video') return '.mp4,.webm,.ogg,.mov'
+                              return ''
+                            })()}
+                            onChange={(e) => updateVariable(index, 'accept', e.target.value)}
+                            className="w-full rounded-lg border border-white/10 bg-background-card px-3 py-2 text-sm text-white focus:border-brand-primary focus:outline-none"
+                            placeholder={
+                              variable.type === 'file_document' 
+                                ? '.pdf,.doc,.docx,.txt'
+                                : variable.type === 'file_image'
+                                ? '.jpg,.jpeg,.png,.gif,.webp'
+                                : variable.type === 'file_audio'
+                                ? '.mp3,.wav,.ogg,.m4a'
+                                : variable.type === 'file_video'
+                                ? '.mp4,.webm,.ogg,.mov'
+                                : ''
+                            }
+                          />
+                          <p className="mt-1 text-xs text-text-muted">
+                            Exemplo: .pdf,.doc,.docx (ou deixe em branco para usar padrão)
+                          </p>
                         </div>
                       )}
                     </div>
