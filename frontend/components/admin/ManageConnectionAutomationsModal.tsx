@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Link2, Link2Off, Loader2, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
+import ActivationWizardModal from './ActivationWizardModal'
 
 interface Connection {
   id: string
@@ -46,6 +47,8 @@ export default function ManageConnectionAutomationsModal({
   const [error, setError] = useState<string | null>(null)
   const [connectedInstances, setConnectedInstances] = useState<WorkflowInstance[]>([])
   const [availableInstances, setAvailableInstances] = useState<WorkflowInstance[]>([])
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardInstance, setWizardInstance] = useState<WorkflowInstance | null>(null)
 
   useEffect(() => {
     loadData()
@@ -78,24 +81,15 @@ export default function ManageConnectionAutomationsModal({
     }
   }
 
-  const handleConnect = async (instanceId: string) => {
-    setConnecting(instanceId)
-    setError(null)
-    try {
-      await apiRequest(
-        `/workflow-templates/instances/${instanceId}/connections/${connection.id}`,
-        {
-          method: 'POST',
-        }
-      )
-      await loadData()
-      onSuccess?.()
-    } catch (err: any) {
-      console.error('Erro ao conectar:', err)
-      setError(err?.message || 'Erro ao conectar automação à conexão')
-    } finally {
-      setConnecting(null)
+  const handleConnect = async (instance: WorkflowInstance) => {
+    if (!instance.isActive) {
+      setError('A automação precisa estar ativa para ser conectada')
+      return
     }
+
+    // Mostrar wizard de ativação
+    setWizardInstance(instance)
+    setShowWizard(true)
   }
 
   const handleDisconnect = async (instanceId: string) => {
@@ -232,10 +226,11 @@ export default function ManageConnectionAutomationsModal({
                         </div>
                       </div>
                       <Button
-                        onClick={() => handleConnect(instance.id)}
-                        disabled={connecting === instance.id}
+                        onClick={() => handleConnect(instance)}
+                        disabled={connecting === instance.id || !instance.isActive}
                         size="sm"
                         className="gap-2 bg-brand-primary text-white hover:bg-brand-primary-dark"
+                        title={!instance.isActive ? 'A automação precisa estar ativa' : ''}
                       >
                         {connecting === instance.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -258,6 +253,25 @@ export default function ManageConnectionAutomationsModal({
           </Button>
         </div>
       </div>
+
+      {/* Wizard de Ativação */}
+      {showWizard && wizardInstance && (
+        <ActivationWizardModal
+          instanceId={wizardInstance.id}
+          connectionId={connection.id}
+          instanceName={wizardInstance.name}
+          connectionName={connection.name}
+          onClose={() => {
+            setShowWizard(false)
+            setWizardInstance(null)
+            loadData()
+          }}
+          onSuccess={() => {
+            loadData()
+            onSuccess?.()
+          }}
+        />
+      )}
     </div>
   )
 }

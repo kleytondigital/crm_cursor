@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Link2, Link2Off, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
+import ActivationWizardModal from './ActivationWizardModal'
 
 interface Connection {
   id: string
@@ -30,7 +31,6 @@ export default function ManageAutomationConnectionsModal({
   onSuccess,
 }: ManageAutomationConnectionsModalProps) {
   const [loading, setLoading] = useState(true)
-  const [connecting, setConnecting] = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [connectedConnections, setConnectedConnections] = useState<Connection[]>([])
@@ -64,29 +64,18 @@ export default function ManageAutomationConnectionsModal({
     }
   }
 
-  const handleConnect = async (connectionId: string) => {
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardConnection, setWizardConnection] = useState<Connection | null>(null)
+
+  const handleConnect = async (connection: Connection) => {
     if (!instance.webhookUrl) {
       setError('A automação não possui webhookUrl configurado')
       return
     }
 
-    setConnecting(connectionId)
-    setError(null)
-    try {
-      await apiRequest(
-        `/workflow-templates/instances/${instance.id}/connections/${connectionId}`,
-        {
-          method: 'POST',
-        }
-      )
-      await loadData()
-      onSuccess?.()
-    } catch (err: any) {
-      console.error('Erro ao conectar:', err)
-      setError(err?.message || 'Erro ao conectar automação à conexão')
-    } finally {
-      setConnecting(null)
-    }
+    // Mostrar wizard de ativação
+    setWizardConnection(connection)
+    setShowWizard(true)
   }
 
   const handleDisconnect = async (connectionId: string) => {
@@ -209,16 +198,12 @@ export default function ManageAutomationConnectionsModal({
                         <p className="text-xs text-text-muted">{connection.sessionName}</p>
                       </div>
                       <Button
-                        onClick={() => handleConnect(connection.id)}
-                        disabled={connecting === connection.id || !instance.webhookUrl}
+                        onClick={() => handleConnect(connection)}
+                        disabled={!instance.webhookUrl}
                         size="sm"
                         className="gap-2 bg-brand-primary text-white hover:bg-brand-primary-dark"
                       >
-                        {connecting === connection.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Link2 className="h-4 w-4" />
-                        )}
+                        <Link2 className="h-4 w-4" />
                         Conectar
                       </Button>
                     </div>
@@ -235,6 +220,25 @@ export default function ManageAutomationConnectionsModal({
           </Button>
         </div>
       </div>
+
+      {/* Wizard de Ativação */}
+      {showWizard && wizardConnection && (
+        <ActivationWizardModal
+          instanceId={instance.id}
+          connectionId={wizardConnection.id}
+          instanceName={instance.name}
+          connectionName={wizardConnection.name}
+          onClose={() => {
+            setShowWizard(false)
+            setWizardConnection(null)
+            loadData()
+          }}
+          onSuccess={() => {
+            loadData()
+            onSuccess?.()
+          }}
+        />
+      )}
     </div>
   )
 }

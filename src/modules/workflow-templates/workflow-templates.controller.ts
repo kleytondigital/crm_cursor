@@ -231,6 +231,24 @@ export class WorkflowTemplatesController {
     );
   }
 
+  @Post('instances/:id/connections/:connectionId/wizard')
+  connectInstanceToConnectionWithWizard(
+    @Param('id') id: string,
+    @Param('connectionId') connectionId: string,
+    @Request() req: any,
+  ) {
+    const context = {
+      userId: req.user.id,
+      tenantId: req.user.companyId,
+      role: req.user.role,
+    };
+    return this.workflowTemplatesService.connectInstanceToConnectionWithWizard(
+      id,
+      connectionId,
+      context,
+    );
+  }
+
   @Delete('instances/:id/connections/:connectionId')
   disconnectInstanceFromConnection(
     @Param('id') id: string,

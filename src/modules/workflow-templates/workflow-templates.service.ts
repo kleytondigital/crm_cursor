@@ -684,22 +684,79 @@ export class WorkflowTemplatesService {
   }
 
   /**
-   * Conectar instância de workflow a uma conexão específica
+   * Wizard de ativação: Conecta instância de workflow a uma conexão específica
+   * Retorna etapas detalhadas do processo para feedback visual
    */
-  async connectInstanceToConnection(
+  async connectInstanceToConnectionWithWizard(
     instanceId: string,
     connectionId: string,
     context: AuthContext,
-  ): Promise<{ success: boolean }> {
+  ): Promise<{
+    success: boolean;
+    steps: Array<{
+      step: number;
+      name: string;
+      status: 'pending' | 'running' | 'success' | 'error';
+      message?: string;
+      details?: any;
+    }>;
+    error?: string;
+  }> {
+    const steps: Array<{
+      step: number;
+      name: string;
+      status: 'pending' | 'running' | 'success' | 'error';
+      message?: string;
+      details?: any;
+    }> = [];
+
+    // Etapa 1: Validar instância
+    steps.push({
+      step: 1,
+      name: 'Validar automação',
+      status: 'running',
+      message: 'Verificando automação...',
+    });
+
     const instance = await this.findOneInstance(instanceId, context);
 
     if (!instance.webhookUrl) {
-      throw new BadRequestException(
-        'A instância não possui webhookUrl configurado',
-      );
+      steps[0].status = 'error';
+      steps[0].message = 'A automação não possui webhookUrl configurado';
+      return {
+        success: false,
+        steps,
+        error: 'A automação não possui webhookUrl configurado',
+      };
     }
 
-    // Verificar se a conexão existe e pertence ao tenant
+    if (!instance.isActive) {
+      steps[0].status = 'error';
+      steps[0].message = 'A automação precisa estar ativa para ser conectada';
+      return {
+        success: false,
+        steps,
+        error: 'A automação precisa estar ativa para ser conectada',
+      };
+    }
+
+    steps[0].status = 'success';
+    steps[0].message = `Automação "${instance.name}" validada com sucesso`;
+    steps[0].details = {
+      instanceId: instance.id,
+      instanceName: instance.name,
+      webhookUrl: instance.webhookUrl,
+      isActive: instance.isActive,
+    };
+
+    // Etapa 2: Validar conexão
+    steps.push({
+      step: 2,
+      name: 'Validar conexão',
+      status: 'running',
+      message: 'Verificando conexão...',
+    });
+
     const connection = await this.prisma.connection.findFirst({
       where: {
         id: connectionId,
@@ -708,20 +765,57 @@ export class WorkflowTemplatesService {
     });
 
     if (!connection) {
-      throw new NotFoundException('Conexão não encontrada');
+      steps[1].status = 'error';
+      steps[1].message = 'Conexão não encontrada';
+      return {
+        success: false,
+        steps,
+        error: 'Conexão não encontrada',
+      };
     }
 
     if (connection.status !== 'ACTIVE') {
-      throw new BadRequestException(
-        'A conexão precisa estar ativa para conectar a automação',
-      );
+      steps[1].status = 'error';
+      steps[1].message = `A conexão precisa estar ativa (status atual: ${connection.status})`;
+      return {
+        success: false,
+        steps,
+        error: 'A conexão precisa estar ativa para conectar a automação',
+      };
     }
 
-    // Buscar webhooks existentes
-    const existingWebhooks = await this.connectionsService.getWebhooks(
-      connectionId,
-      context.tenantId,
-    );
+    steps[1].status = 'success';
+    steps[1].message = `Conexão "${connection.name}" validada com sucesso`;
+    steps[1].details = {
+      connectionId: connection.id,
+      connectionName: connection.name,
+      sessionName: connection.sessionName,
+      status: connection.status,
+    };
+
+    // Etapa 3: Buscar webhooks existentes
+    steps.push({
+      step: 3,
+      name: 'Buscar webhooks da conexão',
+      status: 'running',
+      message: 'Obtendo lista de webhooks configurados...',
+    });
+
+    let existingWebhooks: any[];
+    try {
+      existingWebhooks = await this.connectionsService.getWebhooks(
+        connectionId,
+        context.tenantId,
+      );
+    } catch (error: any) {
+      steps[2].status = 'error';
+      steps[2].message = `Erro ao buscar webhooks: ${error.message}`;
+      return {
+        success: false,
+        steps,
+        error: `Erro ao buscar webhooks: ${error.message}`,
+      };
+    }
 
     // Verificar se já está conectado
     const isAlreadyConnected = existingWebhooks.some(
@@ -729,10 +823,34 @@ export class WorkflowTemplatesService {
     );
 
     if (isAlreadyConnected) {
-      return { success: true }; // Já está conectado
+      steps[2].status = 'success';
+      steps[2].message = 'Automação já está conectada a esta conexão';
+      steps[2].details = {
+        existingWebhooksCount: existingWebhooks.length,
+        alreadyConnected: true,
+      };
+      return {
+        success: true,
+        steps,
+      };
     }
 
-    // Adicionar webhook da instância
+    steps[2].status = 'success';
+    steps[2].message = `${existingWebhooks.length} webhook(s) encontrado(s)`;
+    steps[2].details = {
+      existingWebhooksCount: existingWebhooks.length,
+      alreadyConnected: false,
+    };
+
+    // Etapa 4: Adicionar webhook via WAHA
+    steps.push({
+      step: 4,
+      name: 'Adicionar webhook à sessão WAHA',
+      status: 'running',
+      message: 'Enviando webhook para a sessão...',
+    });
+
+    // Preparar lista de webhooks incluindo o novo
     const newWebhooks = [
       ...existingWebhooks.map((hook: any) => ({
         url: hook.url,
@@ -750,15 +868,103 @@ export class WorkflowTemplatesService {
       },
     ];
 
-    await this.connectionsService.updateWebhooks(connectionId, context.tenantId, {
-      webhooks: newWebhooks,
+    try {
+      await this.connectionsService.updateWebhooks(connectionId, context.tenantId, {
+        webhooks: newWebhooks,
+      });
+    } catch (error: any) {
+      steps[3].status = 'error';
+      steps[3].message = `Erro ao adicionar webhook: ${error.message}`;
+      steps[3].details = {
+        error: error.message,
+        webhookUrl: instance.webhookUrl,
+      };
+      return {
+        success: false,
+        steps,
+        error: `Erro ao adicionar webhook à sessão WAHA: ${error.message}`,
+      };
+    }
+
+    steps[3].status = 'success';
+    steps[3].message = 'Webhook adicionado com sucesso à sessão WAHA';
+    steps[3].details = {
+      webhookUrl: instance.webhookUrl,
+      events: ['message.any'],
+      sessionName: connection.sessionName,
+    };
+
+    // Etapa 5: Verificar conexão
+    steps.push({
+      step: 5,
+      name: 'Verificar conexão estabelecida',
+      status: 'running',
+      message: 'Validando se o webhook foi configurado corretamente...',
     });
 
+    let verificationWebhooks: any[];
+    try {
+      verificationWebhooks = await this.connectionsService.getWebhooks(
+        connectionId,
+        context.tenantId,
+      );
+      const isConnected = verificationWebhooks.some(
+        (hook: any) => hook.url === instance.webhookUrl,
+      );
+
+      if (!isConnected) {
+        steps[4].status = 'error';
+        steps[4].message = 'Webhook não foi encontrado após a adição';
+        return {
+          success: false,
+          steps,
+          error: 'Webhook não foi configurado corretamente',
+        };
+      }
+    } catch (error: any) {
+      steps[4].status = 'error';
+      steps[4].message = `Erro ao verificar: ${error.message}`;
+      return {
+        success: false,
+        steps,
+        error: `Erro ao verificar conexão: ${error.message}`,
+      };
+    }
+
+    steps[4].status = 'success';
+    steps[4].message = 'Conexão estabelecida e verificada com sucesso';
+    steps[4].details = {
+      totalWebhooks: verificationWebhooks.length,
+      automationWebhookConfigured: true,
+    };
+
     this.logger.log(
-      `Automação ${instanceId} conectada à conexão ${connectionId}`,
+      `Automação ${instanceId} conectada à conexão ${connectionId} com sucesso`,
     );
 
-    return { success: true };
+    return {
+      success: true,
+      steps,
+    };
+  }
+
+  /**
+   * Conectar instância de workflow a uma conexão específica (método simples)
+   */
+  async connectInstanceToConnection(
+    instanceId: string,
+    connectionId: string,
+    context: AuthContext,
+  ): Promise<{ success: boolean }> {
+    const result = await this.connectInstanceToConnectionWithWizard(
+      instanceId,
+      connectionId,
+      context,
+    );
+
+    return {
+      success: result.success,
+    };
   }
 
   /**
