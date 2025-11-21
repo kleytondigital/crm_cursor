@@ -295,15 +295,21 @@ export class N8nWebhooksService {
   // ============= HELPERS =============
 
   private async findLeadByPhone(phone: string, tenantId: string) {
+    // Remover sufixo @c.us se presente (formato do WhatsApp)
+    // Exemplo: "5562995473360@c.us" -> "5562995473360"
+    const cleanPhone = phone.replace(/@c\.us$/, '').trim();
+
     const lead = await this.prisma.lead.findFirst({
       where: {
-        phone,
+        phone: cleanPhone,
         tenantId,
       },
     });
 
     if (!lead) {
-      throw new NotFoundException('Lead não encontrado');
+      throw new NotFoundException(
+        `Lead não encontrado para o telefone: ${cleanPhone}`,
+      );
     }
 
     return lead;
