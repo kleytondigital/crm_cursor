@@ -140,7 +140,7 @@ export class N8nService {
         `Chamando webhook de criação de prompt - Type: ${payload.type}`,
       );
 
-      const response = await axios.post<{ prompt: string }>(webhookUrl, payload, {
+      const response = await axios.post<any>(webhookUrl, payload, {
         headers: {
           'Content-Type': 'application/json',
           ...(this.apiKey ? { 'X-N8N-API-KEY': this.apiKey } : {}),
@@ -148,17 +148,62 @@ export class N8nService {
         timeout: 60000, // 60 segundos para criação de prompt (pode demorar)
       });
 
-      if (!response.data || !response.prompt) {
+      // Log detalhado da resposta para debug
+      this.logger.debug(
+        `Resposta bruta do webhook de criação de prompt: ${JSON.stringify(response.data)}`,
+      );
+
+      // Tratar diferentes formatos de resposta
+      let promptData: { prompt: string };
+
+      // Formato 1: Array com objeto que tem propriedade "data" contendo o prompt
+      // [{ "data": { "prompt": "..." } }]
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const firstItem = response.data[0];
+        if (firstItem?.data?.prompt) {
+          promptData = { prompt: firstItem.data.prompt };
+          this.logger.log('Prompt extraído de array com data');
+        } else if (firstItem?.prompt) {
+          promptData = { prompt: firstItem.prompt };
+          this.logger.log('Prompt extraído de array direto');
+        } else {
+          throw new InternalServerErrorException(
+            'Formato de resposta inesperado do webhook de criação de prompt (array)',
+          );
+        }
+      }
+      // Formato 2: Objeto direto com propriedade "data"
+      // { "data": { "prompt": "..." } }
+      else if (response.data?.data?.prompt) {
+        promptData = { prompt: response.data.data.prompt };
+        this.logger.log('Prompt extraído de data dentro de objeto');
+      }
+      // Formato 3: Objeto direto com propriedade "prompt"
+      // { "prompt": "..." }
+      else if (response.data?.prompt) {
+        promptData = { prompt: response.data.prompt };
+        this.logger.log('Prompt extraído diretamente do objeto');
+      } else {
+        this.logger.error(
+          `Formato de resposta inesperado: ${JSON.stringify(response.data)}`,
+        );
         throw new InternalServerErrorException(
-          'Webhook não retornou prompt válido',
+          'Webhook não retornou prompt válido. Formato de resposta inesperado.',
+        );
+      }
+
+      // Validar se o prompt não está vazio
+      if (!promptData.prompt || !promptData.prompt.trim()) {
+        throw new InternalServerErrorException(
+          'Webhook retornou prompt vazio',
         );
       }
 
       this.logger.log(
-        `Prompt criado com sucesso. Tamanho: ${response.data.prompt.length} caracteres`,
+        `Prompt criado com sucesso. Tamanho: ${promptData.prompt.length} caracteres`,
       );
 
-      return response.data;
+      return promptData;
     } catch (error) {
       if (this.isAxiosError(error)) {
         const status = error.response?.status ?? 500;
