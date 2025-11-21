@@ -101,19 +101,23 @@ export class N8nApiService {
 
   /**
    * Criar um novo workflow via webhook gestor
+   * Envia o JSON do workflow processado e as variáveis
+   * Não faz validação - apenas cria com os dados fornecidos
    */
   async createWorkflowViaManager(
     tenantId: string,
     templateName: string,
     automationName: string,
-    variables: Record<string, any>,
+    workflowJson: any, // JSON do workflow processado (com variáveis substituídas)
+    variables: Record<string, any>, // Valores das variáveis para referência
   ): Promise<CreateWorkflowResponseData> {
     const payload: CreateWorkflowRequestDto = {
       action: 'create',
       tenantId,
       templateName,
       automationName,
-      variables,
+      workflowJson, // JSON do workflow processado
+      variables, // Valores das variáveis para referência
     };
 
     const response =

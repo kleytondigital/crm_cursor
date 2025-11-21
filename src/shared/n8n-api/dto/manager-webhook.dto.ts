@@ -31,7 +31,8 @@ export interface CreateWorkflowRequestDto extends ManagerWebhookRequestDto {
   action: 'create';
   templateName: string;
   automationName: string;
-  variables: Record<string, any>;
+  workflowJson: any; // JSON do workflow processado (com variáveis substituídas)
+  variables: Record<string, any>; // Valores das variáveis para referência
 }
 
 /**
@@ -139,10 +140,13 @@ export interface ManagerWebhookResponseDto<T = any> {
  * Dados retornados ao criar um workflow
  */
 export interface CreateWorkflowResponseData {
-  workflowId: string;
-  webhookUrl: string;
-  status: 'created';
-  active: boolean;
+  webhookId?: string; // ID do webhook retornado pelo n8n
+  workflowId?: string; // ID do workflow (pode ser o mesmo que webhookId)
+  webhookUrl?: string; // URL do webhook
+  webhookName?: string; // Nome do webhook
+  agentPrompt?: string; // Prompt do agente gerado
+  status?: 'created';
+  active?: boolean; // Status ativo/inativo
 }
 
 /**

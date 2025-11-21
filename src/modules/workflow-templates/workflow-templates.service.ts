@@ -14,7 +14,7 @@ import { UpdateWorkflowInstanceDto } from './dto/update-instance.dto';
 import { CreatePromptDto } from './dto/create-prompt.dto';
 import { UserRole } from '@prisma/client';
 import {
-  validateRequiredVariables,
+  processWorkflowTemplate,
 } from './helpers/variable-replacer';
 
 interface AuthContext {
@@ -165,6 +165,7 @@ export class WorkflowTemplatesService {
   /**
    * Criar instância de workflow a partir de um template
    * Envia requisição para webhook gestor do n8n que criará o workflow
+   * Não faz validação de variáveis obrigatórias - apenas cria com os dados fornecidos
    */
   async instantiateTemplate(
     templateId: string,
@@ -174,39 +175,24 @@ export class WorkflowTemplatesService {
     // 1. Buscar template
     const template = await this.findOneTemplate(templateId, context);
 
-    // 2. Validar variáveis obrigatórias (validação local)
-    const validation = validateRequiredVariables(
-      template.variables as Record<string, any>,
-      dto.config,
+    // 2. Processar workflow substituindo variáveis do CRM por valores fornecidos
+    // Isso substitui {@variavel} pelos valores em dto.config
+    const processedWorkflow = processWorkflowTemplate(
+      template.n8nWorkflowData as any,
+      dto.config || {},
     );
 
-    if (!validation.valid) {
-      throw new BadRequestException(
-        `Campos obrigatórios faltando: ${validation.missingFields.join(', ')}`,
-      );
-    }
-
-    // 3. Opcional: Validar variáveis via webhook gestor antes de criar
-    try {
-      await this.n8nApiService.validateVariablesViaManager(
-        context.tenantId,
-        template.name,
-        dto.config,
-      );
-    } catch (error: any) {
-      // Se validação falhar, logar mas continuar (pode ser que o gestor não implemente validação)
-      console.warn('Validação via webhook gestor falhou, continuando com validação local:', error.message);
-    }
-
-    // 4. Chamar webhook gestor para criar workflow
-    // O webhook gestor receberá o templateName, variables e criará o workflow completo
+    // 3. Chamar webhook gestor para criar workflow
+    // O webhook gestor receberá o JSON do workflow processado e as variáveis
+    // Na resposta retornará: webhookId, webhookName, agentPrompt
     let workflowData;
     try {
       workflowData = await this.n8nApiService.createWorkflowViaManager(
         context.tenantId,
         template.name, // templateName usado pelo gestor para identificar qual template usar
         dto.name, // automationName
-        dto.config, // variables
+        processedWorkflow, // JSON do workflow processado (com variáveis substituídas)
+        dto.config, // variables (valores das variáveis para referência)
       );
     } catch (error: any) {
       throw new BadRequestException(
@@ -214,18 +200,26 @@ export class WorkflowTemplatesService {
       );
     }
 
-    // 5. Criar instância no banco com dados retornados pelo webhook gestor
+    // 4. Criar instância no banco com dados retornados pelo webhook gestor
+    // A resposta do webhook deve conter: webhookId, webhookName, agentPrompt
     try {
+      // Extrair dados da resposta do webhook
+      const webhookId = workflowData.webhookId || workflowData.workflowId || null;
+      const webhookUrl = workflowData.webhookUrl || workflowData.webhookName || null;
+      const agentPrompt = workflowData.agentPrompt || null;
+      const isActive = workflowData.active !== undefined ? workflowData.active : false;
+
       const instance = await this.prisma.workflowInstance.create({
         data: {
           templateId: template.id,
-          n8nWorkflowId: workflowData.workflowId,
-          webhookUrl: workflowData.webhookUrl,
+          n8nWorkflowId: webhookId, // webhookId retornado pelo webhook
+          webhookUrl: webhookUrl, // webhookUrl ou webhookName retornado
           name: dto.name,
           config: dto.config,
+          generatedPrompt: agentPrompt, // agentPrompt retornado pelo webhook
           aiAgentId: dto.aiAgentId,
           tenantId: context.tenantId,
-          isActive: workflowData.active, // Status retornado pelo webhook gestor
+          isActive: isActive, // Status retornado pelo webhook gestor
         },
         include: {
           template: {
@@ -248,11 +242,12 @@ export class WorkflowTemplatesService {
       return instance;
     } catch (error: any) {
       // Se falhar ao salvar no banco, tentar deletar o workflow criado no n8n
-      if (workflowData?.workflowId) {
+      const webhookIdToDelete = workflowData?.webhookId || workflowData?.workflowId;
+      if (webhookIdToDelete) {
         try {
           await this.n8nApiService.deleteWorkflowViaManager(
             context.tenantId,
-            workflowData.workflowId,
+            webhookIdToDelete,
           );
         } catch (deleteError) {
           // Logar erro mas não falhar (workflow pode ser deletado manualmente)
