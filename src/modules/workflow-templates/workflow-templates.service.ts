@@ -214,11 +214,12 @@ export class WorkflowTemplatesService {
       // Extrair dados da resposta do webhook
       // Formato retornado pelo webhook gestor:
       // {
-      //   "workflowId": "7QFyGhRJsHMVNM9B",
-      //   "webhookName": "teste-bfq182nv",
-      //   "webhookPatch": "https://...webhook/bfq182nv", // URL completa do webhook (usar como webhookUrl)
-      //   "agentPrompt": "...",
-      //   "webhookUrl": "https://...editor/7QFyGhRJsHMVNM9B", // URL do editor (usar como webhookUrlEditor)
+      //   "workflowId": "hXaxXEOIQzbzNCir",
+      //   "webhookName": "teste-wth1jzeo",
+      //   "webhookPatch": "wth1jzeo", // Apenas o path
+      //   "agentPrompt": "PROMPT FINAL (System Prompt):",
+      //   "webhookUrl": "https://controle-de-envio-n8n-webhook.y0q0vs.easypanel.host/webhook/wth1jzeo", // URL completa do webhook
+      //   "webhookUrlEditor": "https://controle-de-envio-n8n-editor.y0q0vs.easypanel.host/workflow/hXaxXEOIQzbzNCir", // URL do editor
       //   "status": "created",
       //   "active": false
       // }
@@ -227,28 +228,28 @@ export class WorkflowTemplatesService {
       const agentPrompt = workflowData.agentPrompt || null;
       const isActive = workflowData.active !== undefined ? workflowData.active : false;
       
-      // webhookPatch: URL completa do webhook OU apenas o path
-      // Exemplo: "https://controle-de-envio-n8n-webhook.y0q0vs.easypanel.host/webhook/bfq182nv"
-      // OU apenas: "bfq182nv"
+      // webhookUrl: URL completa do webhook para receber eventos (SEMPRE usar o webhookUrl do retorno)
+      // Exemplo: "https://controle-de-envio-n8n-webhook.y0q0vs.easypanel.host/webhook/wth1jzeo"
+      const webhookUrl = workflowData.webhookUrl || null;
+      
+      // webhookPatch: pode ser apenas o path (ex: "wth1jzeo") ou URL completa
       const webhookPatchValue = workflowData.webhookPatch || null;
       
-      // webhookUrl: URL completa do webhook para receber eventos
-      // Usar webhookPatch (que é a URL do webhook) como webhookUrl
-      const webhookUrl = webhookPatchValue || workflowData.webhookUrl || null;
-      
-      // webhookPath: extrair apenas o path do webhookPatch
-      // Se for URL completa, extrair o path. Se já for path, usar diretamente
+      // webhookPath: extrair apenas o path do webhookUrl ou webhookPatch
+      // Se webhookPatch for apenas path, usar ele. Se webhookUrl estiver disponível, extrair o path dele
       let webhookPath = webhookPatchValue;
-      if (webhookPatchValue && webhookPatchValue.startsWith('http')) {
-        // Extrair apenas o path da URL (ex: /webhook/bfq182nv -> bfq182nv)
+      if (webhookUrl && webhookUrl.startsWith('http')) {
+        // Extrair apenas o path da URL (ex: /webhook/wth1jzeo -> wth1jzeo)
+        const pathMatch = webhookUrl.match(/\/webhook\/([^\/\?]+)/);
+        webhookPath = pathMatch ? pathMatch[1] : webhookUrl.split('/').pop()?.split('?')[0] || webhookPatchValue;
+      } else if (webhookPatchValue && webhookPatchValue.startsWith('http')) {
+        // Se webhookPatch for URL completa, extrair o path
         const pathMatch = webhookPatchValue.match(/\/webhook\/([^\/\?]+)/);
         webhookPath = pathMatch ? pathMatch[1] : webhookPatchValue.split('/').pop()?.split('?')[0] || webhookPatchValue;
       }
       
       // webhookUrlEditor: URL do editor do workflow
-      // Se webhookUrl (do retorno) for URL do editor, usar ele
-      const webhookUrlEditor = workflowData.webhookUrlEditor || 
-        (workflowData.webhookUrl && !webhookPatchValue ? workflowData.webhookUrl : null);
+      const webhookUrlEditor = workflowData.webhookUrlEditor || null;
 
       const instance = await this.prisma.workflowInstance.create({
         data: {
@@ -578,10 +579,23 @@ export class WorkflowTemplatesService {
     for (const connection of connections) {
       try {
         // Buscar webhooks existentes da conexão
-        const existingWebhooks = await this.connectionsService.getWebhooks(
+        const webhooksResponse = await this.connectionsService.getWebhooks(
           connection.id,
           tenantId,
         );
+        
+        // Extrair array de webhooks do formato retornado
+        let existingWebhooks: any[] = [];
+        if (Array.isArray(webhooksResponse) && webhooksResponse.length > 0) {
+          const firstItem = webhooksResponse[0];
+          if (firstItem && Array.isArray(firstItem.webhooks)) {
+            existingWebhooks = firstItem.webhooks;
+          } else if (Array.isArray(firstItem) || (typeof firstItem === 'object' && firstItem.url)) {
+            existingWebhooks = Array.isArray(firstItem) ? firstItem : [firstItem];
+          }
+        } else if (Array.isArray(webhooksResponse)) {
+          existingWebhooks = webhooksResponse;
+        }
 
         // Verificar se o webhook já existe
         const webhookExists = existingWebhooks.some(
@@ -596,14 +610,28 @@ export class WorkflowTemplatesService {
         }
 
         // Adicionar o novo webhook com event "message.any"
-        const newWebhooks = [
-          ...existingWebhooks.map((hook: any) => ({
+        // Filtrar webhooks existentes que têm URL válida e mapear para o formato correto
+        const validExistingWebhooks = existingWebhooks
+          .filter((hook: any) => hook && hook.url && typeof hook.url === 'string' && hook.url.trim())
+          .map((hook: any) => ({
             url: hook.url,
             events: hook.events || [],
             hmac: hook.hmac || null,
             retries: hook.retries || null,
             customHeaders: hook.customHeaders || null,
-          })),
+          }));
+
+        // Validar webhookUrl antes de adicionar
+        if (!webhookUrl || !webhookUrl.trim()) {
+          this.logger.warn(
+            `Webhook URL inválida para workflow ${workflowInstanceId}. Pulando adição na conexão ${connection.name}.`,
+          );
+          continue;
+        }
+
+        // Adicionar o novo webhook
+        const newWebhooks = [
+          ...validExistingWebhooks,
           {
             url: webhookUrl,
             events: ['message.any'],
@@ -663,11 +691,28 @@ export class WorkflowTemplatesService {
     const connectedConnections = [];
     for (const connection of connections) {
       try {
-        const webhooks = await this.connectionsService.getWebhooks(
+        const webhooksResponse = await this.connectionsService.getWebhooks(
           connection.id,
           context.tenantId,
         );
-        const isConnected = webhooks.some(
+        
+        // Extrair array de webhooks do formato retornado
+        // Formato: [{ id: "...", webhooks: [...] }] ou array direto de webhooks
+        let webhooksArray: any[] = [];
+        
+        if (Array.isArray(webhooksResponse) && webhooksResponse.length > 0) {
+          const firstItem = webhooksResponse[0];
+          if (firstItem && Array.isArray(firstItem.webhooks)) {
+            webhooksArray = firstItem.webhooks;
+          } else if (Array.isArray(firstItem) || (typeof firstItem === 'object' && firstItem.url)) {
+            // Formato alternativo: array direto de webhooks
+            webhooksArray = Array.isArray(firstItem) ? firstItem : [firstItem];
+          }
+        } else if (Array.isArray(webhooksResponse)) {
+          webhooksArray = webhooksResponse;
+        }
+        
+        const isConnected = webhooksArray.some(
           (hook: any) => hook.url === instance.webhookUrl,
         );
         if (isConnected) {
@@ -803,10 +848,34 @@ export class WorkflowTemplatesService {
 
     let existingWebhooks: any[];
     try {
-      existingWebhooks = await this.connectionsService.getWebhooks(
+      const webhooksResponse = await this.connectionsService.getWebhooks(
         connectionId,
         context.tenantId,
       );
+      
+      // Extrair array de webhooks do formato retornado
+      // Formato retornado: [{ id: "...", pushName: "...", status: "WORKING", webhooks: [...] }]
+      // Precisamos extrair o array webhooks do primeiro item
+      if (Array.isArray(webhooksResponse) && webhooksResponse.length > 0) {
+        const firstItem = webhooksResponse[0];
+        if (firstItem && Array.isArray(firstItem.webhooks)) {
+          // Formato: [{ id: "...", webhooks: [...] }]
+          existingWebhooks = firstItem.webhooks;
+        } else if (firstItem && typeof firstItem === 'object' && firstItem.url) {
+          // Formato: [{ url: "...", events: [...] }] - array direto de webhooks
+          existingWebhooks = [firstItem];
+        } else if (Array.isArray(firstItem)) {
+          // Formato: [[{ url: "...", events: [...] }]]
+          existingWebhooks = firstItem;
+        } else {
+          existingWebhooks = [];
+        }
+      } else if (Array.isArray(webhooksResponse)) {
+        // Array direto de webhooks
+        existingWebhooks = webhooksResponse;
+      } else {
+        existingWebhooks = [];
+      }
     } catch (error: any) {
       steps[2].status = 'error';
       steps[2].message = `Erro ao buscar webhooks: ${error.message}`;
@@ -817,8 +886,13 @@ export class WorkflowTemplatesService {
       };
     }
 
+    // Filtrar apenas webhooks válidos (com URL)
+    const validExistingWebhooks = existingWebhooks.filter(
+      (hook: any) => hook && hook.url && typeof hook.url === 'string' && hook.url.trim(),
+    );
+
     // Verificar se já está conectado
-    const isAlreadyConnected = existingWebhooks.some(
+    const isAlreadyConnected = validExistingWebhooks.some(
       (hook: any) => hook.url === instance.webhookUrl,
     );
 
@@ -836,9 +910,9 @@ export class WorkflowTemplatesService {
     }
 
     steps[2].status = 'success';
-    steps[2].message = `${existingWebhooks.length} webhook(s) encontrado(s)`;
+    steps[2].message = `${validExistingWebhooks.length} webhook(s) encontrado(s)`;
     steps[2].details = {
-      existingWebhooksCount: existingWebhooks.length,
+      existingWebhooksCount: validExistingWebhooks.length,
       alreadyConnected: false,
     };
 
@@ -851,14 +925,30 @@ export class WorkflowTemplatesService {
     });
 
     // Preparar lista de webhooks incluindo o novo
-    const newWebhooks = [
-      ...existingWebhooks.map((hook: any) => ({
+    // Mapear webhooks existentes válidos (já filtrados e com URL)
+    const mappedExistingWebhooks = validExistingWebhooks
+      .filter((hook: any) => hook && hook.url && typeof hook.url === 'string' && hook.url.trim())
+      .map((hook: any) => ({
         url: hook.url,
         events: hook.events || [],
         hmac: hook.hmac || null,
         retries: hook.retries || null,
         customHeaders: hook.customHeaders || null,
-      })),
+      }));
+
+    // Adicionar o novo webhook se a URL for válida
+    if (!instance.webhookUrl || !instance.webhookUrl.trim()) {
+      steps[3].status = 'error';
+      steps[3].message = 'A automação não possui webhookUrl válido';
+      return {
+        success: false,
+        steps,
+        error: 'A automação não possui webhookUrl válido',
+      };
+    }
+
+    const newWebhooks = [
+      ...mappedExistingWebhooks,
       {
         url: instance.webhookUrl,
         events: ['message.any'],
@@ -904,10 +994,27 @@ export class WorkflowTemplatesService {
 
     let verificationWebhooks: any[];
     try {
-      verificationWebhooks = await this.connectionsService.getWebhooks(
+      const webhooksResponse = await this.connectionsService.getWebhooks(
         connectionId,
         context.tenantId,
       );
+      
+      // Extrair array de webhooks do formato retornado
+      if (Array.isArray(webhooksResponse) && webhooksResponse.length > 0) {
+        const firstItem = webhooksResponse[0];
+        if (firstItem && Array.isArray(firstItem.webhooks)) {
+          verificationWebhooks = firstItem.webhooks;
+        } else if (Array.isArray(firstItem) || (typeof firstItem === 'object' && firstItem.url)) {
+          verificationWebhooks = Array.isArray(firstItem) ? firstItem : [firstItem];
+        } else {
+          verificationWebhooks = [];
+        }
+      } else if (Array.isArray(webhooksResponse)) {
+        verificationWebhooks = webhooksResponse;
+      } else {
+        verificationWebhooks = [];
+      }
+      
       const isConnected = verificationWebhooks.some(
         (hook: any) => hook.url === instance.webhookUrl,
       );
@@ -996,10 +1103,23 @@ export class WorkflowTemplatesService {
     }
 
     // Buscar webhooks existentes
-    const existingWebhooks = await this.connectionsService.getWebhooks(
+    const webhooksResponse = await this.connectionsService.getWebhooks(
       connectionId,
       context.tenantId,
     );
+    
+    // Extrair array de webhooks do formato retornado
+    let existingWebhooks: any[] = [];
+    if (Array.isArray(webhooksResponse) && webhooksResponse.length > 0) {
+      const firstItem = webhooksResponse[0];
+      if (firstItem && Array.isArray(firstItem.webhooks)) {
+        existingWebhooks = firstItem.webhooks;
+      } else if (Array.isArray(firstItem) || (typeof firstItem === 'object' && firstItem.url)) {
+        existingWebhooks = Array.isArray(firstItem) ? firstItem : [firstItem];
+      }
+    } else if (Array.isArray(webhooksResponse)) {
+      existingWebhooks = webhooksResponse;
+    }
 
     // Remover webhook da instância
     const filteredWebhooks = existingWebhooks.filter(

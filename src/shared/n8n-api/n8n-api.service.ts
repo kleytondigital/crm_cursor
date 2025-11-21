@@ -82,6 +82,8 @@ export class N8nApiService {
       // Formato 1: Array com objeto que tem propriedade "response" contendo string JSON
       if (Array.isArray(response.data) && response.data.length > 0) {
         const firstItem = response.data[0];
+        
+        // Verificar se tem propriedade "response" com string JSON
         if (firstItem.response && typeof firstItem.response === 'string') {
           // A resposta está em uma string JSON dentro de response
           try {
@@ -97,7 +99,26 @@ export class N8nApiService {
               'Formato de resposta inválido: string JSON não pode ser parseada',
             );
           }
-        } else {
+        } 
+        // Verificar se tem propriedade "data" dentro do primeiro item (formato: [{ sucess: true, data: {...} }])
+        else if (firstItem.data && typeof firstItem.data === 'object') {
+          // Se tem sucess/success e data, extrair apenas o data
+          responseData = firstItem.data as ManagerWebhookResponseDto<T>;
+          this.logger.log('Resposta extraída de data dentro do primeiro item do array');
+        }
+        // Verificar se tem propriedade "sucess" ou "success" (formato: [{ sucess: true, data: {...} }])
+        else if (firstItem.sucess === true || firstItem.success === true) {
+          // Se tem sucess/success, o data pode estar dentro
+          if (firstItem.data) {
+            responseData = firstItem.data as ManagerWebhookResponseDto<T>;
+            this.logger.log('Resposta extraída de data (com sucess) dentro do primeiro item do array');
+          } else {
+            // Se não tem data, usar o primeiro item diretamente
+            responseData = firstItem as ManagerWebhookResponseDto<T>;
+            this.logger.log('Resposta extraída do primeiro item do array (com sucess)');
+          }
+        }
+        else {
           // Array direto com a resposta
           responseData = firstItem as ManagerWebhookResponseDto<T>;
           this.logger.log('Resposta extraída do primeiro item do array');
@@ -247,44 +268,52 @@ export class N8nApiService {
       await this.callManagerWebhook<CreateWorkflowResponseData>(payload);
 
     // Verificar se a resposta tem dados
-    // Os dados podem estar em response.data ou diretamente na resposta
+    // O callManagerWebhook já extraiu o data se estava em [{ sucess: true, data: {...} }]
+    // Então response pode ser:
+    // 1. { success: true, data: {...} } - precisa extrair data
+    // 2. { workflowId, webhookUrl, ... } - dados diretamente na resposta
+    // 3. response já é o data extraído (quando veio de [{ sucess: true, data: {...} }])
     let workflowData: CreateWorkflowResponseData;
 
-    if (response && response.data) {
-      // Formato padrão: { success: true, data: {...} }
-      workflowData = response.data;
+    // Verificar se tem estrutura { success: true, data: {...} }
+    if (response && typeof response === 'object' && 'data' in response && (response as any).data) {
+      // Formato: { success: true, data: {...} }
+      workflowData = (response as any).data as CreateWorkflowResponseData;
       this.logger.log(
         `Dados do workflow criado (em response.data): workflowId=${workflowData.workflowId}`,
       );
-    } else if (
+    } 
+    // Verificar se response já tem os campos do workflow (dados diretamente ou já extraídos)
+    else if (
       response &&
+      typeof response === 'object' &&
       ((response as any).workflowId ||
         (response as any).webhookUrl ||
         (response as any).webhookName ||
-        (response as any).webhookPatch)
+        (response as any).webhookPatch ||
+        (response as any).agentPrompt)
     ) {
-      // Dados diretamente na resposta (formato alternativo)
+      // Dados diretamente na resposta ou já extraídos do data
       const resp = response as any;
       workflowData = {
         workflowId: resp.workflowId || '',
         webhookName: resp.webhookName || '',
         webhookPatch: resp.webhookPatch || '', // Pode vir como URL completa ou path
         agentPrompt: resp.agentPrompt || '',
-        webhookUrl: resp.webhookUrl || '', // URL do editor
-        webhookUrlEditor: resp.webhookUrlEditor,
-        status: resp.status,
-        active: resp.active,
+        webhookUrl: resp.webhookUrl || '', // URL completa do webhook para receber eventos
+        webhookUrlEditor: resp.webhookUrlEditor || '',
+        status: resp.status || '',
+        active: resp.active !== undefined ? resp.active : false,
       };
       this.logger.log(
-        `Dados do workflow criado (diretamente na resposta): workflowId=${workflowData.workflowId}`,
+        `Dados do workflow criado (diretamente na resposta): workflowId=${workflowData.workflowId}, webhookUrl=${workflowData.webhookUrl}`,
       );
     } else {
       this.logger.error(
         `Webhook gestor não retornou dados válidos: ${JSON.stringify(response)}`,
       );
       throw new BadRequestException(
-        `${JSON.stringify(response)} - Webhook gestor não retornou dados do workflow criado. Verifique os logs para mais detalhes.`,
-        
+        `Webhook gestor não retornou dados do workflow criado. Resposta: ${JSON.stringify(response)}`,
       );
     }
 

@@ -237,12 +237,23 @@ export class ConnectionsService {
       },
     });
 
-    const webhooks =
-      response?.webhooks ??
-      (Array.isArray(response) ? response : []) ??
-      [];
-
-    return webhooks;
+    // O retorno pode ser:
+    // 1. Array direto: [{ id: "...", webhooks: [...] }]
+    // 2. Objeto com webhooks: { webhooks: [...] }
+    // 3. Array de webhooks: [{ url: "...", events: [...] }]
+    
+    if (Array.isArray(response) && response.length > 0) {
+      // Se for array, retornar como está (pode ser array de objetos com webhooks ou array direto de webhooks)
+      return response;
+    }
+    
+    if (response && typeof response === 'object' && Array.isArray(response.webhooks)) {
+      // Se for objeto com propriedade webhooks
+      return response.webhooks;
+    }
+    
+    // Fallback: retornar array vazio
+    return [];
   }
 
   async updateWebhooks(
@@ -276,23 +287,64 @@ export class ConnectionsService {
 
     const connection = await this.getConnectionOrThrow(id, tenantId);
 
+    // Filtrar apenas webhooks válidos (com URL obrigatória)
+    // IMPORTANTE: Validar URL ANTES de mapear para evitar criar webhooks vazios
+    const validWebhooks = webhooks
+      .filter((hook) => {
+        // Validar que o hook existe e tem URL válida
+        if (!hook || !hook.url || typeof hook.url !== 'string') {
+          this.logger.warn(
+            `Webhook inválido ignorado (sem URL): ${JSON.stringify(hook)}`,
+          );
+          return false;
+        }
+        const trimmedUrl = hook.url.trim();
+        if (!trimmedUrl) {
+          this.logger.warn(`Webhook com URL vazia ignorado`);
+          return false;
+        }
+        return true;
+      })
+      .map((hook) => ({
+        url: hook.url.trim(),
+        events: hook.events || [],
+        hmac: hook.hmac ?? null,
+        retries: hook.retries ?? null,
+        customHeaders:
+          hook.customHeaders === undefined ? null : hook.customHeaders,
+      }));
+
+    if (validWebhooks.length === 0) {
+      throw new BadRequestException('Nenhum webhook válido fornecido. Todos os webhooks devem ter uma URL válida.');
+    }
+
+    if (validWebhooks.length > 3) {
+      throw new BadRequestException(
+        'É permitido configurar no máximo 3 webhooks.',
+      );
+    }
+
+    this.logger.log(
+      `Atualizando webhooks da conexão ${connection.name} (${connection.sessionName}): ${validWebhooks.length} webhook(s) válido(s)`,
+    );
+    this.logger.debug(
+      `Webhooks a serem enviados: ${JSON.stringify(validWebhooks.map((h) => ({ url: h.url, events: h.events })))}`,
+    );
+
     await this.n8nService.execute({
       action: 'update',
       payload: {
         session: connection.sessionName,
         name: connection.name,
         config: {
-          webhooks: webhooks.map((hook) => ({
-            url: hook.url,
-            events: hook.events,
-            hmac: hook.hmac ?? null,
-            retries: hook.retries ?? null,
-            customHeaders:
-              hook.customHeaders === undefined ? null : hook.customHeaders,
-          })),
+          webhooks: validWebhooks,
         },
       },
     });
+
+    this.logger.log(
+      `Webhooks da conexão ${connection.name} atualizados com sucesso`,
+    );
 
     return { success: true };
   }
@@ -307,12 +359,38 @@ export class ConnectionsService {
     const connection = await this.getConnectionOrThrow(connectionId, tenantId);
 
     // Buscar webhooks da conexão
-    const webhooks = await this.getWebhooks(connectionId, tenantId);
-    const webhookUrls = webhooks.map((hook: any) => hook.url);
+    // O retorno é um array, e o primeiro elemento contém a propriedade 'webhooks'
+    const webhooksResponse = await this.getWebhooks(connectionId, tenantId);
+    
+    // Extrair array de webhooks do formato retornado
+    let webhookUrls: string[] = [];
+    
+    if (Array.isArray(webhooksResponse) && webhooksResponse.length > 0) {
+      // Formato: [{ id: "...", webhooks: [...] }]
+      const firstItem = webhooksResponse[0];
+      if (firstItem && Array.isArray(firstItem.webhooks)) {
+        webhookUrls = firstItem.webhooks.map((hook: any) => hook.url);
+      } else if (Array.isArray(firstItem) || typeof firstItem === 'object' && firstItem.url) {
+        // Formato alternativo: array direto de webhooks ou objeto com url
+        webhookUrls = Array.isArray(firstItem)
+          ? firstItem.map((hook: any) => hook.url).filter(Boolean)
+          : [firstItem.url].filter(Boolean);
+      }
+    } else if (Array.isArray(webhooksResponse)) {
+      // Se for array direto de webhooks
+      webhookUrls = webhooksResponse.map((hook: any) => hook.url).filter(Boolean);
+    }
 
     if (webhookUrls.length === 0) {
+      this.logger.log(
+        `Nenhum webhook encontrado para conexão ${connectionId}. Resposta recebida: ${JSON.stringify(webhooksResponse).substring(0, 200)}`,
+      );
       return [];
     }
+
+    this.logger.log(
+      `Buscando instâncias de workflow com webhookUrls: ${webhookUrls.join(', ')}`,
+    );
 
     // Buscar instâncias de workflow que têm webhookUrl correspondente
     const instances = await this.prisma.workflowInstance.findMany({
@@ -343,6 +421,10 @@ export class ConnectionsService {
         },
       },
     });
+
+    this.logger.log(
+      `Encontradas ${instances.length} instância(s) de workflow conectada(s) à conexão ${connectionId}`,
+    );
 
     return instances;
   }
