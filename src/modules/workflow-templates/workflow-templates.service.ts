@@ -264,6 +264,8 @@ export class WorkflowTemplatesService {
           name: dto.name,
           config: dto.config,
           generatedPrompt: agentPrompt, // agentPrompt retornado pelo webhook
+          testMode: dto.testMode || false, // Modo teste
+          testPhone: dto.testPhone || null, // Telefone para modo teste
           aiAgentId: dto.aiAgentId,
           tenantId: context.tenantId,
           isActive: isActive, // Status retornado pelo webhook gestor
@@ -464,16 +466,31 @@ export class WorkflowTemplatesService {
       }
 
       // Atualizar instância no banco com status do n8n
+      const updateDataWithConfig: any = {
+        name: dto.name || instance.name,
+        config: dto.config,
+        aiAgentId: dto.aiAgentId,
+        // Se atualizar config, desativa para reativar manualmente (melhor prática)
+        // Mas mantém o status retornado pelo n8n se fornecido
+        isActive: workflowData.active !== undefined ? workflowData.active : false,
+      };
+
+      // Atualizar modo teste se fornecido
+      if (dto.testMode !== undefined) {
+        updateDataWithConfig.testMode = dto.testMode;
+        if (!dto.testMode) {
+          updateDataWithConfig.testPhone = null;
+        }
+      }
+
+      // Atualizar telefone de teste se fornecido
+      if (dto.testPhone !== undefined) {
+        updateDataWithConfig.testPhone = dto.testPhone || null;
+      }
+
       return this.prisma.workflowInstance.update({
         where: { id },
-        data: {
-          name: dto.name || instance.name,
-          config: dto.config,
-          aiAgentId: dto.aiAgentId,
-          // Se atualizar config, desativa para reativar manualmente (melhor prática)
-          // Mas mantém o status retornado pelo n8n se fornecido
-          isActive: workflowData.active !== undefined ? workflowData.active : false,
-        },
+        data: updateDataWithConfig,
         include: {
           template: {
             select: {
@@ -493,13 +510,29 @@ export class WorkflowTemplatesService {
       });
     }
 
-    // Se não mudar config, apenas atualizar metadados
+    // Se não mudar config, apenas atualizar metadados (incluindo modo teste)
+    const updateData: any = {
+      name: dto.name || instance.name,
+      aiAgentId: dto.aiAgentId !== undefined ? dto.aiAgentId : instance.aiAgentId,
+    };
+
+    // Atualizar modo teste se fornecido
+    if (dto.testMode !== undefined) {
+      updateData.testMode = dto.testMode;
+      // Se desativar modo teste, limpar telefone
+      if (!dto.testMode) {
+        updateData.testPhone = null;
+      }
+    }
+
+    // Atualizar telefone de teste se fornecido
+    if (dto.testPhone !== undefined) {
+      updateData.testPhone = dto.testPhone || null;
+    }
+
     return this.prisma.workflowInstance.update({
       where: { id },
-      data: {
-        name: dto.name || instance.name,
-        aiAgentId: dto.aiAgentId !== undefined ? dto.aiAgentId : instance.aiAgentId,
-      },
+      data: updateData,
       include: {
         template: {
           select: {

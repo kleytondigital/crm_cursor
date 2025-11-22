@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bot, Plus, Power, PowerOff, Settings, Trash2, Link2 } from 'lucide-react'
+import { Bot, Plus, Power, PowerOff, Settings, Trash2, Link2, TestTube } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api'
 import Navigation from '@/components/Navigation'
@@ -28,6 +28,8 @@ interface WorkflowInstance {
   webhookUrl?: string
   config?: Record<string, any>
   generatedPrompt?: string | null
+  testMode?: boolean
+  testPhone?: string | null
   template: {
     id: string
     name: string
@@ -97,6 +99,42 @@ export default function AutomacoesPage() {
     } catch (error) {
       console.error('Erro ao ativar/desativar:', error)
       alert('Erro ao alterar status da automação')
+    }
+  }
+
+  const handleToggleTestMode = async (id: string, enabled: boolean) => {
+    try {
+      // Se estiver ativando, perguntar o telefone
+      if (enabled) {
+        const phone = prompt('Digite o telefone para modo teste (apenas números, ex: 5562999999999):')
+        if (!phone) return // Usuário cancelou
+        
+        const cleanPhone = phone.replace(/[^\d]/g, '')
+        if (cleanPhone.length !== 13 || !cleanPhone.startsWith('55')) {
+          alert('Telefone inválido. Deve ter 13 dígitos no formato 5562999999999 (código do país + DDD + número)')
+          return
+        }
+
+        await apiRequest(`/workflow-templates/instances/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            testMode: true,
+            testPhone: `${cleanPhone}@c.us`,
+          }),
+        })
+      } else {
+        await apiRequest(`/workflow-templates/instances/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            testMode: false,
+          }),
+        })
+      }
+
+      await loadData()
+    } catch (error: any) {
+      console.error('Erro ao atualizar modo teste:', error)
+      alert(error.message || 'Erro ao atualizar modo teste')
     }
   }
 
@@ -206,6 +244,36 @@ export default function AutomacoesPage() {
                       {instance.isActive ? 'Ativa' : 'Inativa'}
                     </span>
                   </div>
+                  
+                  {/* Modo Teste */}
+                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-background-muted/40 p-2">
+                    <div className="flex items-center gap-2">
+                      <TestTube className={`h-4 w-4 ${instance.testMode ? 'text-yellow-400' : 'text-text-muted'}`} />
+                      <span className="text-xs text-text-muted">Modo Teste:</span>
+                      <span className={`text-xs font-medium ${instance.testMode ? 'text-yellow-400' : 'text-text-muted'}`}>
+                        {instance.testMode ? 'Ativado' : 'Desativado'}
+                      </span>
+                      {instance.testMode && instance.testPhone && (
+                        <span className="text-xs text-text-muted ml-1">
+                          ({instance.testPhone.replace('@c.us', '')})
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleToggleTestMode(instance.id, !instance.testMode)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 ${
+                        instance.testMode ? 'bg-yellow-500' : 'bg-white/10'
+                      }`}
+                      title={instance.testMode ? 'Desativar modo teste' : 'Ativar modo teste'}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          instance.testMode ? 'translate-x-4' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
                   {instance.webhookUrl && (
                     <div className="rounded bg-white/5 p-2 text-xs text-text-muted">
                       <span className="font-semibold">Webhook:</span>{' '}

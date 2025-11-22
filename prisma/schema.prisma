@@ -557,6 +557,8 @@ model WorkflowInstance {
   kanbanEnabled    Boolean  @default(false) // Se a função Kanban está ativada
   kanbanPrompt     String?  @db.Text // Prompt específico da função Kanban
   kanbanStageIds   Json? // IDs dos estágios configurados para Kanban
+  testMode         Boolean  @default(false) // Modo teste (true/false)
+  testPhone        String? // Telefone para modo teste (formato: 5562999999999@c.us)
   aiAgentId        String?
   tenantId         String
   isActive         Boolean  @default(false) // false até ser ativado no n8n
