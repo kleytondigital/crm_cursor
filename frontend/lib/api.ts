@@ -2,8 +2,21 @@
  * Configuração centralizada da API
  */
 
+import type { NextRequest } from 'next/server'
+
 // URL base da API usando variável de ambiente
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+
+/**
+ * Helper para obter headers de autenticação de uma requisição Next.js
+ */
+export function getAuthHeaders(req: NextRequest): Record<string, string> {
+  const authorization = req.headers.get('authorization')
+  if (authorization) {
+    return { Authorization: authorization }
+  }
+  return {}
+}
 
 /**
  * Helper para fazer requisições autenticadas à API

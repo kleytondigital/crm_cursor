@@ -174,7 +174,7 @@ export default function PromptConfigModal({
 
     try {
       // Separar prompt base das instruções Kanban
-      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs
+      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS[\s\S]*?(?=\n## |\n\n## |$)/g
       const kanbanMatch = directEditPrompt.match(kanbanPattern)
       let promptBase = directEditPrompt.replace(kanbanPattern, '').trim()
       const kanbanPromptText = kanbanMatch ? kanbanMatch[0].trim() : null
@@ -382,7 +382,7 @@ export default function PromptConfigModal({
     let newPrompt = directEditPrompt || generatedPrompt || ''
     
     // Remover instruções antigas de Kanban se existirem (pattern melhorado)
-    const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs
+    const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS[\s\S]*?(?=\n## |\n\n## |$)/g
     newPrompt = newPrompt.replace(kanbanPattern, '').trim()
     
     // Adicionar novas instruções apenas se não existirem
@@ -464,7 +464,7 @@ export default function PromptConfigModal({
     const basePrompt = directEditPrompt || generatedPrompt || ''
     if (kanbanEnabled && kanbanPrompt) {
       // Remover instruções antigas de Kanban do prompt base
-      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs
+      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS[\s\S]*?(?=\n## |\n\n## |$)/g
       const cleanedBase = basePrompt.replace(kanbanPattern, '').trim()
       return `${cleanedBase}\n\n${kanbanPrompt}`.trim()
     }
