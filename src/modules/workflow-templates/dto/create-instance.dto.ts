@@ -1,4 +1,4 @@
-import { IsString, IsObject, IsOptional } from 'class-validator';
+import { IsString, IsObject, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateWorkflowInstanceDto {
   @IsString()
@@ -10,5 +10,13 @@ export class CreateWorkflowInstanceDto {
   @IsOptional()
   @IsString()
   aiAgentId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  testMode?: boolean; // Modo teste (true/false)
+
+  @IsOptional()
+  @IsString()
+  testPhone?: string; // Telefone para modo teste (formato: 5562999999999@c.us)
 }
 

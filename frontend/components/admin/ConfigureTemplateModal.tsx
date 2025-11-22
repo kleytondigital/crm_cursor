@@ -36,6 +36,10 @@ export default function ConfigureTemplateModal({
   const [error, setError] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  
+  // Estados para modo teste
+  const [testMode, setTestMode] = useState(false)
+  const [testPhone, setTestPhone] = useState('')
 
   const handleVariableChange = (varName: string, value: any) => {
     setConfig((prev) => ({
@@ -52,6 +56,19 @@ export default function ConfigureTemplateModal({
     if (!name.trim()) {
       setError('Nome da automação é obrigatório')
       return false
+    }
+
+    // Validar telefone de teste se modo teste estiver ativado
+    if (testMode) {
+      if (!testPhone.trim()) {
+        errors.testPhone = 'Telefone para modo teste é obrigatório'
+      } else {
+        // Validar formato do telefone (apenas números, sem @c.us)
+        const cleanPhone = testPhone.replace(/[^\d]/g, '')
+        if (cleanPhone.length !== 13 || !cleanPhone.startsWith('55')) {
+          errors.testPhone = 'Telefone deve ter 13 dígitos no formato 5562999999999 (código do país + DDD + número)'
+        }
+      }
     }
 
     // Validar cada campo
@@ -120,11 +137,21 @@ export default function ConfigureTemplateModal({
     setLoading(true)
 
     try {
+      // Preparar telefone de teste com @c.us se modo teste estiver ativado
+      let finalTestPhone: string | undefined = undefined
+      if (testMode && testPhone.trim()) {
+        // Limpar telefone (remover caracteres não numéricos) e adicionar @c.us
+        const cleanPhone = testPhone.replace(/[^\d]/g, '')
+        finalTestPhone = `${cleanPhone}@c.us`
+      }
+
       await apiRequest(`/workflow-templates/${template.id}/instantiate`, {
         method: 'POST',
         body: JSON.stringify({
           name,
           config,
+          testMode: testMode || undefined,
+          testPhone: finalTestPhone,
         }),
       })
 
@@ -404,6 +431,77 @@ export default function ConfigureTemplateModal({
               className="w-full rounded-xl border border-white/10 bg-background-muted px-4 py-3 text-white placeholder:text-text-muted focus:border-brand-primary focus:outline-none"
               placeholder="Ex: Atendimento Automático - Vendas"
             />
+          </div>
+
+          {/* Modo Teste */}
+          <div className="space-y-3 rounded-xl border border-white/10 bg-background-muted/50 p-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="testMode"
+                checked={testMode}
+                onChange={(e) => {
+                  setTestMode(e.target.checked)
+                  if (!e.target.checked) {
+                    setTestPhone('')
+                    // Limpar erro de telefone quando desativar modo teste
+                    if (validationErrors.testPhone) {
+                      setValidationErrors((prev) => {
+                        const newErrors = { ...prev }
+                        delete newErrors.testPhone
+                        return newErrors
+                      })
+                    }
+                  }
+                }}
+                className="h-5 w-5 rounded border-white/20 bg-background-card text-brand-primary focus:ring-2 focus:ring-brand-primary focus:ring-offset-0"
+              />
+              <label htmlFor="testMode" className="text-sm font-medium text-white cursor-pointer">
+                Ativar Modo Teste
+              </label>
+            </div>
+            <p className="text-xs text-text-muted pl-8">
+              No modo teste, o agente responderá apenas para o número especificado. Útil para testar a automação antes de ativar.
+            </p>
+
+            {/* Campo de Telefone de Teste (visível quando modo teste estiver ativado) */}
+            {testMode && (
+              <div className="pl-8">
+                <label className="mb-2 block text-sm font-medium text-text-muted">
+                  Telefone para Teste <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={testPhone}
+                  onChange={(e) => {
+                    // Permitir apenas números
+                    const value = e.target.value.replace(/[^\d]/g, '')
+                    setTestPhone(value)
+                    // Limpar erro quando começar a digitar
+                    if (validationErrors.testPhone) {
+                      setValidationErrors((prev) => {
+                        const newErrors = { ...prev }
+                        delete newErrors.testPhone
+                        return newErrors
+                      })
+                    }
+                  }}
+                  className={`w-full rounded-xl border px-4 py-3 text-white placeholder:text-text-muted focus:outline-none ${
+                    validationErrors.testPhone
+                      ? 'border-red-500/50 bg-red-500/5 focus:border-red-500'
+                      : 'border-white/10 bg-background-muted focus:border-brand-primary'
+                  }`}
+                  placeholder="5562999999999"
+                  maxLength={13}
+                />
+                {validationErrors.testPhone && (
+                  <p className="mt-1 text-xs text-red-400">{validationErrors.testPhone}</p>
+                )}
+                <p className="mt-1 text-xs text-text-muted">
+                  Formato: código do país (55) + DDD (62) + número (999999999). O sistema adicionará automaticamente @c.us
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Variáveis Configuráveis */}

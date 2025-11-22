@@ -16,6 +16,7 @@ import { UpdateWorkflowTemplateDto } from './dto/update-template.dto';
 import { CreateWorkflowInstanceDto } from './dto/create-instance.dto';
 import { UpdateWorkflowInstanceDto } from './dto/update-instance.dto';
 import { CreatePromptDto } from './dto/create-prompt.dto';
+import { UpdatePromptDto } from './dto/update-prompt.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 
 @Controller('workflow-templates')
@@ -194,7 +195,7 @@ export class WorkflowTemplatesController {
   @Patch('instances/:id/prompt')
   updatePrompt(
     @Param('id') id: string,
-    @Body() dto: { prompt: string },
+    @Body() dto: UpdatePromptDto,
     @Request() req: any,
   ) {
     const context = {
@@ -202,7 +203,7 @@ export class WorkflowTemplatesController {
       tenantId: req.user.companyId,
       role: req.user.role,
     };
-    return this.workflowTemplatesService.updatePrompt(id, dto.prompt, context);
+    return this.workflowTemplatesService.updatePrompt(id, dto, context);
   }
 
   @Delete('instances/:id/prompt')

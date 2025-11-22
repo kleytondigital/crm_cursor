@@ -33,6 +33,8 @@ export interface CreateWorkflowRequestDto extends ManagerWebhookRequestDto {
   automationName: string;
   workflowJson: any; // JSON do workflow processado (com variáveis substituídas)
   variables: Record<string, any>; // Valores das variáveis para referência
+  phoneteste?: string; // Telefone para modo teste (formato: 5562999999999@c.us)
+  modoteste?: string; // Modo teste ("true" ou "false")
 }
 
 /**

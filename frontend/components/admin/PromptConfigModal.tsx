@@ -40,6 +40,8 @@ export default function PromptConfigModal({
   const [successMessage, setSuccessMessage] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [kanbanEnabled, setKanbanEnabled] = useState(false)
+  const [kanbanPrompt, setKanbanPrompt] = useState<string | null>(null)
+  const [kanbanStageIds, setKanbanStageIds] = useState<string[]>([])
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set())
   const [loadingStages, setLoadingStages] = useState(false)
@@ -69,27 +71,50 @@ export default function PromptConfigModal({
 
   const loadCurrentPrompt = async () => {
     try {
-      // Primeiro, tentar usar o prompt que já vem na instance
-      if (instance.generatedPrompt) {
-        setGeneratedPrompt(instance.generatedPrompt)
-        setDirectEditPrompt(instance.generatedPrompt)
-        setPromptAjuste(instance.generatedPrompt)
-        return
-      }
-
-      // Se não tiver, buscar do servidor
-      const data = await apiRequest<{ prompt: string | null }>(
-        `/workflow-templates/instances/${instance.id}/prompt`
-      )
+      // Buscar do servidor para obter também a configuração Kanban
+      const data = await apiRequest<{
+        prompt: string | null
+        kanbanEnabled: boolean
+        kanbanPrompt: string | null
+        kanbanStageIds: string[] | null
+        fullPrompt?: string
+      }>(`/workflow-templates/instances/${instance.id}/prompt`)
+      
+      // Carregar prompt base
       if (data.prompt) {
         setGeneratedPrompt(data.prompt)
         setDirectEditPrompt(data.prompt)
         setPromptAjuste(data.prompt)
       } else {
-        // Se não houver prompt salvo, limpar os campos
-        setGeneratedPrompt(null)
-        setDirectEditPrompt('')
-        setPromptAjuste('')
+        // Se não houver prompt salvo, tentar usar o da instance
+        if (instance.generatedPrompt) {
+          setGeneratedPrompt(instance.generatedPrompt)
+          setDirectEditPrompt(instance.generatedPrompt)
+          setPromptAjuste(instance.generatedPrompt)
+        } else {
+          setGeneratedPrompt(null)
+          setDirectEditPrompt('')
+          setPromptAjuste('')
+        }
+      }
+
+      // Carregar configuração Kanban
+      if (data.kanbanEnabled !== undefined) {
+        setKanbanEnabled(data.kanbanEnabled)
+      }
+      
+      if (data.kanbanPrompt) {
+        setKanbanPrompt(data.kanbanPrompt)
+      }
+      
+      if (data.kanbanStageIds && data.kanbanStageIds.length > 0) {
+        setKanbanStageIds(data.kanbanStageIds)
+        setSelectedStages(new Set(data.kanbanStageIds))
+      }
+
+      // Se houver estágios selecionados, carregar estágios para exibição
+      if (data.kanbanEnabled && data.kanbanStageIds && data.kanbanStageIds.length > 0) {
+        await loadStages()
       }
     } catch (error) {
       console.error('Erro ao carregar prompt:', error)
@@ -148,11 +173,39 @@ export default function PromptConfigModal({
     setSuccessMessage('')
 
     try {
+      // Separar prompt base das instruções Kanban
+      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs
+      const kanbanMatch = directEditPrompt.match(kanbanPattern)
+      let promptBase = directEditPrompt.replace(kanbanPattern, '').trim()
+      const kanbanPromptText = kanbanMatch ? kanbanMatch[0].trim() : null
+
+      // Preparar payload com prompt base e configuração Kanban
+      const payload: {
+        prompt: string
+        kanbanEnabled?: boolean
+        kanbanPrompt?: string | null
+        kanbanStageIds?: string[] | null
+      } = {
+        prompt: promptBase,
+      }
+
+      // Se houver prompt kanban, ativar e salvar
+      if (kanbanPromptText && kanbanEnabled && selectedStages.size > 0) {
+        payload.kanbanEnabled = true
+        payload.kanbanPrompt = kanbanPromptText
+        payload.kanbanStageIds = Array.from(selectedStages)
+      } else {
+        // Se não houver, desativar
+        payload.kanbanEnabled = false
+        payload.kanbanPrompt = null
+        payload.kanbanStageIds = null
+      }
+
       const data = await apiRequest<{ prompt: string; instance: any }>(
         `/workflow-templates/instances/${instance.id}/prompt`,
         {
           method: 'PATCH',
-          body: JSON.stringify({ prompt: directEditPrompt.trim() }),
+          body: JSON.stringify(payload),
         }
       )
 
@@ -283,12 +336,15 @@ export default function PromptConfigModal({
     selectedStagesData.forEach((stage) => {
       instructions += `- **${stage.name}** (Status: ${stage.status})\n`
     })
-
+    instructions += `\n### Dados Importantes:\n\n`
+    instructions += `phone: {{ $json.phone }}\n`
+    instructions += `data de agora: {{ $now }}\n`
+    instructions += `url: https://backcrm.aoseudispor.com.br\n`
     instructions += `\n### COMO USAR:\n\n`
     instructions += `Quando você identificar que o lead deve ser movido para um estágio específico, você deve:\n\n`
     instructions += `1. Identificar o estágio apropriado baseado na interação com o lead\n`
     instructions += `2. Chamar a tool de atualização de estágio com o telefone do lead e o status correspondente\n`
-    instructions += `3. O formato é: PATCH /webhooks/n8n/leads/{phone}/status com body: { "status": "STATUS_DO_ESTÁGIO" }\n\n`
+    instructions += `3. O formato é: PATCH {url}/webhooks/n8n/leads/{phone}/status com body: { "status": "STATUS_DO_ESTÁGIO" }\n\n`
     instructions += `### EXEMPLOS DE USO:\n\n`
     
     selectedStagesData.forEach((stage) => {
@@ -314,7 +370,7 @@ export default function PromptConfigModal({
     return instructions
   }
 
-  const handleApplyKanbanToPrompt = () => {
+  const handleApplyKanbanToPrompt = async () => {
     if (!kanbanEnabled || selectedStages.size === 0) {
       setError('Selecione pelo menos um estágio para aplicar ao prompt')
       return
@@ -336,9 +392,38 @@ export default function PromptConfigModal({
     
     setDirectEditPrompt(newPrompt.trim())
     setGeneratedPrompt(newPrompt.trim())
-    setSuccessMessage('Instruções de Kanban adicionadas ao prompt! Agora salve o prompt para aplicar as alterações.')
+
+    // Salvar automaticamente a configuração Kanban
+    setLoading(true)
+    try {
+      const promptBase = newPrompt.replace(kanbanPattern, '').trim()
+      
+      const payload = {
+        prompt: promptBase,
+        kanbanEnabled: true,
+        kanbanPrompt: kanbanInstructions,
+        kanbanStageIds: Array.from(selectedStages),
+      }
+
+      await apiRequest(`/workflow-templates/instances/${instance.id}/prompt`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+
+      setSuccessMessage('Instruções de Kanban aplicadas e salvas com sucesso!')
+    } catch (error: any) {
+      console.error('Erro ao salvar configuração Kanban:', error)
+      setError(error.response?.data?.message || error.message || 'Erro ao salvar configuração Kanban')
+      // Ainda mostrar no prompt mesmo se der erro ao salvar
+      setSuccessMessage('Instruções de Kanban adicionadas localmente. Erro ao salvar no servidor.')
+    } finally {
+      setLoading(false)
+    }
     
-    setTimeout(() => setSuccessMessage(''), 3000)
+    setTimeout(() => {
+      setSuccessMessage('')
+      setError('')
+    }, 3000)
   }
 
   const handleClearPrompt = async () => {
@@ -373,6 +458,18 @@ export default function PromptConfigModal({
   const canCreateSystem = variables.length > 0 && variables.every(v => v.value || v.value === 0)
   const canAdjust = promptAjuste && promptAjuste.trim() && textAjuste && textAjuste.trim()
   const hasPrompt = generatedPrompt || directEditPrompt
+
+  // Função para obter prompt completo (base + kanban) para preview
+  const getFullPromptForPreview = (): string => {
+    const basePrompt = directEditPrompt || generatedPrompt || ''
+    if (kanbanEnabled && kanbanPrompt) {
+      // Remover instruções antigas de Kanban do prompt base
+      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs
+      const cleanedBase = basePrompt.replace(kanbanPattern, '').trim()
+      return `${cleanedBase}\n\n${kanbanPrompt}`.trim()
+    }
+    return basePrompt
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -713,9 +810,26 @@ export default function PromptConfigModal({
               </div>
               {showPreview && (
                 <div className="mt-3 rounded-lg border border-white/5 bg-background-subtle/60 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    {kanbanEnabled && kanbanPrompt && (
+                      <span className="rounded-full bg-brand-primary/20 px-2 py-0.5 text-xs text-brand-secondary">
+                        Kanban Ativado
+                      </span>
+                    )}
+                  </div>
                   <pre className="whitespace-pre-wrap break-words text-xs text-white font-mono max-h-96 overflow-y-auto">
-                    {generatedPrompt || directEditPrompt}
+                    {getFullPromptForPreview()}
                   </pre>
+                  {kanbanEnabled && kanbanPrompt && (
+                    <div className="mt-3 rounded-lg border border-brand-primary/30 bg-brand-primary/5 p-3">
+                      <p className="text-xs text-brand-secondary">
+                        <strong>Prompt Base:</strong> {directEditPrompt || generatedPrompt ? 'Configurado' : 'Não configurado'}
+                      </p>
+                      <p className="text-xs text-brand-secondary mt-1">
+                        <strong>Função Kanban:</strong> Ativada com {selectedStages.size} estágio(s) selecionado(s)
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

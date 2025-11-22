@@ -254,6 +254,8 @@ export class N8nApiService {
     automationName: string,
     workflowJson: any, // JSON do workflow processado (com variáveis substituídas)
     variables: Record<string, any>, // Valores das variáveis para referência
+    testPhone?: string, // Telefone para modo teste (formato: 5562999999999@c.us)
+    testMode?: boolean, // Modo teste (true/false)
   ): Promise<CreateWorkflowResponseData> {
     const payload: CreateWorkflowRequestDto = {
       action: 'create',
@@ -262,6 +264,8 @@ export class N8nApiService {
       automationName,
       workflowJson, // JSON do workflow processado
       variables, // Valores das variáveis para referência
+      ...(testPhone && { phoneteste: testPhone }), // Enviar telefone de teste se fornecido
+      ...(testMode !== undefined && { modoteste: testMode ? 'true' : 'false' }), // Enviar modo teste como string "true" ou "false"
     };
 
     const response =

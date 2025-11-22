@@ -201,6 +201,8 @@ export class WorkflowTemplatesService {
         dto.name, // automationName
         processedWorkflow, // JSON do workflow processado (com variáveis substituídas)
         dto.config, // variables (valores das variáveis para referência)
+        dto.testPhone, // telefone para modo teste (formato: 5562999999999@c.us)
+        dto.testMode, // modo teste (true/false)
       );
     } catch (error: any) {
       throw new BadRequestException(
@@ -1257,17 +1259,23 @@ export class WorkflowTemplatesService {
 
   /**
    * Atualizar prompt diretamente (edição manual)
+   * Também atualiza a configuração Kanban se fornecida
    */
   async updatePrompt(
     instanceId: string,
-    prompt: string,
+    dto: {
+      prompt: string;
+      kanbanEnabled?: boolean;
+      kanbanPrompt?: string;
+      kanbanStageIds?: string[];
+    },
     context: AuthContext,
   ): Promise<{ prompt: string; instance: any }> {
     // Verificar se a instância existe e pertence ao tenant
     const instance = await this.findOneInstance(instanceId, context);
 
     // Validar prompt
-    if (!prompt || !prompt.trim()) {
+    if (!dto.prompt || !dto.prompt.trim()) {
       throw new BadRequestException('Prompt não pode estar vazio');
     }
 
@@ -1284,8 +1292,24 @@ export class WorkflowTemplatesService {
       );
     }
 
+    // Preparar prompt completo (base + kanban se ativado)
+    let finalPrompt = dto.prompt.trim();
+    
+    // Se kanban estiver ativado e tiver prompt kanban, concatenar
+    if (dto.kanbanEnabled && dto.kanbanPrompt) {
+      // Remover instruções antigas de Kanban do prompt base
+      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs;
+      finalPrompt = finalPrompt.replace(kanbanPattern, '').trim();
+      // Adicionar prompt kanban
+      finalPrompt = `${finalPrompt}\n\n${dto.kanbanPrompt}`.trim();
+    } else if (!dto.kanbanEnabled) {
+      // Se kanban desativado, remover instruções de Kanban
+      const kanbanPattern = /## FUNCIONALIDADE: GERENCIAMENTO DE ESTÁGIOS.*?(?=\n## |\n\n## |$)/gs;
+      finalPrompt = finalPrompt.replace(kanbanPattern, '').trim();
+    }
+
     // Remover duplicatas de instruções de tools (gerenciamento de estágios)
-    const cleanedPrompt = this.removeDuplicateToolInstructions(prompt.trim());
+    const cleanedPrompt = this.removeDuplicateToolInstructions(finalPrompt);
 
     // Atualizar prompt no n8n via webhook gestor
     try {
@@ -1296,7 +1320,7 @@ export class WorkflowTemplatesService {
         undefined, // variables não é necessário para update de prompt apenas
         instance.name, // automationName
         instance.webhookPath, // webhookPatch
-        cleanedPrompt, // promptGerado
+        cleanedPrompt, // promptGerado (prompt completo com kanban se ativado)
       );
     } catch (error: any) {
       this.logger.error(
@@ -1309,12 +1333,36 @@ export class WorkflowTemplatesService {
       );
     }
 
-    // Salvar prompt no banco
+    // Preparar dados para atualização (incluindo configuração Kanban)
+    const updateData: any = {
+      generatedPrompt: dto.prompt.trim(), // Salvar apenas o prompt base (sem kanban)
+    };
+
+    // Atualizar configuração Kanban se fornecida
+    if (dto.kanbanEnabled !== undefined) {
+      updateData.kanbanEnabled = dto.kanbanEnabled;
+    }
+
+    if (dto.kanbanPrompt !== undefined) {
+      updateData.kanbanPrompt = dto.kanbanPrompt || null;
+    }
+
+    if (dto.kanbanStageIds !== undefined) {
+      updateData.kanbanStageIds = dto.kanbanStageIds && dto.kanbanStageIds.length > 0 
+        ? dto.kanbanStageIds 
+        : null;
+    }
+
+    // Se kanbanEnabled for false, limpar dados relacionados
+    if (dto.kanbanEnabled === false) {
+      updateData.kanbanPrompt = null;
+      updateData.kanbanStageIds = null;
+    }
+
+    // Salvar prompt e configuração Kanban no banco
     const updatedInstance = await this.prisma.workflowInstance.update({
       where: { id: instanceId },
-      data: {
-        generatedPrompt: cleanedPrompt,
-      },
+      data: updateData,
       include: {
         template: {
           select: {
@@ -1363,12 +1411,41 @@ export class WorkflowTemplatesService {
 
   /**
    * Obter prompt gerado da instância
+   * Também retorna a configuração Kanban
    */
-  async getPrompt(instanceId: string, context: AuthContext): Promise<{ prompt: string | null }> {
+  async getPrompt(
+    instanceId: string,
+    context: AuthContext,
+  ): Promise<{
+    prompt: string | null;
+    kanbanEnabled: boolean;
+    kanbanPrompt: string | null;
+    kanbanStageIds: string[] | null;
+    fullPrompt?: string; // Prompt completo (base + kanban) para preview
+  }> {
     const instance = await this.findOneInstance(instanceId, context);
+
+    // Concatenar prompt base com prompt kanban se ambos existirem
+    let fullPrompt: string | undefined = undefined;
+    if (instance.generatedPrompt) {
+      if (instance.kanbanEnabled && instance.kanbanPrompt) {
+        // Remover instruções de Kanban duplicadas do prompt base
+        const basePrompt = this.removeDuplicateToolInstructions(instance.generatedPrompt);
+        fullPrompt = `${basePrompt}\n\n${instance.kanbanPrompt}`.trim();
+      } else {
+        fullPrompt = instance.generatedPrompt;
+      }
+    }
 
     return {
       prompt: instance.generatedPrompt || null,
+      kanbanEnabled: instance.kanbanEnabled || false,
+      kanbanPrompt: instance.kanbanPrompt || null,
+      kanbanStageIds:
+        instance.kanbanStageIds && typeof instance.kanbanStageIds === 'object'
+          ? (instance.kanbanStageIds as any)
+          : null,
+      fullPrompt,
     };
   }
 

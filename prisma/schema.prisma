@@ -108,16 +108,16 @@ enum LeadStatus {
 }
 
 model PipelineStage {
-  id          String     @id @default(uuid())
-  name        String     // Nome do estágio (ex: "Novo", "Qualificado", "Proposta")
-  status      LeadStatus // Status do Lead associado
-  color       String     @default("#6B7280") // Cor do estágio (hex)
-  order       Int        @default(0) // Ordem de exibição
-  isDefault   Boolean    @default(false) // Estágio padrão do sistema (não editável)
-  isActive    Boolean    @default(true) // Estágio ativo
-  tenantId    String?    // Null para estágios globais (padrão do sistema)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String     @id @default(uuid())
+  name      String // Nome do estágio (ex: "Novo", "Qualificado", "Proposta")
+  status    LeadStatus // Status do Lead associado
+  color     String     @default("#6B7280") // Cor do estágio (hex)
+  order     Int        @default(0) // Ordem de exibição
+  isDefault Boolean    @default(false) // Estágio padrão do sistema (não editável)
+  isActive  Boolean    @default(true) // Estágio ativo
+  tenantId  String? // Null para estágios globais (padrão do sistema)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   company Company? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -155,27 +155,27 @@ model Conversation {
 }
 
 model Message {
-  id             String           @id @default(uuid())
-  conversationId String?
-  leadId         String?
-  connectionId   String?
-  senderType     SenderType       @default(LEAD)
-  contentType    ContentType      @default(TEXT)
-  sender         String?
-  contentUrl     String?
-  contentText    String?
-  transcriptionText String?       // Transcrição de áudio via OpenAI Whisper
-  latitude       Float?
-  longitude      Float?
-  direction      MessageDirection @default(INCOMING)
-  messageId      String?          @unique
-  tempId         String?          // ID temporário para correlacionar mensagem otimista com mensagem do servidor
-  timestamp      DateTime?
-  tenantId       String
-  createdAt      DateTime         @default(now())
-  reply          Boolean          @default(false)
-  replyText      String?
-  replyMessageId String?
+  id                String           @id @default(uuid())
+  conversationId    String?
+  leadId            String?
+  connectionId      String?
+  senderType        SenderType       @default(LEAD)
+  contentType       ContentType      @default(TEXT)
+  sender            String?
+  contentUrl        String?
+  contentText       String?
+  transcriptionText String? // Transcrição de áudio via OpenAI Whisper
+  latitude          Float?
+  longitude         Float?
+  direction         MessageDirection @default(INCOMING)
+  messageId         String?          @unique
+  tempId            String? // ID temporário para correlacionar mensagem otimista com mensagem do servidor
+  timestamp         DateTime?
+  tenantId          String
+  createdAt         DateTime         @default(now())
+  reply             Boolean          @default(false)
+  replyText         String?
+  replyMessageId    String?
 
   // Campos para histórico de edições/exclusões
   editedAt     DateTime?
@@ -482,7 +482,7 @@ model ApiKey {
   id        String    @id @default(uuid())
   name      String
   key       String    @unique // Hash da chave
-  tenantId  String?   // Null para Super Admin
+  tenantId  String? // Null para Super Admin
   isActive  Boolean   @default(true)
   expiresAt DateTime?
   createdAt DateTime  @default(now())
@@ -510,9 +510,9 @@ model AIAgent {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant              Company             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  department          Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  workflowInstances   WorkflowInstance[]
+  tenant            Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department        Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  workflowInstances WorkflowInstance[]
 
   @@index([tenantId])
   @@index([departmentId])
@@ -521,20 +521,20 @@ model AIAgent {
 }
 
 model WorkflowTemplate {
-  id               String   @id @default(uuid())
-  name             String
-  description      String?  @db.Text
-  category         String?  // Ex: "Atendimento", "Vendas", "Suporte"
-  n8nWorkflowData  Json     // JSON completo do workflow do n8n
-  variables        Json     // Variáveis editáveis: {systemPrompt: {type: "text", label: "...", default: "..."}}
-  icon             String?  // Nome do ícone para exibição
-  isGlobal         Boolean  @default(true) // true = criado por Super Admin, false = tenant específico
-  tenantId         String?  // Null se isGlobal = true
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  name            String
+  description     String?  @db.Text
+  category        String? // Ex: "Atendimento", "Vendas", "Suporte"
+  n8nWorkflowData Json // JSON completo do workflow do n8n
+  variables       Json // Variáveis editáveis: {systemPrompt: {type: "text", label: "...", default: "..."}}
+  icon            String? // Nome do ícone para exibição
+  isGlobal        Boolean  @default(true) // true = criado por Super Admin, false = tenant específico
+  tenantId        String? // Null se isGlobal = true
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  tenant            Company?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant            Company?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   workflowInstances WorkflowInstance[]
 
   @@index([tenantId])
@@ -544,21 +544,24 @@ model WorkflowTemplate {
 }
 
 model WorkflowInstance {
-  id             String   @id @default(uuid())
-  templateId     String
-  n8nWorkflowId  String?  // ID do workflow criado no n8n
-  webhookUrl     String?  // URL do webhook retornado pelo n8n
-  webhookName    String?  // Nome do webhook retornado pelo n8n
-  webhookPath    String?  // Path do webhook retornado pelo n8n
+  id               String   @id @default(uuid())
+  templateId       String
+  n8nWorkflowId    String? // ID do workflow criado no n8n
+  webhookUrl       String? // URL do webhook retornado pelo n8n
+  webhookName      String? // Nome do webhook retornado pelo n8n
+  webhookPath      String? // Path do webhook retornado pelo n8n
   webhookUrlEditor String? // URL do editor do workflow no n8n
-  name           String
-  config         Json     // Configurações personalizadas pelo tenant (valores das variáveis)
-  generatedPrompt String? @db.Text // Prompt gerado pelo webhook especialista (agentPrompt)
-  aiAgentId      String?
-  tenantId       String
-  isActive       Boolean  @default(false) // false até ser ativado no n8n
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  name             String
+  config           Json // Configurações personalizadas pelo tenant (valores das variáveis)
+  generatedPrompt  String?  @db.Text // Prompt gerado pelo webhook especialista (agentPrompt)
+  kanbanEnabled    Boolean  @default(false) // Se a função Kanban está ativada
+  kanbanPrompt     String?  @db.Text // Prompt específico da função Kanban
+  kanbanStageIds   Json? // IDs dos estágios configurados para Kanban
+  aiAgentId        String?
+  tenantId         String
+  isActive         Boolean  @default(false) // false até ser ativado no n8n
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   template WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   aiAgent  AIAgent?         @relation(fields: [aiAgentId], references: [id], onDelete: SetNull)
