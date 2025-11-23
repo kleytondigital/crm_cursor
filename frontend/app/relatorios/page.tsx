@@ -254,7 +254,11 @@ export default function ReportsPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percentage }) => `${name}: ${percentage}%`}
+                    label={(entry: any) => {
+                      const total = leadsData.byStatus.reduce((sum: number, item: any) => sum + item.count, 0)
+                      const percentage = total > 0 ? ((entry.count / total) * 100).toFixed(1) : '0'
+                      return `${entry.status}: ${percentage}%`
+                    }}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="count"
