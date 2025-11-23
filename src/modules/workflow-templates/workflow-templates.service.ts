@@ -530,6 +530,32 @@ export class WorkflowTemplatesService {
       updateData.testPhone = dto.testPhone || null;
     }
 
+    // Se mudou modo teste ou telefone, atualizar no n8n
+    if ((dto.testMode !== undefined || dto.testPhone !== undefined) && instance.n8nWorkflowId) {
+      try {
+        await this.n8nApiService.updateWorkflowViaManager(
+          context.tenantId,
+          instance.n8nWorkflowId,
+          undefined, // workflowJson não necessário
+          undefined, // variables não necessário
+          instance.name, // automationName
+          instance.webhookPath, // webhookPatch
+          instance.generatedPrompt || undefined, // promptGerado (manter prompt atual)
+          dto.testPhone || instance.testPhone || undefined, // testPhone
+          dto.testMode !== undefined ? dto.testMode : (instance.testMode || false), // testMode
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Erro ao atualizar modo teste no n8n: ${error.message}`,
+          error.stack,
+        );
+        // Não falhar completamente - ainda vamos salvar no banco local
+        throw new BadRequestException(
+          `Erro ao atualizar modo teste no n8n: ${error.message || 'Erro desconhecido'}`,
+        );
+      }
+    }
+
     return this.prisma.workflowInstance.update({
       where: { id },
       data: updateData,

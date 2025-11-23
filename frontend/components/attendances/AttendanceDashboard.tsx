@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   Check,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Filter,
   Loader2,
@@ -228,6 +230,7 @@ function AttendanceListItem({
 function FiltersBar({
   filters,
   departments,
+  users,
   onChange,
   onReset,
   urgent,
@@ -235,117 +238,300 @@ function FiltersBar({
 }: {
   filters: AttendanceFilters
   departments: Department[]
+  users: UserSummary[]
   urgent: boolean
   toggleUrgent: () => void
   onChange: (partial: Partial<AttendanceFilters>) => void
   onReset: () => void
 }) {
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true)
+  const [isSearchCollapsed, setIsSearchCollapsed] = useState(false)
+  const [isStatusPriorityCollapsed, setIsStatusPriorityCollapsed] = useState(true)
+  const [isDepartmentUserCollapsed, setIsDepartmentUserCollapsed] = useState(true)
+  const [isUrgentCollapsed, setIsUrgentCollapsed] = useState(true)
+
+  // Verificar se há filtros ativos
+  const hasActiveFilters = !!(filters.search || filters.status || filters.priority || filters.departmentId || filters.assignedUserId || urgent)
+  const hasStatusPriority = !!(filters.status || filters.priority)
+  const hasDepartmentUser = !!(filters.departmentId || filters.assignedUserId)
+
+  // Contar quantos filtros estão ativos
+  const activeFiltersCount = [
+    filters.search,
+    filters.status,
+    filters.priority,
+    filters.departmentId,
+    filters.assignedUserId,
+    urgent,
+  ].filter(Boolean).length
+
   return (
     <div className="flex flex-col gap-2 md:gap-3 rounded-3xl border border-white/5 bg-background-subtle/70 p-3 md:p-4 shadow-inner-glow">
-      <div className="flex items-center gap-2 md:gap-3">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2 md:left-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
-          <Input
-            value={filters.search ?? ''}
-            onChange={(event) => onChange({ search: event.target.value })}
-            placeholder="Buscar..."
-            className="w-full rounded-full border border-white/10 bg-background-muted/80 py-1.5 md:py-2 pl-8 md:pl-10 pr-3 md:pr-4 text-xs md:text-sm text-text-primary placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
-          />
+      {/* Header com colapso geral */}
+      <button
+        onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
+        className="flex items-center justify-between group"
+      >
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          <h3 className="text-xs md:text-sm font-semibold text-white">Filtros</h3>
+          {hasActiveFilters && activeFiltersCount > 0 && (
+            <span className="rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary">
+              {activeFiltersCount}
+            </span>
+          )}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onReset}
-          className="h-8 w-8 md:h-10 md:w-10 rounded-full border border-white/10 bg-background-soft/80 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary flex-shrink-0"
-          title="Limpar filtros"
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation()
+                onReset()
+              }}
+              className="h-7 w-7 md:h-8 md:w-8 rounded-full border border-white/10 bg-background-soft/80 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary flex-shrink-0 transition-all"
+              title="Limpar filtros"
+            >
+              <XCircle className="h-3.5 w-3.5 md:h-4 md:w-4" />
+            </Button>
+          )}
+          {isFiltersCollapsed ? (
+            <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          )}
+        </div>
+      </button>
+
+      {/* Conteúdo dos filtros - renderizado apenas quando expandido */}
+      {!isFiltersCollapsed && (
+        <div className="transition-all duration-200 ease-in-out">
+
+      {/* Seção: Busca */}
+      <div className="border-b border-white/5 pb-2 md:pb-3">
+        <button
+          onClick={() => setIsSearchCollapsed(!isSearchCollapsed)}
+          className="flex w-full items-center justify-between group"
         >
-          <XCircle className="h-3.5 w-3.5 md:h-4 md:w-4" />
-        </Button>
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+            <span className="text-xs md:text-sm font-medium text-white">Busca</span>
+            {filters.search && (
+              <span className="rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary">
+                Ativo
+              </span>
+            )}
+          </div>
+          {isSearchCollapsed ? (
+            <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          )}
+        </button>
+        {!isSearchCollapsed && (
+          <div className="mt-2 transition-all duration-200 ease-in-out">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 md:left-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+              <Input
+                value={filters.search ?? ''}
+                onChange={(event) => onChange({ search: event.target.value })}
+                placeholder="Buscar..."
+                className="w-full rounded-full border border-white/10 bg-background-muted/80 py-1.5 md:py-2 pl-8 md:pl-10 pr-3 md:pr-4 text-xs md:text-sm text-text-primary placeholder:text-text-muted focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-2 md:gap-3 grid-cols-1 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Status</span>
-          <div className="relative">
-            <SortIcon />
-            <select
-              value={filters.status ?? ''}
-              onChange={(event) =>
-                onChange({ status: event.target.value ? (event.target.value as AttendanceStatus) : undefined })
-              }
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
-            >
-              <option value="">Todos</option>
-              <option value="OPEN">Disponível</option>
-              <option value="IN_PROGRESS">Em andamento</option>
-              <option value="TRANSFERRED">Transferido</option>
-              <option value="CLOSED">Encerrado</option>
-            </select>
-            <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+      {/* Seção: Status e Prioridade */}
+      <div className="border-b border-white/5 pb-2 md:pb-3">
+        <button
+          onClick={() => setIsStatusPriorityCollapsed(!isStatusPriorityCollapsed)}
+          className="flex w-full items-center justify-between group"
+        >
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+            <span className="text-xs md:text-sm font-medium text-white">Status e Prioridade</span>
+            {hasStatusPriority && (
+              <span className="rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary">
+                Ativo
+              </span>
+            )}
           </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Prioridade</span>
-          <div className="relative">
-            <select
-              value={filters.priority ?? ''}
-              onChange={(event) =>
-                onChange({
-                  priority: event.target.value ? (event.target.value as AttendancePriority) : undefined,
-                })
-              }
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
-            >
-              <option value="">Todas</option>
-              <option value="HIGH">Alta</option>
-              <option value="NORMAL">Normal</option>
-              <option value="LOW">Baixa</option>
-            </select>
-            <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+          {isStatusPriorityCollapsed ? (
+            <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          )}
+        </button>
+        {!isStatusPriorityCollapsed && (
+          <div className="mt-2 grid gap-2 md:gap-3 grid-cols-1 sm:grid-cols-2 transition-all duration-200 ease-in-out">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Status</span>
+              <div className="relative">
+                <SortIcon />
+                <select
+                  value={filters.status ?? ''}
+                  onChange={(event) =>
+                    onChange({ status: event.target.value ? (event.target.value as AttendanceStatus) : undefined })
+                  }
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+                >
+                  <option value="">Todos</option>
+                  <option value="OPEN">Disponível</option>
+                  <option value="IN_PROGRESS">Em andamento</option>
+                  <option value="TRANSFERRED">Transferido</option>
+                  <option value="CLOSED">Encerrado</option>
+                </select>
+                <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Prioridade</span>
+              <div className="relative">
+                <select
+                  value={filters.priority ?? ''}
+                  onChange={(event) =>
+                    onChange({
+                      priority: event.target.value ? (event.target.value as AttendancePriority) : undefined,
+                    })
+                  }
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+                >
+                  <option value="">Todas</option>
+                  <option value="HIGH">Alta</option>
+                  <option value="NORMAL">Normal</option>
+                  <option value="LOW">Baixa</option>
+                </select>
+                <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="grid gap-2 md:gap-3 grid-cols-1 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Departamento</span>
-          <div className="relative">
-            <select
-              value={filters.departmentId ?? ''}
-              onChange={(event) =>
-                onChange({ departmentId: event.target.value || undefined })
-              }
-              className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
-            >
-              <option value="">Todos</option>
-              {departments.map((department) => (
-                <option value={department.id} key={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-            <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+      {/* Seção: Departamento e Usuário */}
+      <div className="border-b border-white/5 pb-2 md:pb-3">
+        <button
+          onClick={() => setIsDepartmentUserCollapsed(!isDepartmentUserCollapsed)}
+          className="flex w-full items-center justify-between group"
+        >
+          <div className="flex items-center gap-2">
+            <UserRoundPlus className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+            <span className="text-xs md:text-sm font-medium text-white">Departamento e Usuário</span>
+            {hasDepartmentUser && (
+              <span className="rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary">
+                Ativo
+              </span>
+            )}
           </div>
-        </div>
-        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-background-muted/80 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm text-text-primary">
-          <div className="flex items-center gap-1.5 md:gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 text-rose-300" />
-            <span>Somente urgentes</span>
+          {isDepartmentUserCollapsed ? (
+            <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          )}
+        </button>
+        {!isDepartmentUserCollapsed && (
+          <div className="mt-2 grid gap-2 md:gap-3 grid-cols-1 sm:grid-cols-2 transition-all duration-200 ease-in-out">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Departamento</span>
+              <div className="relative">
+                <select
+                  value={filters.departmentId ?? ''}
+                  onChange={(event) =>
+                    onChange({ departmentId: event.target.value || undefined })
+                  }
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+                >
+                  <option value="">Todos</option>
+                  {departments.map((department) => (
+                    <option value={department.id} key={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+                <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Usuário</span>
+              <div className="relative">
+                <select
+                  value={filters.assignedUserId ?? ''}
+                  onChange={(event) =>
+                    onChange({ assignedUserId: event.target.value || undefined })
+                  }
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-background-muted/80 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+                >
+                  <option value="">Todos</option>
+                  {users.map((user) => (
+                    <option value={user.id} key={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+                <Filter className="pointer-events-none absolute right-2 md:right-3 top-1/2 h-3.5 w-3.5 md:h-4 md:w-4 -translate-y-1/2 text-text-muted" />
+              </div>
+            </div>
           </div>
-          <button
-            onClick={toggleUrgent}
-            className={`h-5 w-10 rounded-full border transition flex-shrink-0 ${
-              urgent ? 'border-rose-400 bg-rose-400/40' : 'border-white/10 bg-white/5'
-            }`}
-          >
-            <span
-              className={`block h-4 w-4 rounded-full bg-white transition-transform ${
-                urgent ? 'translate-x-5' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
+        )}
       </div>
+
+      {/* Seção: Urgente */}
+      <div>
+        <button
+          onClick={() => {
+            setIsUrgentCollapsed(!isUrgentCollapsed)
+            if (isUrgentCollapsed && !urgent) {
+              toggleUrgent()
+            }
+          }}
+          className="flex w-full items-center justify-between group"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-rose-300 group-hover:text-rose-200 transition-colors" />
+            <span className="text-xs md:text-sm font-medium text-white">Somente Urgentes</span>
+            {urgent && (
+              <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
+                Ativo
+              </span>
+            )}
+          </div>
+          {isUrgentCollapsed ? (
+            <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+          )}
+        </button>
+        {!isUrgentCollapsed && (
+          <div className="mt-2 transition-all duration-200 ease-in-out">
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-background-muted/80 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm text-text-primary">
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 text-rose-300" />
+                <span>Somente urgentes</span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleUrgent()
+                }}
+                className={`h-5 w-10 rounded-full border transition flex-shrink-0 ${
+                  urgent ? 'border-rose-400 bg-rose-400/40' : 'border-white/10 bg-white/5'
+                }`}
+              >
+                <span
+                  className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                    urgent ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -586,6 +772,7 @@ export default function AttendanceDashboard() {
   const [targetUserId, setTargetUserId] = useState<string>('')
   const [targetDepartmentId, setTargetDepartmentId] = useState<string>('')
   const [prioritySelection, setPrioritySelection] = useState<AttendancePriority | null>(null)
+  const [isSmartQueueCollapsed, setIsSmartQueueCollapsed] = useState(true)
 
   const urgent = filters.urgent ?? false
 
@@ -702,6 +889,7 @@ export default function AttendanceDashboard() {
           <FiltersBar
             filters={filters}
             departments={departments}
+            users={users}
             urgent={urgent}
             onChange={(partial) => setFilters((prev) => ({ ...prev, ...partial }))}
             onReset={resetFilters}
@@ -715,7 +903,22 @@ export default function AttendanceDashboard() {
 
           <Card className="rounded-3xl border border-white/5 bg-background-subtle/60 p-3 md:p-4 shadow-inner-glow">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs md:text-sm font-semibold text-white">Fila inteligente</h3>
+              <button
+                onClick={() => setIsSmartQueueCollapsed(!isSmartQueueCollapsed)}
+                className="flex items-center gap-2 flex-1 text-left group"
+              >
+                <h3 className="text-xs md:text-sm font-semibold text-white">Fila inteligente</h3>
+                {smartQueue.length > 0 && (
+                  <span className="rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary">
+                    {smartQueue.length}
+                  </span>
+                )}
+                {isSmartQueueCollapsed ? (
+                  <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+                ) : (
+                  <ChevronUp className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />
+                )}
+              </button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -726,15 +929,17 @@ export default function AttendanceDashboard() {
                 <span className="sm:hidden">↻</span>
               </Button>
             </div>
-            <div className="mt-2 md:mt-3 flex flex-col gap-2 max-h-[200px] md:max-h-none overflow-y-auto">
-              {smartQueue.length === 0 ? (
-                <p className="text-[10px] md:text-xs text-text-muted">Nenhum atendimento disponível na fila.</p>
-              ) : (
-                smartQueue.slice(0, 5).map((item) => (
-                  <SmartQueueItem key={item.id} item={item} />
-                ))
-              )}
-            </div>
+            {!isSmartQueueCollapsed && (
+              <div className="mt-2 md:mt-3 flex flex-col gap-2 max-h-[400px] md:max-h-[600px] overflow-y-auto transition-all duration-200 ease-in-out">
+                {smartQueue.length === 0 ? (
+                  <p className="text-[10px] md:text-xs text-text-muted">Nenhum atendimento disponível na fila.</p>
+                ) : (
+                  smartQueue.map((item) => (
+                    <SmartQueueItem key={item.id} item={item} />
+                  ))
+                )}
+              </div>
+            )}
           </Card>
 
           <div className="flex flex-col gap-2 rounded-3xl border border-white/5 bg-background-subtle/60 p-3 md:p-4 shadow-inner-glow">

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
-import { MessageCircle, Kanban, Headphones, Calendar, LayoutDashboard } from 'lucide-react'
+import { MessageCircle, Kanban, Headphones, Calendar, LayoutDashboard, BarChart3 } from 'lucide-react'
 
 interface NavItem {
   href: string
@@ -17,6 +17,7 @@ const navigationItems: NavItem[] = [
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
+  { href: '/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
 ]
 

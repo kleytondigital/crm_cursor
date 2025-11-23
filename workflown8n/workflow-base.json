@@ -2,6 +2,19 @@
     "name": "@nomeworkflow",
     "nodes": [{
             "parameters": {
+                "httpMethod": "POST",
+                "path": "@patch",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [-864, -528],
+            "id": "1dcb41b1-744c-4fe9-9095-060e152c207e",
+            "name": "Webhook",
+            "webhookId": "71f80fed-943b-4d76-ad9d-cb0617e36bbd"
+        },
+        {
+            "parameters": {
                 "assignments": {
                     "assignments": [{
                             "id": "4f251efa-3591-4b3e-a88c-f2ff052a98a5",
@@ -1266,12 +1279,8 @@
                     }]
                 },
                 "sendBody": true,
-                "bodyParameters": {
-                    "parameters": [{
-                        "name": "status",
-                        "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
-                    }]
-                },
+                "specifyBody": "json",
+                "jsonBody": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('JSON', ``, 'json') }}",
                 "options": {}
             },
             "type": "n8n-nodes-base.httpRequestTool",
@@ -1296,7 +1305,7 @@
                                 "conditions": [{
                                     "id": "72585eb6-c7a0-42c9-ba31-18162b0c0d52",
                                     "leftValue": "={{ $json.ModoTeste }}",
-                                    "rightValue": "true",
+                                    "rightValue": "false",
                                     "operator": {
                                         "type": "string",
                                         "operation": "equals"
@@ -1317,11 +1326,10 @@
                                 },
                                 "conditions": [{
                                     "leftValue": "={{ $json.ModoTeste }}",
-                                    "rightValue": "={{ $json.timestamp }}",
+                                    "rightValue": "true",
                                     "operator": {
-                                        "type": "boolean",
-                                        "operation": "true",
-                                        "singleValue": true
+                                        "type": "string",
+                                        "operation": "equals"
                                     },
                                     "id": "3f4f933b-2727-41f7-b832-a8c62d44600b"
                                 }],
@@ -1405,6 +1413,15 @@
         }
     ],
     "connections": {
+        "Webhook": {
+            "main": [
+                [{
+                    "node": "Filter1",
+                    "type": "main",
+                    "index": 0
+                }]
+            ]
+        },
         "dados-msg": {
             "main": [
                 [{

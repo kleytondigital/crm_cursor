@@ -87,41 +87,41 @@ export default function KanbanPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Navigation />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-8 pt-4 md:pt-6">
-        <section className="overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-r from-background-muted to-background-card p-4 md:p-8 shadow-inner-glow">
-          <div className="flex flex-col gap-4 md:gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-text-muted">Pipeline Neural</p>
-              <h1 className="mt-2 md:mt-3 text-xl md:text-3xl font-bold text-white">Kanban de Leads</h1>
-              <p className="mt-1 md:mt-2 max-w-2xl text-xs md:text-sm text-text-muted">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-2 md:gap-3 lg:gap-4 px-2 md:px-4 lg:px-6 pt-2 md:pt-4 lg:pt-6 pb-16 md:pb-20 lg:pb-6 min-h-0 overflow-hidden">
+        <section className="flex-shrink-0 overflow-hidden rounded-xl md:rounded-2xl lg:rounded-3xl border border-white/5 bg-gradient-to-r from-background-muted to-background-card p-2 md:p-4 lg:p-6 xl:p-8 shadow-inner-glow">
+          <div className="flex flex-col gap-2 md:gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] md:text-xs uppercase tracking-[0.4em] text-text-muted">Pipeline Neural</p>
+              <h1 className="mt-1 md:mt-2 text-base md:text-xl lg:text-2xl xl:text-3xl font-bold text-white truncate">Kanban de Leads</h1>
+              <p className="mt-0.5 md:mt-1 max-w-2xl text-[10px] md:text-xs lg:text-sm text-text-muted hidden md:block">
                 Arraste oportunidades entre estágios, sincronize com o CRM e visualize o desempenho da equipe em tempo real.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
               {isAdmin && (
                 <button
                   onClick={() => {
                     setSelectedStage(null)
                     setShowStageModal(true)
                   }}
-                  className="flex items-center justify-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-3 md:px-5 py-2 md:py-3 text-xs md:text-sm font-medium text-brand-secondary transition hover:bg-brand-primary/20 hover:border-brand-primary/50 shadow-glow"
+                  className="flex items-center justify-center gap-1.5 md:gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-2 md:px-3 lg:px-4 py-1 md:py-1.5 md:py-2 text-[10px] md:text-xs lg:text-sm font-medium text-brand-secondary transition hover:bg-brand-primary/20 hover:border-brand-primary/50 shadow-glow"
                   title="Gerenciar estágios do pipeline"
                 >
-                  <Settings className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 lg:h-4 lg:w-4" />
                   <span className="hidden sm:inline">Gerenciar Estágios</span>
                   <span className="sm:hidden">Estágios</span>
                 </button>
               )}
-              <div className="rounded-3xl border border-white/10 bg-background-muted/60 px-3 md:px-5 py-3 md:py-4 shadow-inner-glow">
-                <div className="flex items-center gap-2 md:gap-4">
-                  <div className="rounded-full bg-brand-primary/20 px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-brand-secondary">
+              <div className="rounded-xl md:rounded-2xl lg:rounded-3xl border border-white/10 bg-background-muted/60 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-3 shadow-inner-glow">
+                <div className="flex items-center gap-1.5 md:gap-2 lg:gap-3">
+                  <div className="rounded-full bg-brand-primary/20 px-1.5 md:px-2 lg:px-3 py-0.5 md:py-1 text-[9px] md:text-[10px] lg:text-xs font-semibold uppercase tracking-wide text-brand-secondary">
                     {stages.length} Estágios
                   </div>
                   <div>
-                    <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">Pipeline ativo</p>
-                    <p className="text-sm md:text-lg font-semibold text-white">Tempo Real</p>
+                    <p className="text-[9px] md:text-[10px] lg:text-xs uppercase tracking-wide text-text-muted">Pipeline ativo</p>
+                    <p className="text-[10px] md:text-xs lg:text-base xl:text-lg font-semibold text-white">Tempo Real</p>
                   </div>
                 </div>
               </div>
@@ -129,7 +129,7 @@ export default function KanbanPage() {
           </div>
         </section>
 
-        <section className="flex flex-1 flex-col">
+        <section className="flex flex-1 flex-col min-h-0 overflow-hidden">
           <KanbanBoard 
             key={refreshKey}
             onEditStage={(stage) => {

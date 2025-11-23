@@ -17,6 +17,7 @@ import {
   Bot,
   Sliders,
   User,
+  BarChart3,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -26,6 +27,7 @@ const navigationItems = [
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
+  { href: '/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
 ]
 

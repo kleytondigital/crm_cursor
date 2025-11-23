@@ -350,6 +350,8 @@ export class N8nApiService {
     automationName?: string,
     webhookPatch?: string, // Path do webhook - obrigatório para update de prompt
     promptGerado?: string, // Prompt gerado - obrigatório para update de prompt
+    testPhone?: string, // Telefone para modo teste (formato: 5562999999999@c.us)
+    testMode?: boolean, // Modo teste (true/false)
   ): Promise<UpdateWorkflowResponseData> {
     const payload: UpdateWorkflowRequestDto = {
       action: 'update',
@@ -361,6 +363,8 @@ export class N8nApiService {
       webhookPatch, // Path do webhook (obrigatório para update de prompt)
       promptGerado, // Prompt gerado (obrigatório para update de prompt)
       workflowName: automationName, // workflowName é o mesmo que automationName
+      ...(testPhone && { phoneteste: testPhone }), // Enviar telefone de teste se fornecido
+      ...(testMode !== undefined && { modoteste: testMode ? 'true' : 'false' }), // Enviar modo teste como string "true" ou "false"
     };
 
     const response =

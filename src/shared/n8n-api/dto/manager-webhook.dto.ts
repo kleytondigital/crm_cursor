@@ -49,6 +49,8 @@ export interface UpdateWorkflowRequestDto extends ManagerWebhookRequestDto {
   webhookPatch?: string; // Path do webhook - obrigatório para update de prompt
   promptGerado?: string; // Prompt gerado - obrigatório para update de prompt
   workflowName?: string; // Nome do workflow - obrigatório para update de prompt
+  phoneteste?: string; // Telefone para modo teste (formato: 5562999999999@c.us)
+  modoteste?: string; // Modo teste ("true" ou "false")
 }
 
 /**

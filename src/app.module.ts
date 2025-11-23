@@ -25,6 +25,7 @@ import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { N8nApiModule } from './shared/n8n-api/n8n-api.module';
 import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 import { PipelineStagesModule } from './modules/pipeline-stages/pipeline-stages.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { PipelineStagesModule } from './modules/pipeline-stages/pipeline-stages.
     N8nApiModule,
     WorkflowTemplatesModule,
     PipelineStagesModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

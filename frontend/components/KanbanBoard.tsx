@@ -127,7 +127,7 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center rounded-3xl border border-white/5 bg-background-subtle/60 shadow-inner-glow">
+      <div className="flex h-full items-center justify-center rounded-2xl md:rounded-3xl border border-white/5 shadow-inner-glow">
         <Loader2 className="h-8 w-8 animate-spin text-brand-secondary" />
       </div>
     )
@@ -135,8 +135,8 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
 
   if (error && !leads.length) {
     return (
-      <div className="flex h-full items-center justify-center rounded-3xl border border-brand-danger/30 bg-brand-danger/10 px-6 py-10 text-brand-danger shadow-inner-glow">
-        {error}
+      <div className="flex h-full items-center justify-center rounded-2xl md:rounded-3xl border border-brand-danger/30 bg-brand-danger/10 px-4 md:px-6 py-8 md:py-10 text-brand-danger shadow-inner-glow">
+        <p className="text-sm md:text-base">{error}</p>
       </div>
     )
   }
@@ -144,16 +144,23 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
   const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER'
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/5 bg-background-subtle/60 shadow-inner-glow">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl md:rounded-2xl lg:rounded-3xl border border-white/5 shadow-inner-glow bg-transparent">
       {error && (
-        <div className="border-b border-brand-warning/40 bg-brand-warning/10 px-6 py-3 text-sm text-brand-warning">
+        <div className="flex-shrink-0 border-b border-brand-warning/40 bg-brand-warning/10 px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm text-brand-warning">
           {error}
         </div>
       )}
 
-      <div className="flex-1 overflow-x-auto px-3 py-4 sm:px-6 sm:py-6">
+      <div className="flex-1 overflow-hidden px-2 md:px-3 lg:px-4 xl:px-6 py-2 md:py-3 lg:py-4 xl:py-6 min-h-0">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-4 lg:gap-6 min-w-max">
+          <div 
+            className="flex h-full gap-2 md:gap-3 lg:gap-4 xl:gap-6 overflow-x-auto overflow-y-hidden" 
+            style={{ 
+              scrollbarWidth: 'thin',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+            }}
+          >
             {stages.map((stage) => (
               <KanbanColumn
                 key={stage.id}
@@ -169,9 +176,9 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
       {stages.length === 0 && !loading && (
         <div className="flex items-center justify-center py-12 px-6">
           <div className="text-center text-text-muted">
-            <p>Nenhum estágio configurado.</p>
+            <p className="text-sm md:text-base">Nenhum estágio configurado.</p>
             {isAdmin && (
-              <p className="mt-2 text-sm">Clique em "Gerenciar Estágios" para criar.</p>
+              <p className="mt-2 text-xs md:text-sm">Clique em "Gerenciar Estágios" para criar.</p>
             )}
           </div>
         </div>
