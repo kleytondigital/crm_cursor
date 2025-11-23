@@ -42,6 +42,7 @@ export default function ReportsPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<ReportsFilter>({})
   const [overview, setOverview] = useState<any>(null)
   const [leadsData, setLeadsData] = useState<any>(null)
@@ -74,26 +75,52 @@ export default function ReportsPage() {
         console.error('Erro ao parsear usuário:', e)
       }
     }
+  }, [router])
 
-    loadData()
-  }, [router, filters])
+  useEffect(() => {
+    if (mounted) {
+      loadData()
+    }
+  }, [filters, mounted])
 
   const loadData = async () => {
     try {
       setLoading(true)
+      setError(null)
+      console.log('Carregando dados com filtros:', filters)
+      
+      // Remover period do filtro antes de enviar
+      const { period, ...filtersWithoutPeriod } = filters
+      
       const [overviewRes, leadsRes, conversionRes, attendanceRes] = await Promise.all([
-        reportsAPI.getOverview(filters),
-        reportsAPI.getLeads({ ...filters, period: 'day' }),
-        reportsAPI.getConversion(filters),
-        reportsAPI.getAttendance(filters),
+        reportsAPI.getOverview(filtersWithoutPeriod).catch(err => {
+          console.error('Erro ao carregar overview:', err)
+          setError(err?.message || 'Erro ao carregar métricas gerais')
+          return null
+        }),
+        reportsAPI.getLeads(filtersWithoutPeriod, 'day').catch(err => {
+          console.error('Erro ao carregar leads:', err)
+          return null
+        }),
+        reportsAPI.getConversion(filtersWithoutPeriod).catch(err => {
+          console.error('Erro ao carregar conversão:', err)
+          return null
+        }),
+        reportsAPI.getAttendance(filtersWithoutPeriod).catch(err => {
+          console.error('Erro ao carregar atendimento:', err)
+          return null
+        }),
       ])
+
+      console.log('Dados carregados:', { overviewRes, leadsRes, conversionRes, attendanceRes })
 
       setOverview(overviewRes)
       setLeadsData(leadsRes)
       setConversionData(conversionRes)
       setAttendanceData(attendanceRes)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar relatórios:', error)
+      setError(error?.message || 'Erro desconhecido ao carregar relatórios')
     } finally {
       setLoading(false)
     }
@@ -139,6 +166,15 @@ export default function ReportsPage() {
           </div>
           <div className="flex gap-2">
             <Button
+              onClick={() => loadData()}
+              variant="outline"
+              className="gap-2 border-white/10 bg-background-muted/80 text-text-primary hover:bg-background-soft"
+              disabled={loading}
+            >
+              <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </Button>
+            <Button
               onClick={() => handleExport('csv')}
               variant="outline"
               className="gap-2 border-white/10 bg-background-muted/80 text-text-primary hover:bg-background-soft"
@@ -164,8 +200,15 @@ export default function ReportsPage() {
           onReset={handleResetFilters}
         />
 
+        {/* Mensagem de Erro */}
+        {error && (
+          <div className="rounded-xl border border-red-500/50 bg-red-500/10 p-4">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+
         {/* Métricas Gerais */}
-        {overview && (
+        {overview ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4">
             <MetricCard
               title="Total de Leads"
@@ -199,7 +242,13 @@ export default function ReportsPage() {
               icon={Clock}
             />
           </div>
-        )}
+        ) : !loading && !error ? (
+          <div className="flex items-center justify-center py-12 rounded-xl border border-white/5 bg-background-subtle/60">
+            <div className="text-center">
+              <p className="text-text-muted">Nenhum dado disponível. Tente ajustar os filtros ou verifique se há dados no sistema.</p>
+            </div>
+          </div>
+        ) : null}
 
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

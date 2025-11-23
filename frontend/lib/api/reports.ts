@@ -115,22 +115,27 @@ export const reportsAPI = {
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      // Enviar como array separado por vírgula ou múltiplos parâmetros
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
 
     return apiRequest<ReportsOverview>(`/reports/overview?${params.toString()}`)
   },
 
-  getLeads: async (filters: ReportsFilter): Promise<ReportsLeads> => {
+  getLeads: async (filters: ReportsFilter, period?: 'day' | 'week' | 'month'): Promise<ReportsLeads> => {
     const params = new URLSearchParams()
     if (filters.startDate) params.append('startDate', filters.startDate)
     if (filters.endDate) params.append('endDate', filters.endDate)
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status)) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
-    if (filters.period) params.append('period', filters.period)
+    if (period) params.append('period', period)
 
     return apiRequest<ReportsLeads>(`/reports/leads?${params.toString()}`)
   },
@@ -142,7 +147,9 @@ export const reportsAPI = {
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
 
     return apiRequest<ReportsConversion>(`/reports/conversion?${params.toString()}`)
