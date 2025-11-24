@@ -11,6 +11,7 @@ interface KanbanColumnProps {
   stage: PipelineStage
   leads: Lead[]
   onEdit?: () => void
+  droppableId?: string // ID customizado para o droppable (para status customizados)
 }
 
 // Wrapper para Droppable que funciona com React StrictMode
@@ -35,7 +36,7 @@ const StrictModeDroppable = ({ children, ...props }: DroppableProps) => {
   return <Droppable {...props}>{children}</Droppable>
 }
 
-export default function KanbanColumn({ stage, leads, onEdit }: KanbanColumnProps) {
+export default function KanbanColumn({ stage, leads, onEdit, droppableId }: KanbanColumnProps) {
   // Converter cor hex para classes Tailwind border e background
   const borderStyle = { borderColor: `${stage.color}40` }
   const indicatorStyle = { backgroundColor: stage.color }
@@ -74,7 +75,7 @@ export default function KanbanColumn({ stage, leads, onEdit }: KanbanColumnProps
         </span>
       </div>
 
-      <StrictModeDroppable droppableId={stage.status}>
+      <StrictModeDroppable droppableId={droppableId || stage.status}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}

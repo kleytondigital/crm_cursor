@@ -17,6 +17,7 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRightLeft,
+  Bot,
   Check,
   ChevronDown,
   ChevronUp,

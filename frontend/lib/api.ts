@@ -190,6 +190,11 @@ export const leadsAPI = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+  updateStatusId: (id: string, statusId: string | null) =>
+    authFetch(`/leads/${id}/status-id`, {
+      method: 'PATCH',
+      body: JSON.stringify({ statusId }),
+    }),
 }
 
 // ============================================

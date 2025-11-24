@@ -27,27 +27,22 @@ export default function ChatLayout() {
         right: 0,
         bottom: 0,
         height: '100dvh', // Usar dynamic viewport height para mobile
-        width: '100dvw', // Usar dynamic viewport width para mobile
+        width: '100dvw',
         maxHeight: '100dvh',
         maxWidth: '100dvw',
         zIndex: 1000,
         borderRadius: 0,
       }
     }
-    // Altura normal para desktop ou lista
-    const mobileHeight = isMobile 
-      ? 'calc(100vh - 120px)'
-      : 'calc(100vh - 140px)'
     return {
-      height: isMobile ? mobileHeight : 'calc(100vh - 140px)',
-      minHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
-      maxHeight: isMobile ? mobileHeight : 'calc(100vh - 140px)',
+      height: '100%',
+      minHeight: 0,
     }
   }
 
   return (
     <div 
-      className={`flex flex-col overflow-hidden rounded-3xl border border-white/5 bg-background-subtle/80 backdrop-blur-xl shadow-glow lg:flex-row ${
+      className={`flex h-full flex-col overflow-hidden rounded-3xl border border-white/5 bg-background-subtle/80 backdrop-blur-xl shadow-glow lg:flex-row ${
         isMobile && selectedConversation ? 'fixed inset-0 z-[1000] rounded-none' : ''
       }`}
       style={getContainerStyle()}

@@ -52,6 +52,7 @@ export interface Conversation {
   assignedUserId?: string
   departmentId?: string
   status: 'ACTIVE' | 'CLOSED'
+  isBotAttending?: boolean // Novo campo para indicador de bot
   tenantId: string
   createdAt: string
   updatedAt: string
@@ -71,12 +72,26 @@ export interface Conversation {
   unreadCount?: number
 }
 
+export interface CustomLeadStatus {
+  id: string
+  name: string
+  description: string
+  color: string
+  order: number
+  isActive: boolean
+  tenantId: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Lead {
   id: string
   name: string
   phone: string
   tags: string[]
-  status: 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO'
+  status: 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO' // Mantido para compatibilidade
+  statusId?: string | null // Novo campo para status customizado
+  customStatus?: CustomLeadStatus | null
   profilePictureURL?: string | null
   tenantId: string
   createdAt: string

@@ -6,7 +6,7 @@ import ChatActionsMenu from './chat/ChatActionsMenu'
 import EditableText from './EditableText'
 import { useChat } from '@/contexts/ChatContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { Calendar, ArrowLeft } from 'lucide-react'
+import { Calendar, ArrowLeft, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { leadsAPI } from '@/lib/api'
 
@@ -152,16 +152,25 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
         )}
 
         <div className="flex flex-col gap-0.5 md:gap-1 min-w-0 flex-1 overflow-hidden">
-          <EditableText
-            value={leadName}
-            onSave={handleUpdateName}
-            placeholder="Sem nome"
-            validate={validateName}
-            className="group min-w-0"
-            labelClassName="text-sm md:text-base lg:text-lg font-semibold text-white cursor-pointer hover:text-brand-secondary/80 transition-colors truncate block max-w-full"
-            inputClassName="text-sm md:text-base lg:text-lg font-semibold w-full min-w-0 max-w-full"
-            maxLength={100}
-          />
+          <div className="flex items-center gap-2 min-w-0">
+            <EditableText
+              value={leadName}
+              onSave={handleUpdateName}
+              placeholder="Sem nome"
+              validate={validateName}
+              className="group min-w-0 flex-1"
+              labelClassName="text-sm md:text-base lg:text-lg font-semibold text-white cursor-pointer hover:text-brand-secondary/80 transition-colors truncate block max-w-full"
+              inputClassName="text-sm md:text-base lg:text-lg font-semibold w-full min-w-0 max-w-full"
+              maxLength={100}
+            />
+            {/* Indicador de bot */}
+            {conversation.isBotAttending && (
+              <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand-secondary" title="Sendo atendido por bot">
+                <Bot className="h-3 w-3" />
+                <span className="hidden sm:inline">Bot</span>
+              </div>
+            )}
+          </div>
           <EditableText
             value={leadPhone}
             onSave={handleUpdatePhone}

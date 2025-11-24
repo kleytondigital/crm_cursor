@@ -2,7 +2,7 @@
 
 import { Draggable } from 'react-beautiful-dnd'
 import { Lead } from '@/types'
-import { Phone, Tag, Calendar, MessageSquare, FileText } from 'lucide-react'
+import { Phone, Tag, Calendar, MessageSquare, FileText, Bot } from 'lucide-react'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
 import { useRouter } from 'next/navigation'
@@ -62,7 +62,27 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
         >
-          <h3 className="mb-2 line-clamp-2 break-words text-sm sm:text-base font-semibold text-white">{getDisplayName()}</h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="line-clamp-2 break-words text-sm sm:text-base font-semibold text-white flex-1">{getDisplayName()}</h3>
+            {/* Indicador de bot */}
+            {lead.conversations?.some((conv) => conv.isBotAttending) && (
+              <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary" title="Sendo atendido por bot">
+                <Bot className="h-3 w-3" />
+                <span className="hidden sm:inline">Bot</span>
+              </div>
+            )}
+          </div>
+
+          {/* Status customizado */}
+          {lead.customStatus && (
+            <div className="mb-2 flex items-center gap-2">
+              <div
+                className="h-3 w-3 rounded-full"
+                style={{ backgroundColor: lead.customStatus.color }}
+              />
+              <span className="text-xs text-text-muted">{lead.customStatus.name}</span>
+            </div>
+          )}
 
           <div className="mb-3 flex items-center text-xs sm:text-sm text-text-muted">
             <Phone className="mr-2 h-4 w-4 text-brand-secondary" />

@@ -8,6 +8,7 @@ import BottomNavigation from '@/components/BottomNavigation'
 import { AttendancesProvider, useAttendances } from '@/contexts/AttendancesContext'
 import DepartmentManager from '@/components/attendances/DepartmentManager'
 import UserManager from '@/components/attendances/UserManager'
+import LeadStatusManager from '@/components/admin/LeadStatusManager'
 import {
   LayoutDashboard,
   Building2,
@@ -22,12 +23,13 @@ import {
   Bot,
   Menu,
   Share2,
+  Tag,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
-type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | null
+type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | 'lead-status' | null
 
 interface MenuItem {
   id: MenuSection
@@ -68,6 +70,11 @@ const menuItems: MenuItem[] = [
     label: 'Automações',
     icon: <Bot className="h-4 w-4" />,
   },
+  {
+    id: 'lead-status',
+    label: 'Status de Leads',
+    icon: <Tag className="h-4 w-4" />,
+  },
 ]
 
 // Busca inteligente de configurações
@@ -95,6 +102,12 @@ const configHelpItems = [
     title: 'Quais são as diferenças entre os perfis?',
     description: 'Administrador: acesso total. Gestor: pode gerenciar departamentos e usuários. Agente: acesso básico para atendimento.',
     section: 'users',
+  },
+  {
+    keywords: ['status', 'lead', 'estágio', 'pipeline', 'qualificação'],
+    title: 'Como criar status customizados para leads?',
+    description: 'Vá em Status de Leads e clique em "Novo Status". Defina nome, descrição (importante para o agente de automação) e cor. A descrição ajuda o bot a entender quando usar cada status.',
+    section: 'lead-status',
   },
   {
     keywords: ['remover', 'deletar', 'excluir', 'apagar'],
@@ -475,6 +488,7 @@ function GestorContent() {
               </Card>
             </div>
           )}
+          {selectedSection === 'lead-status' && <LeadStatusManager />}
         </main>
       </div>
       <Footer />

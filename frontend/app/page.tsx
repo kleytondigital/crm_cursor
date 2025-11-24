@@ -37,12 +37,14 @@ function PageWrapper() {
   const isMobile = useIsMobile()
   
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Navigation />
-      <main className={`mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-8 pt-4 md:pt-6 ${
-        isMobile ? 'relative' : ''
-      }`} style={{ position: 'relative' }}>
-        <section className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
+      <main
+        className={`mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pt-4 md:pt-6 ${
+          isMobile ? 'pb-4' : 'pb-6'
+        } overflow-hidden`}
+      >
+        <section className="flex flex-1 flex-col min-h-0 overflow-hidden">
           <ChatProvider>
             <Suspense fallback={<div className="flex h-full items-center justify-center">Carregando...</div>}>
               <ChatContent />
