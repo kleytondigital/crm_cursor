@@ -56,18 +56,17 @@ export default function ReportsFilters({
         </div>
         <div className="flex items-center gap-2">
           {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onReset()
               }}
-              className="h-7 w-7 md:h-8 md:w-8 rounded-full border border-white/10 bg-background-soft/80 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary flex-shrink-0 transition-all"
+              className="h-7 w-7 md:h-8 md:w-8 rounded-full border border-white/10 bg-background-soft/80 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary flex-shrink-0 transition-all flex items-center justify-center"
               title="Limpar filtros"
             >
               <XCircle className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            </Button>
+            </button>
           )}
           {isCollapsed ? (
             <ChevronDown className="h-4 w-4 text-text-muted group-hover:text-brand-secondary transition-colors" />

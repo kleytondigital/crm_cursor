@@ -175,7 +175,9 @@ export const reportsAPI = {
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
 
     return apiRequest<ReportsCampaigns>(`/reports/campaigns?${params.toString()}`)
@@ -188,7 +190,9 @@ export const reportsAPI = {
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
 
     return apiRequest<ReportsJourney>(`/reports/journey?${params.toString()}`)
@@ -201,7 +205,9 @@ export const reportsAPI = {
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
 
     return apiRequest<ReportsMessages>(`/reports/messages?${params.toString()}`)
@@ -214,26 +220,33 @@ export const reportsAPI = {
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
 
     return apiRequest<ReportsScheduled>(`/reports/scheduled?${params.toString()}`)
   },
 
-  export: async (filters: ReportsFilter, format: 'csv' | 'excel' = 'csv'): Promise<Blob> => {
+  export: async (filters: ReportsFilter, format: 'csv' | 'excel' = 'csv'): Promise<void> => {
     const params = new URLSearchParams()
     if (filters.startDate) params.append('startDate', filters.startDate)
     if (filters.endDate) params.append('endDate', filters.endDate)
     if (filters.userId) params.append('userId', filters.userId)
     if (filters.campaignId) params.append('campaignId', filters.campaignId)
     if (filters.origin) params.append('origin', filters.origin)
-    if (filters.status) filters.status.forEach(s => params.append('status', s))
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
     if (filters.converted !== undefined) params.append('converted', String(filters.converted))
     params.append('format', format)
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/reports/export?${params.toString()}`, {
+    const token = localStorage.getItem('token')
+    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/reports/export?${params.toString()}`
+
+    const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${token}`,
       },
     })
 
@@ -241,7 +254,78 @@ export const reportsAPI = {
       throw new Error('Erro ao exportar relatório')
     }
 
-    return response.blob()
+    const blob = await response.blob()
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = downloadUrl
+    a.download = `relatorio-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(downloadUrl)
+    document.body.removeChild(a)
+  },
+
+  getLeadsDetail: async (
+    filters: ReportsFilter,
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<any> => {
+    const params = new URLSearchParams()
+    if (filters.startDate) params.append('startDate', filters.startDate)
+    if (filters.endDate) params.append('endDate', filters.endDate)
+    if (filters.userId) params.append('userId', filters.userId)
+    if (filters.campaignId) params.append('campaignId', filters.campaignId)
+    if (filters.origin) params.append('origin', filters.origin)
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
+    if (filters.converted !== undefined) params.append('converted', String(filters.converted))
+    params.append('page', String(page))
+    params.append('pageSize', String(pageSize))
+
+    return apiRequest(`/reports/leads/detail?${params.toString()}`)
+  },
+
+  getAttendancesDetail: async (
+    filters: ReportsFilter,
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<any> => {
+    const params = new URLSearchParams()
+    if (filters.startDate) params.append('startDate', filters.startDate)
+    if (filters.endDate) params.append('endDate', filters.endDate)
+    if (filters.userId) params.append('userId', filters.userId)
+    if (filters.campaignId) params.append('campaignId', filters.campaignId)
+    if (filters.origin) params.append('origin', filters.origin)
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
+    if (filters.converted !== undefined) params.append('converted', String(filters.converted))
+    params.append('page', String(page))
+    params.append('pageSize', String(pageSize))
+
+    return apiRequest(`/reports/attendances/detail?${params.toString()}`)
+  },
+
+  getMessagesDetail: async (
+    filters: ReportsFilter,
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<any> => {
+    const params = new URLSearchParams()
+    if (filters.startDate) params.append('startDate', filters.startDate)
+    if (filters.endDate) params.append('endDate', filters.endDate)
+    if (filters.userId) params.append('userId', filters.userId)
+    if (filters.campaignId) params.append('campaignId', filters.campaignId)
+    if (filters.origin) params.append('origin', filters.origin)
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      filters.status.forEach(s => params.append('status', s))
+    }
+    if (filters.converted !== undefined) params.append('converted', String(filters.converted))
+    params.append('page', String(page))
+    params.append('pageSize', String(pageSize))
+
+    return apiRequest(`/reports/messages/detail?${params.toString()}`)
   },
 }
 

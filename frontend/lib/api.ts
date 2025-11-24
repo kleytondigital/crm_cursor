@@ -418,8 +418,8 @@ export const attendancesAPI = {
       method: 'PATCH',
       body: JSON.stringify({ priority }),
     }),
-  claim: (id: string, data?: any) =>
-    authFetch(`/attendances/${id}/claim`, {
+  claim: (leadId: string, data?: any) =>
+    authFetch(`/attendances/lead/${leadId}/claim`, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     }),
