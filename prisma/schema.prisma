@@ -24,20 +24,21 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users             User[]
-  leads             Lead[]
-  conversations     Conversation[]
-  messages          Message[]
-  connections       Connection[]
-  departments       Department[]
-  attendances       Attendance[]
-  scheduledMessages ScheduledMessage[]
-  campaigns         Campaign[]
-  apiKeys           ApiKey[]
-  aiAgents          AIAgent[]
-  workflowTemplates WorkflowTemplate[]
-  workflowInstances WorkflowInstance[]
-  pipelineStages    PipelineStage[]
+  users              User[]
+  leads              Lead[]
+  conversations      Conversation[]
+  messages           Message[]
+  connections        Connection[]
+  departments        Department[]
+  attendances        Attendance[]
+  scheduledMessages  ScheduledMessage[]
+  campaigns          Campaign[]
+  apiKeys            ApiKey[]
+  aiAgents           AIAgent[]
+  workflowTemplates  WorkflowTemplate[]
+  workflowInstances  WorkflowInstance[]
+  pipelineStages     PipelineStage[]
+  customLeadStatuses CustomLeadStatus[]
 
   @@map("companies")
 }
@@ -79,7 +80,8 @@ model Lead {
   name              String
   phone             String
   tags              String[]
-  status            LeadStatus @default(NOVO)
+  status            LeadStatus @default(NOVO) // Manter temporariamente para migração
+  statusId          String? // Novo campo para status customizado
   profilePictureURL String?
   origin            String? // Origem do lead (Facebook, Google, TikTok, Orgânico, etc.)
   tenantId          String
@@ -87,6 +89,7 @@ model Lead {
   updatedAt         DateTime   @updatedAt
 
   company           Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customStatus      CustomLeadStatus?  @relation(fields: [statusId], references: [id], onDelete: SetNull)
   conversations     Conversation[]
   messages          Message[]
   attendances       Attendance[]
@@ -95,9 +98,11 @@ model Lead {
   @@index([tenantId])
   @@index([phone])
   @@index([status])
+  @@index([statusId])
   @@index([origin])
   @@index([createdAt])
   @@index([tenantId, status])
+  @@index([tenantId, statusId])
   @@index([tenantId, createdAt])
   @@index([tenantId, origin])
   @@map("leads")
@@ -108,6 +113,28 @@ enum LeadStatus {
   EM_ATENDIMENTO
   AGUARDANDO
   CONCLUIDO
+}
+
+model CustomLeadStatus {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @db.Text // Descrição obrigatória para auxiliar agentes de automação
+  color       String   @default("#6B7280") // Cor do status (hex)
+  order       Int      @default(0) // Ordem de exibição
+  isActive    Boolean  @default(true)
+  tenantId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads   Lead[]
+
+  @@unique([tenantId, name]) // Evitar duplicatas no mesmo tenant
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([order])
+  @@index([tenantId, order])
+  @@map("custom_lead_statuses")
 }
 
 model PipelineStage {
@@ -137,6 +164,7 @@ model Conversation {
   assignedUserId String?
   departmentId   String?
   status         ConversationStatus @default(ACTIVE)
+  isBotAttending Boolean            @default(false) // Indica se está sendo atendido por bot/automação
   tenantId       String
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
@@ -150,9 +178,11 @@ model Conversation {
   @@index([leadId])
   @@index([assignedUserId])
   @@index([status])
+  @@index([isBotAttending])
   @@index([createdAt])
   @@index([tenantId, status])
   @@index([tenantId, assignedUserId])
+  @@index([tenantId, isBotAttending])
   @@index([tenantId, createdAt])
   @@map("conversations")
 }

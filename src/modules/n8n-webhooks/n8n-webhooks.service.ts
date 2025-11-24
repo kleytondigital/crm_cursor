@@ -17,6 +17,7 @@ import { CloseAttendanceDto } from './dto/close-attendance.dto';
 import { UpdateAttendancePriorityDto } from './dto/update-attendance-priority.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateMessageTranscriptionDto } from './dto/update-message-transcription.dto';
+import { BotLockDto } from './dto/bot-lock.dto';
 import { UserRole } from '@prisma/client';
 
 @Injectable()
@@ -86,10 +87,34 @@ export class N8nWebhooksService {
       // Buscar lead (com ou sem tenantId, dependendo se a API Key é global)
       const lead = await this.findLeadByPhone(cleanPhone, tenantId);
 
-      // Atualizar status do lead
+      // Atualizar status do lead (priorizar statusId se fornecido)
+      const updateData: any = {};
+      if (dto.statusId) {
+        // Validar que statusId pertence ao tenant
+        const customStatus = await this.prisma.customLeadStatus.findFirst({
+          where: {
+            id: dto.statusId,
+            tenantId: lead.tenantId,
+          },
+        });
+
+        if (!customStatus) {
+          throw new BadRequestException(
+            `Status customizado não encontrado ou não pertence ao tenant. statusId=${dto.statusId}`,
+          );
+        }
+
+        updateData.statusId = dto.statusId;
+      } else if (dto.status) {
+        // Manter compatibilidade com enum
+        updateData.status = dto.status;
+      } else {
+        throw new BadRequestException('É necessário fornecer status ou statusId');
+      }
+
       const updatedLead = await this.prisma.lead.update({
         where: { id: lead.id },
-        data: { status: dto.status },
+        data: updateData,
       });
 
       return updatedLead;
@@ -462,6 +487,43 @@ export class N8nWebhooksService {
     }
 
     return attendance;
+  }
+
+  // ============= BOT LOCK =============
+
+  async updateBotLock(
+    conversationId: string,
+    isBotAttending: boolean,
+    tenantId: string | null,
+  ) {
+    const where: any = { id: conversationId };
+    if (tenantId !== null && tenantId !== 'global') {
+      where.tenantId = tenantId;
+    }
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where,
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(
+        `Conversa não encontrada. conversationId=${conversationId} tenantId=${tenantId || 'global'}`,
+      );
+    }
+
+    return this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { isBotAttending },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+      },
+    });
   }
 }
 

@@ -26,6 +26,7 @@ import { N8nApiModule } from './shared/n8n-api/n8n-api.module';
 import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-templates.module';
 import { PipelineStagesModule } from './modules/pipeline-stages/pipeline-stages.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { LeadStatusModule } from './modules/lead-status/lead-status.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     WorkflowTemplatesModule,
     PipelineStagesModule,
     ReportsModule,
+    LeadStatusModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

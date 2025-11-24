@@ -22,6 +22,7 @@ import { CloseAttendanceDto } from './dto/close-attendance.dto';
 import { UpdateAttendancePriorityDto } from './dto/update-attendance-priority.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateMessageTranscriptionDto } from './dto/update-message-transcription.dto';
+import { BotLockDto } from './dto/bot-lock.dto';
 
 @Controller('webhooks/n8n')
 @Public() // Marcar como público para JwtAuthGuard global não interferir
@@ -151,6 +152,20 @@ export class N8nWebhooksController {
     return this.n8nWebhooksService.updateMessageTranscription(
       messageId,
       dto,
+      tenantId,
+    );
+  }
+
+  // ============= BOT LOCK =============
+
+  @Post('bot-lock')
+  updateBotLock(
+    @Body() dto: BotLockDto,
+    @ApiKeyTenant() tenantId: string | null,
+  ) {
+    return this.n8nWebhooksService.updateBotLock(
+      dto.conversationId,
+      dto.isBotAttending,
       tenantId,
     );
   }

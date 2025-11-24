@@ -19,13 +19,16 @@ export class LeadsService {
     });
   }
 
-  async findAll(tenantId: string, status?: LeadStatus, userId?: string, userRole?: UserRole) {
+  async findAll(tenantId: string, status?: LeadStatus, statusId?: string, userId?: string, userRole?: UserRole) {
     const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
     const where: any = { tenantId };
     
-    this.logger.log(`Buscando leads - tenantId: ${tenantId}, status: ${status || 'todos'}, userId: ${userId}, userRole: ${userRole}, isAdmin: ${isAdmin}`);
+    this.logger.log(`Buscando leads - tenantId: ${tenantId}, status: ${status || 'todos'}, statusId: ${statusId || 'todos'}, userId: ${userId}, userRole: ${userRole}, isAdmin: ${isAdmin}`);
     
-    if (status) {
+    // Priorizar statusId se fornecido, senão usar status (enum) para compatibilidade
+    if (statusId) {
+      where.statusId = statusId;
+    } else if (status) {
       where.status = status;
     }
 
@@ -72,6 +75,14 @@ export class LeadsService {
         createdAt: 'desc',
       },
       include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+          },
+        },
         conversations: {
           take: 1,
           orderBy: {
@@ -80,6 +91,7 @@ export class LeadsService {
           select: {
             id: true,
             status: true,
+            isBotAttending: true,
           },
         },
       },
@@ -96,6 +108,14 @@ export class LeadsService {
         tenantId,
       },
       include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+          },
+        },
         conversations: {
           include: {
             messages: {
@@ -131,6 +151,39 @@ export class LeadsService {
     return this.prisma.lead.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async updateStatusId(id: string, statusId: string | null, tenantId: string) {
+    const lead = await this.findOne(id, tenantId);
+
+    // Validar que statusId pertence ao tenant se fornecido
+    if (statusId) {
+      const status = await this.prisma.customLeadStatus.findFirst({
+        where: {
+          id: statusId,
+          tenantId,
+        },
+      });
+
+      if (!status) {
+        throw new NotFoundException('Status não encontrado ou não pertence ao tenant');
+      }
+    }
+
+    return this.prisma.lead.update({
+      where: { id },
+      data: { statusId },
+      include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+          },
+        },
+      },
     });
   }
 

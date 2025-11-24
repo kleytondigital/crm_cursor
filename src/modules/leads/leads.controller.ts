@@ -27,9 +27,13 @@ export class LeadsController {
   }
 
   @Get()
-  findAll(@Query('status') status: LeadStatus, @CurrentUser() user: any) {
+  findAll(
+    @Query('status') status: LeadStatus,
+    @Query('statusId') statusId: string,
+    @CurrentUser() user: any,
+  ) {
     // Usar user.id (retornado pelo JwtStrategy) em vez de user.sub
-    return this.leadsService.findAll(user.companyId, status, user.id, user.role);
+    return this.leadsService.findAll(user.companyId, status, statusId, user.id, user.role);
   }
 
   @Get(':id')
@@ -43,7 +47,11 @@ export class LeadsController {
     @Body() updateLeadDto: UpdateLeadDto,
     @CurrentUser() user: any,
   ) {
-    // Se o status estiver no body, usar o método de atualização de status
+    // Se o statusId estiver no body, usar o método de atualização de statusId
+    if ((updateLeadDto as any).statusId !== undefined) {
+      return this.leadsService.updateStatusId(id, (updateLeadDto as any).statusId, user.companyId);
+    }
+    // Se o status (enum) estiver no body, usar o método de atualização de status (compatibilidade)
     if (updateLeadDto.status) {
       return this.leadsService.updateStatus(id, updateLeadDto.status, user.companyId);
     }

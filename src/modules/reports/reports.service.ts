@@ -23,6 +23,203 @@ export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Obter leads detalhados com paginação
+   */
+  async getLeadsDetail(
+    tenantId: string,
+    filters: ReportsFilterDto,
+    page: number = 1,
+    pageSize: number = 20,
+  ) {
+    const where = this.buildWhereClause(tenantId, filters);
+    const skip = (page - 1) * pageSize;
+
+    const [leads, total] = await Promise.all([
+      this.prisma.lead.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          status: true,
+          origin: true,
+          createdAt: true,
+          updatedAt: true,
+          messages: {
+            select: { id: true },
+          },
+          attendances: {
+            select: { id: true, endedAt: true },
+            where: { status: 'CLOSED' },
+            orderBy: { endedAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+      this.prisma.lead.count({ where }),
+    ]);
+
+    const data = leads.map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      phone: lead.phone,
+      status: lead.status,
+      origin: lead.origin || 'Orgânico',
+      createdAt: lead.createdAt.toISOString(),
+      updatedAt: lead.updatedAt.toISOString(),
+      convertedAt: lead.attendances[0]?.endedAt?.toISOString() || null,
+      totalMessages: lead.messages.length,
+      totalAttendances: lead.attendances.length,
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Obter atendimentos detalhados com paginação
+   */
+  async getAttendancesDetail(
+    tenantId: string,
+    filters: ReportsFilterDto,
+    page: number = 1,
+    pageSize: number = 20,
+  ) {
+    const where = this.buildWhereClause(tenantId, filters);
+    const skip = (page - 1) * pageSize;
+
+    const attendances = await this.prisma.attendance.findMany({
+      where: {
+        lead: where,
+      },
+      skip,
+      take: pageSize,
+      orderBy: { startedAt: 'desc' },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.attendance.count({
+      where: {
+        lead: where,
+      },
+    });
+
+    const data = attendances.map((attendance) => ({
+      id: attendance.id,
+      leadId: attendance.lead.id,
+      leadName: attendance.lead.name,
+      leadPhone: attendance.lead.phone,
+      assignedUserId: attendance.assignedUser?.id || '',
+      assignedUserName: attendance.assignedUser?.name || 'Não atribuído',
+      status: attendance.status,
+      startedAt: attendance.startedAt.toISOString(),
+      endedAt: attendance.endedAt?.toISOString() || null,
+      duration: attendance.endedAt
+        ? Math.round(
+            (attendance.endedAt.getTime() - attendance.startedAt.getTime()) / 60000,
+          )
+        : null,
+      totalMessages: 0, // TODO: Buscar mensagens via leadId se necessário
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Obter mensagens detalhadas com paginação
+   */
+  async getMessagesDetail(
+    tenantId: string,
+    filters: ReportsFilterDto,
+    page: number = 1,
+    pageSize: number = 20,
+  ) {
+    const where = this.buildWhereClause(tenantId, filters);
+    const skip = (page - 1) * pageSize;
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversation: {
+          lead: where,
+        },
+      },
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        conversation: {
+          include: {
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.message.count({
+      where: {
+        conversation: {
+          lead: where,
+        },
+      },
+    });
+
+    const data = messages.map((message) => ({
+      id: message.id,
+      conversationId: message.conversationId,
+      leadId: message.conversation?.lead?.id || null,
+      leadName: message.conversation?.lead?.name || null,
+      leadPhone: message.conversation?.lead?.phone || null,
+      content: message.contentText || '[Mídia]',
+      direction: message.direction,
+      contentType: message.contentType,
+      createdAt: message.createdAt.toISOString(),
+      senderName: message.sender || null, // sender é uma string, não uma relação
+    }));
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
    * Obter métricas gerais
    */
   async getOverview(

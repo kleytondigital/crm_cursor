@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { UserRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 @Injectable()
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   async findAll(tenantId: string, userId?: string, userRole?: UserRole) {
     // Filtrar conversas:
@@ -186,6 +191,63 @@ export class ConversationsService {
         },
       },
     });
+  }
+
+  async updateBotLock(
+    id: string,
+    isBotAttending: boolean,
+    tenantId: string,
+  ) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id,
+        tenantId,
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversa não encontrada');
+    }
+
+    // Atualizar no CRM
+    const updated = await this.prisma.conversation.update({
+      where: { id },
+      data: { isBotAttending },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    // Chamar webhook n8n para bloquear/desbloquear no Redis
+    try {
+      const webhookUrl = this.configService.get<string>('N8N_WEBHOOK_BOT_LOCK');
+      if (webhookUrl) {
+        await axios.post(webhookUrl, {
+          conversationId: id,
+          isBotAttending,
+          tenantId,
+          leadId: conversation.leadId,
+        });
+        this.logger.log(
+          `Bot lock atualizado via webhook n8n - conversationId: ${id}, isBotAttending: ${isBotAttending}`,
+        );
+      } else {
+        this.logger.warn('N8N_WEBHOOK_BOT_LOCK não configurado');
+      }
+    } catch (error) {
+      this.logger.error(
+        `Erro ao chamar webhook n8n para bot lock: ${error.message}`,
+      );
+      // Não falhar a operação se o webhook falhar
+    }
+
+    return updated;
   }
 }
 

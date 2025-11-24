@@ -6,8 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   ParseArrayPipe,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ReportsService } from './reports.service';
+import { ReportsExportService } from './reports-export.service';
 import { ReportsFilterDto } from './dto/reports-filter.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@/shared/guards/roles.guard';
@@ -19,7 +22,10 @@ import { UserRole, LeadStatus } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.MANAGER)
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly reportsExportService: ReportsExportService,
+  ) {}
 
   @Get('overview')
   @HttpCode(HttpStatus.OK)
@@ -126,8 +132,23 @@ export class ReportsController {
   @HttpCode(HttpStatus.OK)
   async getCampaigns(
     @CurrentUser() user: any,
-    @Query() filters: ReportsFilterDto,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
   ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
     return this.reportsService.getCampaigns(user.companyId, filters);
   }
 
@@ -135,8 +156,23 @@ export class ReportsController {
   @HttpCode(HttpStatus.OK)
   async getJourney(
     @CurrentUser() user: any,
-    @Query() filters: ReportsFilterDto,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
   ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
     return this.reportsService.getJourney(user.companyId, filters);
   }
 
@@ -144,8 +180,23 @@ export class ReportsController {
   @HttpCode(HttpStatus.OK)
   async getMessages(
     @CurrentUser() user: any,
-    @Query() filters: ReportsFilterDto,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
   ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
     return this.reportsService.getMessages(user.companyId, filters);
   }
 
@@ -153,20 +204,148 @@ export class ReportsController {
   @HttpCode(HttpStatus.OK)
   async getScheduled(
     @CurrentUser() user: any,
-    @Query() filters: ReportsFilterDto,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
   ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
     return this.reportsService.getScheduled(user.companyId, filters);
   }
 
-  @Get('export')
+  @Get('leads/detail')
   @HttpCode(HttpStatus.OK)
+  async getLeadsDetail(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
+    return this.reportsService.getLeadsDetail(
+      user.companyId,
+      filters,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+    );
+  }
+
+  @Get('attendances/detail')
+  @HttpCode(HttpStatus.OK)
+  async getAttendancesDetail(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
+    return this.reportsService.getAttendancesDetail(
+      user.companyId,
+      filters,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+    );
+  }
+
+  @Get('messages/detail')
+  @HttpCode(HttpStatus.OK)
+  async getMessagesDetail(
+    @CurrentUser() user: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
+    return this.reportsService.getMessagesDetail(
+      user.companyId,
+      filters,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+    );
+  }
+
+  @Get('export')
   async export(
     @CurrentUser() user: any,
-    @Query() filters: ReportsFilterDto,
-    @Query('format') format: 'csv' | 'excel' = 'csv',
+    @Res({ passthrough: false }) res: Response,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('userId') userId?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('origin') origin?: string,
+    @Query('status', new ParseArrayPipe({ items: String, optional: true })) status?: string[],
+    @Query('converted') converted?: string,
+    @Query('format') format?: 'csv' | 'excel',
   ) {
-    // TODO: Implementar exportação
-    return { message: 'Exportação em desenvolvimento' };
+    const filters: ReportsFilterDto = {
+      startDate,
+      endDate,
+      userId,
+      campaignId,
+      origin,
+      status: status as LeadStatus[],
+      converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
+    };
+
+    const exportFormat = format || 'csv';
+    if (exportFormat === 'excel') {
+      await this.reportsExportService.exportToExcel(user.companyId, filters, res);
+    } else {
+      await this.reportsExportService.exportToCSV(user.companyId, filters, res);
+    }
   }
 }
 
