@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Trash2 } from 'lucide-react'
 import { PipelineStage, CreatePipelineStageDto } from '@/lib/api/pipeline-stages'
 import { CustomLeadStatus, leadStatusAPI } from '@/lib/api/lead-status'
 
@@ -90,6 +90,30 @@ export default function PipelineStageModal({ stage, onClose, onSuccess }: Pipeli
     } catch (err: any) {
       console.error('Erro ao salvar estágio:', err)
       setError(err.response?.data?.message || 'Erro ao salvar estágio')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!stage) return
+
+    const confirmMessage = `Tem certeza que deseja excluir o estágio "${stage.name}"?\n\nEsta ação não pode ser desfeita e pode afetar leads associados a este estágio.`
+    
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const { pipelineStagesAPI } = await import('@/lib/api/pipeline-stages')
+      await pipelineStagesAPI.remove(stage.id)
+      onSuccess()
+    } catch (err: any) {
+      console.error('Erro ao excluir estágio:', err)
+      setError(err.response?.data?.message || 'Erro ao excluir estágio')
     } finally {
       setLoading(false)
     }
@@ -247,6 +271,18 @@ export default function PipelineStageModal({ stage, onClose, onSuccess }: Pipeli
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
+            {stage && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 flex items-center gap-2"
+                disabled={loading}
+                title="Excluir estágio"
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
