@@ -179,7 +179,7 @@ function GestorContent() {
     <div className="flex min-h-screen flex-col bg-background text-text-primary">
       <Navigation />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-10 pt-4 md:pt-6 flex-col lg:flex-row">
         {/* Menu Mobile - Acordeon */}
         {isMobile && (
           <div className="w-full lg:hidden">

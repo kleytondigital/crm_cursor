@@ -66,26 +66,47 @@ export class PipelineStagesService {
       order = (maxOrder?.order ?? -1) + 1;
     }
 
-    return this.prisma.pipelineStage.create({
-      data: {
-        name: dto.name,
-        statusId: dto.statusId,
-        color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
-        order,
-        isActive: dto.isActive ?? true,
-        tenantId,
-      },
-      include: {
-        customStatus: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            color: true,
+    try {
+      return await this.prisma.pipelineStage.create({
+        data: {
+          name: dto.name,
+          statusId: dto.statusId,
+          color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
+          order,
+          isActive: dto.isActive ?? true,
+          tenantId,
+        },
+        include: {
+          customStatus: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              color: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error: any) {
+      console.error('[PipelineStagesService.create] Erro ao criar estágio:', {
+        error: error.message,
+        code: error.code,
+        meta: error.meta,
+        dto,
+        tenantId,
+      });
+      
+      // Se o erro for de constraint violada, retornar mensagem mais amigável
+      if (error.code === 'P2002') {
+        throw new BadRequestException(
+          `Já existe um estágio com essas características para este tenant`,
+        );
+      }
+      
+      throw new BadRequestException(
+        `Erro ao criar estágio: ${error.message || 'Erro desconhecido'}`,
+      );
+    }
   }
 
   /**
