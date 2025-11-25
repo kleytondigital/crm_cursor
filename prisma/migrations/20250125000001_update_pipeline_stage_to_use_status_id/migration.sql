@@ -1,11 +1,14 @@
 -- AlterTable
 -- Atualizar PipelineStage para usar statusId ao invés de status (enum)
 
--- Adicionar coluna statusId
-ALTER TABLE "pipeline_stages" ADD COLUMN IF NOT EXISTS "statusId" TEXT;
-
--- Criar índice temporário para facilitar migração
-CREATE INDEX IF NOT EXISTS "pipeline_stages_statusId_idx" ON "pipeline_stages"("statusId");
+-- Adicionar coluna statusId (apenas se a tabela existir)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_stages') THEN
+        ALTER TABLE "pipeline_stages" ADD COLUMN IF NOT EXISTS "statusId" TEXT;
+        CREATE INDEX IF NOT EXISTS "pipeline_stages_statusId_idx" ON "pipeline_stages"("statusId");
+    END IF;
+END $$;
 
 -- Migrar dados: Para cada estágio existente, criar ou associar um CustomLeadStatus
 -- Primeiro, vamos criar status padrão para cada tenant que tem estágios
@@ -114,14 +117,29 @@ BEGIN
     END IF;
 END $$;
 
--- Remover constraint única antiga
-DROP INDEX IF EXISTS "pipeline_stages_tenantId_status_name_key";
+-- Remover constraint única antiga e criar nova (apenas se a tabela existir)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_stages') THEN
+        DROP INDEX IF EXISTS "pipeline_stages_tenantId_status_name_key";
+        CREATE UNIQUE INDEX IF NOT EXISTS "pipeline_stages_tenantId_statusId_name_key" ON "pipeline_stages"("tenantId", "statusId", "name");
+    END IF;
+END $$;
 
--- Criar nova constraint única
-CREATE UNIQUE INDEX IF NOT EXISTS "pipeline_stages_tenantId_statusId_name_key" ON "pipeline_stages"("tenantId", "statusId", "name");
-
--- Remover coluna status (enum) - manter temporariamente para compatibilidade
--- ALTER TABLE "pipeline_stages" DROP COLUMN IF EXISTS "status";
+-- Remover coluna status (enum) após migração completa
+-- Primeiro tornar opcional para evitar erros durante a transição
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_stages') THEN
+        -- Verificar se a coluna status existe e torná-la opcional
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pipeline_stages' AND column_name = 'status') THEN
+            -- Tornar a coluna opcional primeiro
+            ALTER TABLE "pipeline_stages" ALTER COLUMN "status" DROP NOT NULL;
+            -- Depois remover a coluna (comentado para manter compatibilidade temporária)
+            -- ALTER TABLE "pipeline_stages" DROP COLUMN IF EXISTS "status";
+        END IF;
+    END IF;
+END $$;
 
 -- Adicionar foreign key
 -- Verificar se a tabela custom_lead_statuses existe antes de criar a foreign key

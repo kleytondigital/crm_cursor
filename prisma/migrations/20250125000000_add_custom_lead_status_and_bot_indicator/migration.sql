@@ -33,12 +33,15 @@ BEGIN
 END $$;
 
 -- AlterTable
--- Adicionar coluna statusId em leads
-ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "statusId" TEXT;
-
--- CreateIndex
-CREATE INDEX IF NOT EXISTS "leads_statusId_idx" ON "leads"("statusId");
-CREATE INDEX IF NOT EXISTS "leads_tenantId_statusId_idx" ON "leads"("tenantId", "statusId");
+-- Adicionar coluna statusId em leads (apenas se a tabela existir)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'leads') THEN
+        ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "statusId" TEXT;
+        CREATE INDEX IF NOT EXISTS "leads_statusId_idx" ON "leads"("statusId");
+        CREATE INDEX IF NOT EXISTS "leads_tenantId_statusId_idx" ON "leads"("tenantId", "statusId");
+    END IF;
+END $$;
 
 -- AddForeignKey
 -- Verificar se a tabela custom_lead_statuses existe antes de criar a foreign key
@@ -50,12 +53,15 @@ BEGIN
 END $$;
 
 -- AlterTable
--- Adicionar coluna isBotAttending em conversations
-ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "isBotAttending" BOOLEAN NOT NULL DEFAULT false;
-
--- CreateIndex
-CREATE INDEX IF NOT EXISTS "conversations_isBotAttending_idx" ON "conversations"("isBotAttending");
-CREATE INDEX IF NOT EXISTS "conversations_tenantId_isBotAttending_idx" ON "conversations"("tenantId", "isBotAttending");
+-- Adicionar coluna isBotAttending em conversations (apenas se a tabela existir)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'conversations') THEN
+        ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "isBotAttending" BOOLEAN NOT NULL DEFAULT false;
+        CREATE INDEX IF NOT EXISTS "conversations_isBotAttending_idx" ON "conversations"("isBotAttending");
+        CREATE INDEX IF NOT EXISTS "conversations_tenantId_isBotAttending_idx" ON "conversations"("tenantId", "isBotAttending");
+    END IF;
+END $$;
 
 -- Migração de dados: Criar status padrão para cada tenant e migrar leads
 -- Este script cria os status padrão (NOVO, EM_ATENDIMENTO, AGUARDANDO, CONCLUIDO) para cada tenant existente
