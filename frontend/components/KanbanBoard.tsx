@@ -3,13 +3,10 @@
 import { useState, useEffect } from 'react'
 import { DragDropContext, DropResult } from 'react-beautiful-dnd'
 import KanbanColumn from './KanbanColumn'
-import { Lead, CustomLeadStatus } from '@/types'
+import { Lead } from '@/types'
 import { leadsAPI } from '@/lib/api'
 import { PipelineStage, pipelineStagesAPI } from '@/lib/api/pipeline-stages'
-import { leadStatusAPI } from '@/lib/api/lead-status'
 import { Loader2 } from 'lucide-react'
-
-type LeadStatus = 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO'
 
 interface KanbanBoardProps {
   onEditStage?: (stage: PipelineStage) => void
@@ -18,7 +15,6 @@ interface KanbanBoardProps {
 export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [stages, setStages] = useState<PipelineStage[]>([])
-  const [customStatuses, setCustomStatuses] = useState<CustomLeadStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -34,20 +30,6 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
     } catch (err: any) {
       console.error('Erro ao carregar estágios:', err)
       setError('Erro ao carregar estágios do pipeline')
-    }
-  }
-
-  const loadCustomStatuses = async () => {
-    try {
-      const data = await leadStatusAPI.getAll()
-      // Filtrar apenas status ativos e ordenar
-      const activeStatuses = data
-        .filter((status) => status.isActive)
-        .sort((a, b) => a.order - b.order)
-      setCustomStatuses(activeStatuses)
-    } catch (err: any) {
-      console.error('Erro ao carregar status customizados:', err)
-      // Não falhar se não houver status customizados
     }
   }
 
@@ -78,9 +60,8 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
       }
     }
 
-    // Carregar estágios, status customizados e leads
+    // Carregar estágios e leads
     loadStages()
-    loadCustomStatuses()
     loadLeads()
   }, [])
 
@@ -119,44 +100,32 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
     }
 
     const leadId = draggableId
-    const destinationId = destination.droppableId
+    const destinationStageId = destination.droppableId
 
-    // Verificar se é um status customizado (começa com "status-") ou um estágio (enum)
-    const isCustomStatus = destinationId.startsWith('status-')
-    const statusId = isCustomStatus ? destinationId.replace('status-', '') : null
-    const newStatus = isCustomStatus ? null : (destinationId as LeadStatus)
+    // Encontrar o estágio de destino
+    const destinationStage = stages.find((s) => s.id === destinationStageId)
+    if (!destinationStage) return
 
     // Encontrar o lead atual
     const currentLead = leads.find((l) => l.id === leadId)
     if (!currentLead) return
 
-    // Otimistic update
+    // Otimistic update - atualizar para usar statusId do estágio
     const updatedLeads = leads.map((lead) => {
       if (lead.id === leadId) {
-        if (isCustomStatus) {
-          // Atualizar para status customizado
-          const customStatus = customStatuses.find((s) => s.id === statusId)
-          return {
-            ...lead,
-            statusId: statusId || null,
-            customStatus: customStatus || null,
-          }
-        } else {
-          // Atualizar para enum (compatibilidade)
-          return { ...lead, status: newStatus as LeadStatus, statusId: null, customStatus: null }
-        }
+        return {
+          ...lead,
+          statusId: destinationStage.statusId,
+          customStatus: destinationStage.customStatus || null,
+        } as Lead
       }
       return lead
     })
     setLeads(updatedLeads)
 
     try {
-      // Atualizar no backend
-      if (isCustomStatus) {
-        await leadsAPI.updateStatusId(leadId, statusId)
-      } else {
-        await leadsAPI.updateStatus(leadId, newStatus as string)
-      }
+      // Atualizar no backend usando statusId
+      await leadsAPI.updateStatusId(leadId, destinationStage.statusId)
     } catch (err: any) {
       // Reverter em caso de erro
       setLeads(leads)
@@ -164,12 +133,11 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
     }
   }
 
-  const getLeadsByStatus = (status: LeadStatus) => {
-    return leads.filter((lead) => lead.status === status)
-  }
-
-  const getLeadsByStatusId = (statusId: string) => {
-    return leads.filter((lead) => lead.statusId === statusId)
+  const getLeadsByStage = (stageId: string) => {
+    const stage = stages.find((s) => s.id === stageId)
+    if (!stage) return []
+    // Filtrar leads pelo statusId do estágio
+    return leads.filter((lead) => lead.statusId === stage.statusId)
   }
 
   if (loading) {
@@ -208,35 +176,14 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
               scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
             }}
           >
-            {/* Renderizar estágios do pipeline (compatibilidade) */}
+            {/* Renderizar apenas estágios do pipeline (que referenciam status customizados) */}
             {stages.map((stage) => (
               <KanbanColumn
                 key={stage.id}
                 stage={stage}
-                leads={getLeadsByStatus(stage.status)}
+                leads={getLeadsByStage(stage.id)}
                 onEdit={isAdmin && onEditStage ? () => onEditStage(stage) : undefined}
-                droppableId={stage.status}
-              />
-            ))}
-            {/* Renderizar status customizados */}
-            {customStatuses.map((customStatus) => (
-              <KanbanColumn
-                key={`status-${customStatus.id}`}
-                stage={{
-                  id: `status-${customStatus.id}`,
-                  name: customStatus.name,
-                  status: 'NOVO' as LeadStatus, // Placeholder, não usado
-                  color: customStatus.color,
-                  order: customStatus.order,
-                  isDefault: false,
-                  isActive: customStatus.isActive,
-                  tenantId: customStatus.tenantId,
-                  createdAt: customStatus.createdAt,
-                  updatedAt: customStatus.updatedAt,
-                }}
-                leads={getLeadsByStatusId(customStatus.id)}
-                onEdit={undefined} // Status customizados são editados no Gestor
-                droppableId={`status-${customStatus.id}`}
+                droppableId={stage.id}
               />
             ))}
           </div>

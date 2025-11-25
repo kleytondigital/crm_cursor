@@ -126,8 +126,9 @@ model CustomLeadStatus {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company Company @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  leads   Lead[]
+  company        Company         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads          Lead[]
+  pipelineStages PipelineStage[]
 
   @@unique([tenantId, name]) // Evitar duplicatas no mesmo tenant
   @@index([tenantId])
@@ -138,21 +139,23 @@ model CustomLeadStatus {
 }
 
 model PipelineStage {
-  id        String     @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String // Nome do estágio (ex: "Novo", "Qualificado", "Proposta")
-  status    LeadStatus // Status do Lead associado
-  color     String     @default("#6B7280") // Cor do estágio (hex)
-  order     Int        @default(0) // Ordem de exibição
-  isDefault Boolean    @default(false) // Estágio padrão do sistema (não editável)
-  isActive  Boolean    @default(true) // Estágio ativo
-  tenantId  String? // Null para estágios globais (padrão do sistema)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  statusId  String // Status customizado do Lead associado (referência a CustomLeadStatus)
+  color     String   @default("#6B7280") // Cor do estágio (hex)
+  order     Int      @default(0) // Ordem de exibição
+  isDefault Boolean  @default(false) // Estágio padrão do sistema (não editável)
+  isActive  Boolean  @default(true) // Estágio ativo
+  tenantId  String // Null para estágios globais (padrão do sistema)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  company Company? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company      Company?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customStatus CustomLeadStatus @relation(fields: [statusId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, status, name]) // Evitar duplicatas no mesmo tenant
+  @@unique([tenantId, statusId, name]) // Evitar duplicatas no mesmo tenant com mesmo status
   @@index([tenantId])
+  @@index([statusId])
   @@index([isActive])
   @@index([order])
   @@map("pipeline_stages")

@@ -26,18 +26,32 @@ export class PipelineStagesService {
       throw new ForbiddenException('Apenas administradores podem criar estágios');
     }
 
-    // Verificar se já existe estágio com mesmo nome e status para este tenant
+    // Verificar se o statusId existe e pertence ao tenant
+    const customStatus = await this.prisma.customLeadStatus.findFirst({
+      where: {
+        id: dto.statusId,
+        tenantId,
+      },
+    });
+
+    if (!customStatus) {
+      throw new BadRequestException(
+        `Status customizado não encontrado ou não pertence ao tenant`,
+      );
+    }
+
+    // Verificar se já existe estágio com mesmo nome e statusId para este tenant
     const existing = await this.prisma.pipelineStage.findFirst({
       where: {
         tenantId,
         name: dto.name,
-        status: dto.status,
+        statusId: dto.statusId,
       },
     });
 
     if (existing) {
       throw new BadRequestException(
-        `Já existe um estágio com nome "${dto.name}" e status "${dto.status}"`,
+        `Já existe um estágio com nome "${dto.name}" para este status`,
       );
     }
 
@@ -55,11 +69,21 @@ export class PipelineStagesService {
     return this.prisma.pipelineStage.create({
       data: {
         name: dto.name,
-        status: dto.status,
-        color: dto.color || '#6B7280',
+        statusId: dto.statusId,
+        color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
         order,
         isActive: dto.isActive ?? true,
         tenantId,
+      },
+      include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+          },
+        },
       },
     });
   }
@@ -68,23 +92,23 @@ export class PipelineStagesService {
    * Listar todos os estágios do tenant (incluindo estágios padrão globais)
    */
   async findAll(tenantId: string) {
-    // Buscar estágios personalizados do tenant + estágios padrão globais
+    // Buscar estágios personalizados do tenant
     const customStages = await this.prisma.pipelineStage.findMany({
       where: { tenantId },
       orderBy: { order: 'asc' },
+      include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+            order: true,
+          },
+        },
+      },
     });
 
-    const defaultStages = await this.prisma.pipelineStage.findMany({
-      where: { tenantId: null, isDefault: true, isActive: true },
-      orderBy: { order: 'asc' },
-    });
-
-    // Se o tenant não tem estágios personalizados, retornar apenas os padrões
-    if (customStages.length === 0) {
-      return defaultStages;
-    }
-
-    // Retornar estágios personalizados (eles sobrescrevem os padrões)
     return customStages;
   }
 
@@ -95,10 +119,18 @@ export class PipelineStagesService {
     const stage = await this.prisma.pipelineStage.findFirst({
       where: {
         id,
-        OR: [
-          { tenantId },
-          { tenantId: null, isDefault: true }, // Estágios padrão globais
-        ],
+        tenantId, // Agora sempre filtrar por tenantId
+      },
+      include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+            order: true,
+          },
+        },
       },
     });
 
@@ -134,20 +166,36 @@ export class PipelineStagesService {
       throw new ForbiddenException('Você não pode editar estágios de outros tenants');
     }
 
-    // Se mudou nome ou status, verificar se não existe outro com mesmo nome/status
-    if (dto.name || dto.status) {
+    // Se mudou statusId, validar que existe e pertence ao tenant
+    if (dto.statusId && dto.statusId !== stage.statusId) {
+      const customStatus = await this.prisma.customLeadStatus.findFirst({
+        where: {
+          id: dto.statusId,
+          tenantId,
+        },
+      });
+
+      if (!customStatus) {
+        throw new BadRequestException(
+          `Status customizado não encontrado ou não pertence ao tenant`,
+        );
+      }
+    }
+
+    // Se mudou nome ou statusId, verificar se não existe outro com mesmo nome/statusId
+    if (dto.name || dto.statusId) {
       const existing = await this.prisma.pipelineStage.findFirst({
         where: {
           tenantId,
           name: dto.name ?? stage.name,
-          status: dto.status ?? stage.status,
+          statusId: dto.statusId ?? stage.statusId,
           id: { not: id },
         },
       });
 
       if (existing) {
         throw new BadRequestException(
-          `Já existe outro estágio com nome "${dto.name ?? stage.name}" e status "${dto.status ?? stage.status}"`,
+          `Já existe outro estágio com nome "${dto.name ?? stage.name}" para este status`,
         );
       }
     }
@@ -155,11 +203,22 @@ export class PipelineStagesService {
     return this.prisma.pipelineStage.update({
       where: { id },
       data: {
-        name: dto.name,
-        status: dto.status,
-        color: dto.color,
-        order: dto.order,
-        isActive: dto.isActive,
+        ...(dto.name && { name: dto.name }),
+        ...(dto.statusId && { statusId: dto.statusId }),
+        ...(dto.color && { color: dto.color }),
+        ...(dto.order !== undefined && { order: dto.order }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+      include: {
+        customStatus: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            color: true,
+            order: true,
+          },
+        },
       },
     });
   }
@@ -176,10 +235,7 @@ export class PipelineStagesService {
 
     const stage = await this.findOne(id, tenantId);
 
-    if (stage.isDefault) {
-      throw new BadRequestException('Estágios padrão não podem ser removidos');
-    }
-
+    // Verificar se o estágio pertence ao tenant
     if (stage.tenantId !== tenantId) {
       throw new ForbiddenException('Você não pode remover estágios de outros tenants');
     }

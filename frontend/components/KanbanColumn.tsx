@@ -64,9 +64,9 @@ export default function KanbanColumn({ stage, leads, onEdit, droppableId }: Kanb
               </button>
             )}
           </div>
-          {stage.status && (
-            <p className="mt-0.5 md:mt-1 text-[10px] md:text-xs text-text-muted truncate">
-              {stage.status.replace('_', ' ')}
+          {stage.customStatus && (
+            <p className="mt-0.5 md:mt-1 text-[10px] md:text-xs text-text-muted truncate" title={stage.customStatus.description}>
+              {stage.customStatus.name}
             </p>
           )}
         </div>
@@ -75,7 +75,7 @@ export default function KanbanColumn({ stage, leads, onEdit, droppableId }: Kanb
         </span>
       </div>
 
-      <StrictModeDroppable droppableId={droppableId || stage.status}>
+      <StrictModeDroppable droppableId={droppableId || stage.id}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}

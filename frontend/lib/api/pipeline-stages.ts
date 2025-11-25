@@ -1,21 +1,30 @@
 import { API_URL } from '../api'
 
+export interface CustomLeadStatus {
+  id: string
+  name: string
+  description: string
+  color: string
+  order: number
+}
+
 export interface PipelineStage {
   id: string
   name: string
-  status: 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO'
+  statusId: string // Referência ao CustomLeadStatus
   color: string
   order: number
   isDefault: boolean
   isActive: boolean
-  tenantId: string | null
+  tenantId: string
   createdAt: string
   updatedAt: string
+  customStatus?: CustomLeadStatus // Status customizado relacionado
 }
 
 export interface CreatePipelineStageDto {
   name: string
-  status: 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO'
+  statusId: string // Referência ao CustomLeadStatus
   color?: string
   order?: number
   isActive?: boolean
@@ -23,7 +32,7 @@ export interface CreatePipelineStageDto {
 
 export interface UpdatePipelineStageDto {
   name?: string
-  status?: 'NOVO' | 'EM_ATENDIMENTO' | 'AGUARDANDO' | 'CONCLUIDO'
+  statusId?: string // Referência ao CustomLeadStatus
   color?: string
   order?: number
   isActive?: boolean

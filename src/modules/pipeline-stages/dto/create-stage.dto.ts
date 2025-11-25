@@ -1,12 +1,13 @@
-import { IsString, IsEnum, IsOptional, IsBoolean, IsInt, IsHexColor } from 'class-validator';
-import { LeadStatus } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsInt, IsHexColor } from 'class-validator';
 
 export class CreatePipelineStageDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @IsEnum(LeadStatus)
-  status: LeadStatus;
+  @IsString()
+  @IsNotEmpty()
+  statusId: string; // Referência ao CustomLeadStatus
 
   @IsOptional()
   @IsHexColor()

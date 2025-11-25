@@ -71,7 +71,7 @@ function SortableStage({ stage, onEdit, onDelete }: SortableStageProps) {
           <h3 className="font-semibold text-gray-900">{stage.name}</h3>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium">
-              {stage.status}
+              {stage.customStatus?.name || stage.statusId || 'N/A'}
             </span>
             {stage.isDefault && (
               <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">

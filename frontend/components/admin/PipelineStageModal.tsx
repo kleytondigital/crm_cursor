@@ -3,19 +3,13 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { PipelineStage, CreatePipelineStageDto } from '@/lib/api/pipeline-stages'
+import { CustomLeadStatus, leadStatusAPI } from '@/lib/api/lead-status'
 
 interface PipelineStageModalProps {
   stage?: PipelineStage | null
   onClose: () => void
   onSuccess: () => void
 }
-
-const STATUS_OPTIONS = [
-  { value: 'NOVO', label: 'Novo' },
-  { value: 'EM_ATENDIMENTO', label: 'Em Atendimento' },
-  { value: 'AGUARDANDO', label: 'Aguardando' },
-  { value: 'CONCLUIDO', label: 'Concluído' },
-]
 
 const DEFAULT_COLORS = [
   '#3B82F6', // Azul
@@ -33,18 +27,45 @@ const DEFAULT_COLORS = [
 export default function PipelineStageModal({ stage, onClose, onSuccess }: PipelineStageModalProps) {
   const [formData, setFormData] = useState<CreatePipelineStageDto>({
     name: '',
-    status: 'NOVO',
+    statusId: '',
     color: '#3B82F6',
     isActive: true,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [customStatuses, setCustomStatuses] = useState<CustomLeadStatus[]>([])
+  const [loadingStatuses, setLoadingStatuses] = useState(true)
+
+  useEffect(() => {
+    // Carregar status customizados disponíveis
+    const loadStatuses = async () => {
+      try {
+        setLoadingStatuses(true)
+        const statuses = await leadStatusAPI.getAll()
+        const activeStatuses = statuses
+          .filter((s) => s.isActive)
+          .sort((a, b) => a.order - b.order)
+        setCustomStatuses(activeStatuses)
+        
+        // Se não há stage e há statuses, selecionar o primeiro por padrão
+        if (!stage && activeStatuses.length > 0 && !formData.statusId) {
+          setFormData((prev) => ({ ...prev, statusId: activeStatuses[0].id }))
+        }
+      } catch (err: any) {
+        console.error('Erro ao carregar status customizados:', err)
+        setError('Erro ao carregar status customizados')
+      } finally {
+        setLoadingStatuses(false)
+      }
+    }
+    loadStatuses()
+  }, [])
 
   useEffect(() => {
     if (stage) {
       setFormData({
         name: stage.name,
-        status: stage.status,
+        statusId: stage.statusId,
         color: stage.color,
         isActive: stage.isActive,
       })
@@ -108,27 +129,46 @@ export default function PipelineStageModal({ stage, onClose, onSuccess }: Pipeli
             />
           </div>
 
-          {/* Status */}
+          {/* Status Customizado */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">
               Status do Lead *
             </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
-              required
-              disabled={loading}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Status interno do lead ao entrar neste estágio
-            </p>
+            {loadingStatuses ? (
+              <div className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-500">
+                Carregando status...
+              </div>
+            ) : customStatuses.length === 0 ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
+                Nenhum status customizado encontrado. Crie um status em "Status de Leads" primeiro.
+              </div>
+            ) : (
+              <>
+                <select
+                  value={formData.statusId}
+                  onChange={(e) => {
+                    const selectedStatus = customStatuses.find((s) => s.id === e.target.value)
+                    setFormData({ 
+                      ...formData, 
+                      statusId: e.target.value,
+                      color: selectedStatus?.color || formData.color, // Usar cor do status se não especificada
+                    })
+                  }}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+                  required
+                  disabled={loading}
+                >
+                  {customStatuses.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {status.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Status customizado que será aplicado aos leads neste estágio
+                </p>
+              </>
+            )}
           </div>
 
           {/* Cor */}

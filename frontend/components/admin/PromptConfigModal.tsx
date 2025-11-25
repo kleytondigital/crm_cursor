@@ -210,7 +210,8 @@ export default function PromptConfigModal({
     
     // Adicionar lista de estágios
     selectedStagesData.forEach((stage) => {
-      instructionsParts.push(`- **${stage.name}** (Status: ${stage.status})`)
+      const statusName = stage.customStatus?.name || stage.statusId || 'N/A'
+      instructionsParts.push(`- **${stage.name}** (Status: ${statusName})`)
     })
     
     instructionsParts.push('')
@@ -246,7 +247,9 @@ export default function PromptConfigModal({
         action = 'quando o atendimento for finalizado'
       }
       
-      instructionsParts.push(`- **${stage.name}**: Use este estágio ${action}. Chame a tool com status "${stage.status}".`)
+      const statusName = stage.customStatus?.name || stage.statusId || 'N/A'
+      const statusId = stage.statusId || 'N/A'
+      instructionsParts.push(`- **${stage.name}**: Use este estágio ${action}. Chame a tool com statusId "${statusId}".`)
     })
 
     instructionsParts.push('')
@@ -657,7 +660,7 @@ export default function PromptConfigModal({
                                     <span className="text-sm font-medium text-white">{stage.name}</span>
                                   </div>
                                   <span className="text-xs text-text-muted">
-                                    {stage.status}
+                                    {stage.customStatus?.name || stage.statusId || 'N/A'}
                                   </span>
                                 </div>
                               </label>
