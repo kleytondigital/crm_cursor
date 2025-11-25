@@ -24,7 +24,13 @@ CREATE INDEX IF NOT EXISTS "custom_lead_statuses_tenantId_order_idx" ON "custom_
 CREATE UNIQUE INDEX IF NOT EXISTS "custom_lead_statuses_tenantId_name_key" ON "custom_lead_statuses"("tenantId", "name");
 
 -- AddForeignKey
-ALTER TABLE "custom_lead_statuses" ADD CONSTRAINT "custom_lead_statuses_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Verificar se a tabela companies existe antes de criar a foreign key
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'companies') THEN
+        ALTER TABLE "custom_lead_statuses" ADD CONSTRAINT "custom_lead_statuses_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
 -- AlterTable
 -- Adicionar coluna statusId em leads
@@ -35,7 +41,13 @@ CREATE INDEX IF NOT EXISTS "leads_statusId_idx" ON "leads"("statusId");
 CREATE INDEX IF NOT EXISTS "leads_tenantId_statusId_idx" ON "leads"("tenantId", "statusId");
 
 -- AddForeignKey
-ALTER TABLE "leads" ADD CONSTRAINT "leads_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- Verificar se a tabela custom_lead_statuses existe antes de criar a foreign key
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
+        ALTER TABLE "leads" ADD CONSTRAINT "leads_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
 
 -- AlterTable
 -- Adicionar coluna isBotAttending em conversations
@@ -57,6 +69,17 @@ DECLARE
     status_id_aguardando TEXT;
     status_id_concluido TEXT;
 BEGIN
+    -- Verificar se as tabelas necessárias existem
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'companies') THEN
+        RAISE NOTICE 'Tabela companies não existe, pulando migração de dados';
+        RETURN;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
+        RAISE NOTICE 'Tabela custom_lead_statuses não existe, pulando migração de dados';
+        RETURN;
+    END IF;
+
     -- Para cada empresa/tenant
     FOR company_record IN SELECT id FROM companies LOOP
         -- Criar status NOVO

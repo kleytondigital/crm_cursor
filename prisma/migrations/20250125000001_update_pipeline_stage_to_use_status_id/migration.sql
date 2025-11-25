@@ -15,6 +15,17 @@ DECLARE
     status_id TEXT;
     status_exists BOOLEAN;
 BEGIN
+    -- Verificar se as tabelas necessárias existem
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_stages') THEN
+        RAISE NOTICE 'Tabela pipeline_stages não existe, pulando migração de dados';
+        RETURN;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
+        RAISE NOTICE 'Tabela custom_lead_statuses não existe, pulando migração de dados';
+        RETURN;
+    END IF;
+
     -- Para cada estágio existente
     FOR stage_record IN 
         SELECT DISTINCT "tenantId", status 
@@ -92,7 +103,16 @@ BEGIN
 END $$;
 
 -- Tornar statusId obrigatório (após migração)
-ALTER TABLE "pipeline_stages" ALTER COLUMN "statusId" SET NOT NULL;
+-- Verificar se a tabela pipeline_stages existe e se statusId não é null em todos os registros
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_stages') THEN
+        -- Verificar se todos os registros têm statusId antes de tornar obrigatório
+        IF NOT EXISTS (SELECT 1 FROM pipeline_stages WHERE "statusId" IS NULL) THEN
+            ALTER TABLE "pipeline_stages" ALTER COLUMN "statusId" SET NOT NULL;
+        END IF;
+    END IF;
+END $$;
 
 -- Remover constraint única antiga
 DROP INDEX IF EXISTS "pipeline_stages_tenantId_status_name_key";
@@ -104,5 +124,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "pipeline_stages_tenantId_statusId_name_key" O
 -- ALTER TABLE "pipeline_stages" DROP COLUMN IF EXISTS "status";
 
 -- Adicionar foreign key
-ALTER TABLE "pipeline_stages" ADD CONSTRAINT "pipeline_stages_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Verificar se a tabela custom_lead_statuses existe antes de criar a foreign key
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
+        ALTER TABLE "pipeline_stages" ADD CONSTRAINT "pipeline_stages_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
