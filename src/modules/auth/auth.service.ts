@@ -13,46 +13,64 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.usersService.findByEmail(email);
+    try {
+      const user = await this.usersService.findByEmail(email);
 
-    if (!user) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      if (!user) {
+        throw new UnauthorizedException('Credenciais inválidas');
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Credenciais inválidas');
+      }
+
+      if (!user.isActive) {
+        throw new UnauthorizedException('Usuário inativo');
+      }
+
+      const { password: _, ...result } = user;
+      return result;
+    } catch (error: any) {
+      // Verificar se é erro de tabela não encontrada
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        throw new UnauthorizedException('Banco de dados não configurado. Execute as migrations primeiro.');
+      }
+      // Re-lançar outros erros (incluindo UnauthorizedException)
+      throw error;
     }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciais inválidas');
-    }
-
-    if (!user.isActive) {
-      throw new UnauthorizedException('Usuário inativo');
-    }
-
-    const { password: _, ...result } = user;
-    return result;
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    try {
+      const user = await this.validateUser(loginDto.email, loginDto.password);
 
-    const payload = {
-      email: user.email,
-      sub: user.id,
-      companyId: user.companyId,
-      role: user.role,
-    };
-
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
+      const payload = {
         email: user.email,
-        name: user.name,
-        role: user.role,
+        sub: user.id,
         companyId: user.companyId,
-      },
-    };
+        role: user.role,
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          companyId: user.companyId,
+        },
+      };
+    } catch (error: any) {
+      // Verificar se é erro de tabela não encontrada
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        throw new UnauthorizedException('Banco de dados não configurado. Execute as migrations primeiro.');
+      }
+      // Re-lançar outros erros
+      throw error;
+    }
   }
 
   async register(registerDto: RegisterDto) {

@@ -116,12 +116,21 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        company: true,
-      },
-    });
+    try {
+      return await this.prisma.user.findUnique({
+        where: { email },
+        include: {
+          company: true,
+        },
+      });
+    } catch (error: any) {
+      // Se a tabela não existe, retornar null ao invés de lançar erro
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        console.error('Tabela users não existe. Execute as migrations primeiro:', error.message);
+        return null;
+      }
+      throw error;
+    }
   }
 
   async findByCompany(companyId: string) {
