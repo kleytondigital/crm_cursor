@@ -1,20 +1,35 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  output: 'standalone', // Necessário para Docker
-  eslint: {
-    // Ignorar erros do ESLint durante o build (podem ser corrigidos depois)
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // Não permitir erros de TypeScript durante o build
-    ignoreBuildErrors: false,
-  },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3000',
-  },
-}
+    reactStrictMode: false,
+    output: "standalone",
 
-module.exports = nextConfig
+    poweredByHeader: false,
+    compress: true,
+    swcMinify: true,
 
+    eslint: { ignoreDuringBuilds: true },
+    typescript: { ignoreBuildErrors: false },
+
+    env: {
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+        NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+    },
+
+    images: {
+        formats: ["image/avif", "image/webp"],
+        minimumCacheTTL: 120,
+    },
+
+    experimental: {
+        reactCompiler: true,
+        serverActions: { allowedOrigins: ["*"] },
+        turbo: { loaders: { "*.ts": ["ts"], "*.tsx": ["tsx"] } }
+    },
+
+    webpack: (config) => {
+        config.infrastructureLogging = { level: "error" };
+        return config;
+    },
+};
+
+module.exports = nextConfig;

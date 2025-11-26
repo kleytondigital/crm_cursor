@@ -310,9 +310,9 @@ export default function AutomacoesPage() {
             ) : view === 'instances' ? (
               /* Minhas Automações */
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {instances.map((instance) => (
-              <div
-                key={instance.id}
+                {instances.map((instance) => (
+                  <div
+                    key={instance.id}
                 className="rounded-2xl border border-white/10 bg-background-card/80 p-6 shadow-glow backdrop-blur-xl"
               >
                 <div className="mb-4 flex items-start justify-between">
@@ -431,34 +431,34 @@ export default function AutomacoesPage() {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            ))}
+                  </div>
+                ))}
 
-            {instances.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-background-card/40 p-12 text-center">
-                <Bot className="mb-4 h-16 w-16 text-text-muted" />
-                <h3 className="mb-2 text-lg font-semibold text-white">
-                  Nenhuma automação ainda
-                </h3>
-                <p className="mb-6 text-sm text-text-muted">
-                  Crie sua primeira automação a partir de um template
-                </p>
-                <Button
-                  onClick={() => setView('templates')}
-                  className="gap-2 bg-brand-primary text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  Ver Templates
-                </Button>
+                {instances.length === 0 && (
+                  <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-background-card/40 p-12 text-center">
+                    <Bot className="mb-4 h-16 w-16 text-text-muted" />
+                    <h3 className="mb-2 text-lg font-semibold text-white">
+                      Nenhuma automação ainda
+                    </h3>
+                    <p className="mb-6 text-sm text-text-muted">
+                      Crie sua primeira automação a partir de um template
+                    </p>
+                    <Button
+                      onClick={() => setView('templates')}
+                      className="gap-2 bg-brand-primary text-white"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Ver Templates
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ) : (
-          /* Templates Disponíveis */
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {templates.map((template) => (
-              <div
-                key={template.id}
+            ) : (
+              /* Templates Disponíveis */
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
                 className="rounded-2xl border border-white/10 bg-background-card/80 p-6 shadow-glow backdrop-blur-xl transition hover:border-brand-primary/30"
               >
                 <div className="mb-4 flex items-start justify-between">
@@ -494,10 +494,10 @@ export default function AutomacoesPage() {
                   <Plus className="h-4 w-4" />
                   Usar Template
                 </Button>
-              </div>
-            ))}
+                  </div>
+                ))}
 
-            {templates.length === 0 && (
+                {templates.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-background-card/40 p-12 text-center">
                 <Bot className="mb-4 h-16 w-16 text-text-muted" />
                 <h3 className="mb-2 text-lg font-semibold text-white">
@@ -507,8 +507,10 @@ export default function AutomacoesPage() {
                   Entre em contato com o administrador do sistema
                 </p>
               </div>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </main>
 
