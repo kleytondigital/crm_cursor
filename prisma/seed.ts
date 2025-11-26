@@ -21,42 +21,84 @@ async function main() {
     console.warn('Não foi possível verificar se a coluna automationsEnabled existe. Continuando...');
   }
 
-  // Criar empresa Sistema para Super Admins
-  const systemCompanyData: any = {
-    name: 'Sistema',
-    slug: 'sistema',
-    isActive: true,
-  };
-  
-  if (hasAutomationsEnabled) {
-    systemCompanyData.automationsEnabled = false;
+  // Criar empresa Sistema para Super Admins usando SQL direto se a coluna não existir
+  let systemCompanyId: string;
+  if (!hasAutomationsEnabled) {
+    // Verificar se já existe
+    const existing = await prisma.$queryRaw<Array<{id: string}>>`
+      SELECT id FROM companies WHERE slug = 'sistema' LIMIT 1
+    `;
+    
+    if (existing[0]?.id) {
+      systemCompanyId = existing[0].id;
+    } else {
+      // Criar usando SQL direto para evitar erro do Prisma Client quando a coluna não existe
+      const result = await prisma.$queryRaw<Array<{id: string}>>`
+        INSERT INTO companies (id, name, slug, "isActive", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), 'Sistema', 'sistema', true, NOW(), NOW())
+        RETURNING id
+      `;
+      systemCompanyId = result[0]?.id || '';
+    }
+  } else {
+    const systemCompany = await prisma.company.upsert({
+      where: { slug: 'sistema' },
+      update: {},
+      create: {
+        name: 'Sistema',
+        slug: 'sistema',
+        isActive: true,
+        automationsEnabled: false,
+      },
+    });
+    systemCompanyId = systemCompany.id;
   }
 
-  const systemCompany = await prisma.company.upsert({
-    where: { slug: 'sistema' },
-    update: {},
-    create: systemCompanyData,
-  });
-
-  // Criar empresa de exemplo
-  const companyData: any = {
-    name: 'Empresa Exemplo',
-    slug: 'exemplo-empresa',
-    email: 'contato@exemplo.com',
-    phone: '(11) 99999-9999',
-    document: '12.345.678/0001-90',
-    isActive: true,
-  };
-
-  if (hasAutomationsEnabled) {
-    companyData.automationsEnabled = false;
+  // Criar empresa de exemplo usando SQL direto se a coluna não existir
+  let companyId: string;
+  if (!hasAutomationsEnabled) {
+    // Verificar se já existe
+    const existing = await prisma.$queryRaw<Array<{id: string}>>`
+      SELECT id FROM companies WHERE slug = 'exemplo-empresa' LIMIT 1
+    `;
+    
+    if (existing[0]?.id) {
+      companyId = existing[0].id;
+    } else {
+      // Criar usando SQL direto para evitar erro do Prisma Client quando a coluna não existe
+      const result = await prisma.$queryRaw<Array<{id: string}>>`
+        INSERT INTO companies (id, name, slug, email, phone, document, "isActive", "createdAt", "updatedAt")
+        VALUES (
+          gen_random_uuid(), 
+          'Empresa Exemplo', 
+          'exemplo-empresa', 
+          'contato@exemplo.com',
+          '(11) 99999-9999',
+          '12.345.678/0001-90',
+          true, 
+          NOW(), 
+          NOW()
+        )
+        RETURNING id
+      `;
+      companyId = result[0]?.id || '';
+    }
+  } else {
+    const company = await prisma.company.upsert({
+      where: { slug: 'exemplo-empresa' },
+      update: {},
+      create: {
+        name: 'Empresa Exemplo',
+        slug: 'exemplo-empresa',
+        email: 'contato@exemplo.com',
+        phone: '(11) 99999-9999',
+        document: '12.345.678/0001-90',
+        isActive: true,
+        automationsEnabled: false,
+      },
+    });
+    companyId = company.id;
   }
-
-  const company = await prisma.company.upsert({
-    where: { slug: 'exemplo-empresa' },
-    update: {},
-    create: companyData,
-  });
 
   // Criar Super Admin
   const superAdminPassword = await bcrypt.hash('superadmin123', 10);
@@ -68,7 +110,7 @@ async function main() {
       password: superAdminPassword,
       name: 'Super Administrador',
       role: 'SUPER_ADMIN',
-      companyId: systemCompany.id,
+      companyId: systemCompanyId,
       isActive: true,
     },
   });
@@ -84,7 +126,7 @@ async function main() {
       password: hashedPassword,
       name: 'Administrador',
       role: 'ADMIN',
-      companyId: company.id,
+      companyId: companyId,
       isActive: true,
     },
   });
@@ -98,7 +140,7 @@ async function main() {
       password: hashedPassword,
       name: 'Usuário Comum',
       role: 'USER',
-      companyId: company.id,
+      companyId: companyId,
       isActive: true,
     },
   });
