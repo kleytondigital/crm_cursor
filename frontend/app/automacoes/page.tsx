@@ -554,9 +554,6 @@ export default function AutomacoesPage() {
                 }}
               />
             )}
-          </div>
-        )
-      }
 
       {/* Modal de Senha de Automações */}
       <AutomationsPasswordModal
