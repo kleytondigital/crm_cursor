@@ -4,29 +4,58 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Verificar se a coluna automationsEnabled existe
+  let hasAutomationsEnabled = false;
+  try {
+    const result = await prisma.$queryRaw<Array<{exists: boolean}>>`
+      SELECT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public'
+        AND table_name = 'companies' 
+        AND column_name = 'automationsEnabled'
+      ) as exists
+    `;
+    hasAutomationsEnabled = result[0]?.exists ?? false;
+  } catch (error) {
+    console.warn('Não foi possível verificar se a coluna automationsEnabled existe. Continuando...');
+  }
+
   // Criar empresa Sistema para Super Admins
+  const systemCompanyData: any = {
+    name: 'Sistema',
+    slug: 'sistema',
+    isActive: true,
+  };
+  
+  if (hasAutomationsEnabled) {
+    systemCompanyData.automationsEnabled = false;
+  }
+
   const systemCompany = await prisma.company.upsert({
     where: { slug: 'sistema' },
     update: {},
-    create: {
-      name: 'Sistema',
-      slug: 'sistema',
-      isActive: true,
-    },
+    create: systemCompanyData,
   });
 
   // Criar empresa de exemplo
+  const companyData: any = {
+    name: 'Empresa Exemplo',
+    slug: 'exemplo-empresa',
+    email: 'contato@exemplo.com',
+    phone: '(11) 99999-9999',
+    document: '12.345.678/0001-90',
+    isActive: true,
+  };
+
+  if (hasAutomationsEnabled) {
+    companyData.automationsEnabled = false;
+  }
+
   const company = await prisma.company.upsert({
     where: { slug: 'exemplo-empresa' },
     update: {},
-    create: {
-      name: 'Empresa Exemplo',
-      slug: 'exemplo-empresa',
-      email: 'contato@exemplo.com',
-      phone: '(11) 99999-9999',
-      document: '12.345.678/0001-90',
-      isActive: true,
-    },
+    create: companyData,
   });
 
   // Criar Super Admin
