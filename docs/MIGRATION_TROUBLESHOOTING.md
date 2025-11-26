@@ -41,12 +41,17 @@ npx prisma migrate deploy
 Se a migration já foi marcada como falha, você precisa resolvê-la:
 
 ```bash
-# Marcar como aplicada (se você aplicou manualmente ou corrigiu o problema)
+# Para a migration de custom lead status
 npx prisma migrate resolve --applied 20250125000000_add_custom_lead_status_and_bot_indicator
 
-# OU marcar como revertida (se você quer pular essa migration)
-npx prisma migrate resolve --rolled-back 20250125000000_add_custom_lead_status_and_bot_indicator
+# Para a migration de pipeline stages (se falhou)
+npx prisma migrate resolve --applied 20250125000001_update_pipeline_stage_to_use_status_id
+
+# OU marcar como revertida (se você quer pular a migration)
+npx prisma migrate resolve --rolled-back <nome_da_migration>
 ```
+
+**Importante**: Resolva as migrations na ordem em que falharam. Se múltiplas migrations falharam, resolva uma por vez começando pela mais antiga.
 
 #### Opção 3: Usar variável de ambiente no deploy
 

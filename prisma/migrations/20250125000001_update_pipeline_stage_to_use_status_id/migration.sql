@@ -142,11 +142,19 @@ BEGIN
 END $$;
 
 -- Adicionar foreign key
--- Verificar se a tabela custom_lead_statuses existe antes de criar a foreign key
+-- Verificar se ambas as tabelas existem antes de criar a foreign key
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
-        ALTER TABLE "pipeline_stages" ADD CONSTRAINT "pipeline_stages_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_stages') 
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
+        -- Verificar se a constraint já não existe
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE constraint_name = 'pipeline_stages_statusId_fkey' 
+            AND table_name = 'pipeline_stages'
+        ) THEN
+            ALTER TABLE "pipeline_stages" ADD CONSTRAINT "pipeline_stages_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
     END IF;
 END $$;
 
