@@ -34,6 +34,7 @@ interface Company {
   phone?: string | null
   document?: string | null
   isActive: boolean
+  automationsEnabled?: boolean
   createdAt: string
   updatedAt: string
   _count?: {
@@ -65,6 +66,7 @@ export default function CompaniesManager() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [automationsUpdatingId, setAutomationsUpdatingId] = useState<string | null>(null)
 
   useEffect(() => {
     loadCompanies()
@@ -195,6 +197,19 @@ export default function CompaniesManager() {
     }
   }
 
+  const handleToggleAutomations = async (company: Company, enabled: boolean) => {
+    try {
+      setAutomationsUpdatingId(company.id)
+      await companiesAPI.updateAutomationsAccess(company.id, enabled)
+      await loadCompanies()
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao atualizar acesso às automações')
+      console.error('Erro ao atualizar automações:', err)
+    } finally {
+      setAutomationsUpdatingId(null)
+    }
+  }
+
   const filteredCompanies = companies.filter((company) => {
     const search = searchTerm.toLowerCase()
     return (
@@ -309,6 +324,35 @@ export default function CompaniesManager() {
                     <span className="text-white">{company._count.users}</span>
                   </div>
                 )}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/5 bg-background-subtle/60 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-text-muted">Automações</p>
+                    <p
+                      className={`text-sm font-semibold ${
+                        company.automationsEnabled ? 'text-emerald-400' : 'text-text-muted'
+                      }`}
+                    >
+                      {company.automationsEnabled ? 'Permitido' : 'Bloqueado'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleToggleAutomations(company, !company.automationsEnabled)}
+                    className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                      company.automationsEnabled
+                        ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                        : 'bg-white/10 text-text-muted hover:bg-white/20'
+                    }`}
+                    disabled={automationsUpdatingId === company.id}
+                  >
+                    {automationsUpdatingId === company.id && (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    )}
+                    {company.automationsEnabled ? 'Desativar' : 'Ativar'}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 flex gap-2">

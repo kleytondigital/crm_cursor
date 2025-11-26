@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { UpdateCompanyAutomationsDto } from './dto/update-company-automations.dto';
 
 @Injectable()
 export class CompaniesService {
@@ -165,6 +172,59 @@ export class CompaniesService {
       where: { id },
       data: { isActive: false },
     });
+  }
+
+  async updateAutomationsAccess(id: string, dto: UpdateCompanyAutomationsDto) {
+    await this.findOne(id);
+
+    return this.prisma.company.update({
+      where: { id },
+      data: {
+        automationsEnabled: dto.automationsEnabled,
+      },
+      select: {
+        id: true,
+        name: true,
+        automationsEnabled: true,
+      },
+    });
+  }
+
+  async isAutomationsEnabled(id: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      select: { automationsEnabled: true },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Empresa não encontrada');
+    }
+
+    return company.automationsEnabled;
+  }
+
+  async verifyAutomationsPassword(password: string) {
+    const envPassword = process.env.AUTOMATIONS_PASSWORD;
+
+    if (!envPassword) {
+      throw new BadRequestException(
+        'Senha de automações não configurada. Defina AUTOMATIONS_PASSWORD no ambiente.',
+      );
+    }
+
+    return password === envPassword;
+  }
+
+  async getAutomationsAccessForUser(user: { companyId?: string | null; role?: string }) {
+    if (user?.role === 'SUPER_ADMIN') {
+      return true;
+    }
+
+    if (!user?.companyId) {
+      throw new NotFoundException('Tenant não encontrado para o usuário atual');
+    }
+
+    return this.isAutomationsEnabled(user.companyId);
   }
 }
 

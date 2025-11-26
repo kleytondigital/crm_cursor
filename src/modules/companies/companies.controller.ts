@@ -12,6 +12,7 @@ import {
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { UpdateCompanyAutomationsDto } from './dto/update-company-automations.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
 import { Public } from '@/shared/decorators/public.decorator';
@@ -56,6 +57,31 @@ export class CompaniesController {
       throw new ForbiddenException('Apenas super administradores podem atualizar empresas');
     }
     return this.companiesService.update(id, updateCompanyDto);
+  }
+
+  @Patch(':id/automations')
+  updateAutomationsAccess(
+    @Param('id') id: string,
+    @Body() dto: UpdateCompanyAutomationsDto,
+    @CurrentUser() user: any,
+  ) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Apenas super administradores podem alterar o acesso às automações');
+    }
+
+    return this.companiesService.updateAutomationsAccess(id, dto);
+  }
+
+  @Post('automations/verify-password')
+  verifyAutomationsPassword(@Body('password') password: string) {
+    return this.companiesService.verifyAutomationsPassword(password).then((valid) => ({ valid }));
+  }
+
+  @Get('me/automations-access')
+  getMyAutomationsAccess(@CurrentUser() user: any) {
+    return this.companiesService
+      .getAutomationsAccessForUser(user)
+      .then((automationsEnabled) => ({ automationsEnabled }));
   }
 
   @Delete(':id')

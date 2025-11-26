@@ -20,8 +20,17 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useAutomationsAccess } from '@/hooks/useAutomationsAccess'
 
-const navigationItems = [
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  adminOnly?: boolean
+  requiresAutomationsAccess?: boolean
+}
+
+const navigationItems: NavItem[] = [
   { href: '/', label: 'Chats', icon: MessageCircle },
   { href: '/connections', label: 'Conexões', icon: Share2, adminOnly: true },
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
@@ -29,6 +38,7 @@ const navigationItems = [
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
   { href: '/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
+  { href: '/automacoes', label: 'Automações', icon: Bot, requiresAutomationsAccess: true },
 ]
 
 export default function Navigation() {
@@ -38,6 +48,7 @@ export default function Navigation() {
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | 'SUPER_ADMIN' | null>(null)
   const [userName, setUserName] = useState<string>('')
   const [currentDate, setCurrentDate] = useState<string>('')
+  const { hasAccess: hasAutomationsAccess } = useAutomationsAccess()
 
   useEffect(() => {
     // Obter role do usuário do localStorage
@@ -67,9 +78,10 @@ export default function Navigation() {
     const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER'
     return navigationItems.filter((item) => {
       if (item.adminOnly) return isAdmin
+      if (item.requiresAutomationsAccess) return hasAutomationsAccess
       return true
     })
-  }, [userRole])
+  }, [userRole, hasAutomationsAccess])
 
   const handleLogout = () => {
     localStorage.removeItem('token')

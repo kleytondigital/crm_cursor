@@ -12,6 +12,7 @@ import { ConnectionsService } from './connections.service';
 import { CreateConnectionDto } from './dto/create-connection.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
+import { AutomationsAccessGuard } from '@/shared/guards/automations-access.guard';
 
 type ConnectionAction =
   | 'start'
@@ -89,6 +90,7 @@ export class ConnectionsController {
   }
 
   @Get(':id/automations')
+  @UseGuards(JwtAuthGuard, AutomationsAccessGuard)
   getInstancesForConnection(@Param('id') id: string, @CurrentUser() user: any) {
     return this.connectionsService.getInstancesForConnection(
       id,

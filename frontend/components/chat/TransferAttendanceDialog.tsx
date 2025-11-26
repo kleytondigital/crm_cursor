@@ -47,13 +47,27 @@ export default function TransferAttendanceDialog({
     try {
       setLoading(true)
       setError(null)
-      const [usersData, departmentsData] = await Promise.all([
+      const [usersResponse, departmentsResponse] = await Promise.all([
         usersAPI.getAll(),
         departmentsAPI.list(),
       ])
-      setUsers(usersData?.data || usersData || [])
-      setDepartments(departmentsData?.data || departmentsData || [])
+      
+      // Extrair dados dos usuários
+      const usersData = usersResponse?.data || usersResponse || []
+      const usersArray = Array.isArray(usersData) ? usersData : []
+      setUsers(usersArray)
+      
+      // Extrair dados dos departamentos
+      const departmentsData = departmentsResponse?.data || departmentsResponse || []
+      const departmentsArray = Array.isArray(departmentsData) ? departmentsData : []
+      setDepartments(departmentsArray)
+      
+      // Log para debug
+      if (departmentsArray.length === 0) {
+        console.warn('[TransferAttendanceDialog] Nenhum departamento encontrado', departmentsResponse)
+      }
     } catch (err: any) {
+      console.error('[TransferAttendanceDialog] Erro ao carregar dados:', err)
       setError(err.response?.data?.message || 'Erro ao carregar dados')
     } finally {
       setLoading(false)
@@ -185,19 +199,25 @@ export default function TransferAttendanceDialog({
               ) : (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="targetDepartment">Departamento</Label>
-                  <select
-                    id="targetDepartment"
-                    value={targetDepartmentId}
-                    onChange={(e) => setTargetDepartmentId(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-background-muted/50 px-3 py-2 text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
-                  >
-                    <option value="">Selecione um departamento</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </select>
+                  {departments.length === 0 ? (
+                    <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-300">
+                      Nenhum departamento disponível. Entre em contato com o administrador.
+                    </div>
+                  ) : (
+                    <select
+                      id="targetDepartment"
+                      value={targetDepartmentId}
+                      onChange={(e) => setTargetDepartmentId(e.target.value)}
+                      className="rounded-lg border border-white/10 bg-background-muted/50 px-3 py-2 text-sm text-text-primary focus:border-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-secondary/30"
+                    >
+                      <option value="">Selecione um departamento</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
 

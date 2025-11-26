@@ -14,15 +14,16 @@ datasource db {
 // Execute: npm run prisma:seed
 
 model Company {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  email     String?  @unique
-  phone     String?
-  document  String?  @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  name               String
+  slug               String   @unique
+  email              String?  @unique
+  phone              String?
+  document           String?  @unique
+  isActive           Boolean  @default(true)
+  automationsEnabled Boolean  @default(false) // Controle de acesso às automações
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   users              User[]
   leads              Lead[]

@@ -18,9 +18,10 @@ import { UpdateWorkflowInstanceDto } from './dto/update-instance.dto';
 import { CreatePromptDto } from './dto/create-prompt.dto';
 import { UpdatePromptDto } from './dto/update-prompt.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
+import { AutomationsAccessGuard } from '@/shared/guards/automations-access.guard';
 
 @Controller('workflow-templates')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AutomationsAccessGuard)
 export class WorkflowTemplatesController {
   constructor(
     private readonly workflowTemplatesService: WorkflowTemplatesService,

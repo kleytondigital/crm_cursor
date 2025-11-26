@@ -191,7 +191,7 @@ export const leadsAPI = {
       body: JSON.stringify({ status }),
     }),
   updateStatusId: (id: string, statusId: string | null) =>
-    authFetch(`/leads/${id}/status-id`, {
+    authFetch(`/leads/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ statusId }),
     }),
@@ -332,6 +332,17 @@ export const companiesAPI = {
     authFetch(`/companies/${id}`, {
       method: 'DELETE',
     }),
+  updateAutomationsAccess: (id: string, automationsEnabled: boolean) =>
+    authFetch(`/companies/${id}/automations`, {
+      method: 'PATCH',
+      body: JSON.stringify({ automationsEnabled }),
+    }),
+  verifyAutomationsPassword: (password: string) =>
+    authFetch('/companies/automations/verify-password', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+  getAutomationsAccess: () => authFetch('/companies/me/automations-access'),
 }
 
 // ============================================

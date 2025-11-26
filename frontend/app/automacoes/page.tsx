@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bot, Plus, Power, PowerOff, Settings, Trash2, Link2, TestTube } from 'lucide-react'
+import { Bot, Plus, Power, PowerOff, Settings, Trash2, Link2, TestTube, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { apiRequest } from '@/lib/api'
+import { apiRequest, companiesAPI } from '@/lib/api'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import BottomNavigation from '@/components/BottomNavigation'
 import ConfigureTemplateModal from '@/components/admin/ConfigureTemplateModal'
 import PromptConfigModal from '@/components/admin/PromptConfigModal'
 import ManageAutomationConnectionsModal from '@/components/admin/ManageAutomationConnectionsModal'
+import AutomationsPasswordModal from '@/components/admin/AutomationsPasswordModal'
+import {
+  AUTOMATIONS_UNLOCKED_KEY,
+  AUTOMATIONS_UNLOCKED_EVENT,
+} from '@/constants/automations'
 
 interface WorkflowTemplate {
   id: string
@@ -51,12 +56,17 @@ export default function AutomacoesPage() {
   const [view, setView] = useState<'instances' | 'templates'>('instances')
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
   const [instances, setInstances] = useState<WorkflowInstance[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
   const [showConfigureModal, setShowConfigureModal] = useState(false)
   const [selectedInstance, setSelectedInstance] = useState<WorkflowInstance | null>(null)
   const [showPromptModal, setShowPromptModal] = useState(false)
   const [showConnectionsModal, setShowConnectionsModal] = useState(false)
+  const [automationsEnabled, setAutomationsEnabled] = useState<boolean | null>(null)
+  const [accessLoading, setAccessLoading] = useState(true)
+  const [isUnlocked, setIsUnlocked] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const hasAutomationsAccess = (automationsEnabled ?? false) || isUnlocked
 
   useEffect(() => {
     setMounted(true)
@@ -68,10 +78,62 @@ export default function AutomacoesPage() {
       return
     }
 
-    loadData()
+    const unlocked = sessionStorage.getItem(AUTOMATIONS_UNLOCKED_KEY) === 'true'
+    setIsUnlocked(unlocked)
+    fetchAutomationsAccess()
   }, [router])
 
+  useEffect(() => {
+    if (!token || !hasAutomationsAccess) {
+      return
+    }
+    loadData()
+  }, [token, hasAutomationsAccess])
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (!event.shiftKey) return
+      if (event.code === 'F2') {
+        event.preventDefault()
+        setShowPasswordModal(true)
+      } else if (event.code === 'F4') {
+        event.preventDefault()
+        sessionStorage.removeItem(AUTOMATIONS_UNLOCKED_KEY)
+        setIsUnlocked(false)
+        window.dispatchEvent(
+          new CustomEvent(AUTOMATIONS_UNLOCKED_EVENT, { detail: { unlocked: false } })
+        )
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+    return () => window.removeEventListener('keydown', handleKeydown)
+  }, [])
+
+  const fetchAutomationsAccess = async () => {
+    try {
+      setAccessLoading(true)
+      const response = await companiesAPI.getAutomationsAccess()
+      const enabled = response?.automationsEnabled ?? false
+      setAutomationsEnabled(enabled)
+
+      if (enabled) {
+        sessionStorage.setItem(AUTOMATIONS_UNLOCKED_KEY, 'true')
+        setIsUnlocked(true)
+        window.dispatchEvent(
+          new CustomEvent(AUTOMATIONS_UNLOCKED_EVENT, { detail: { unlocked: true } })
+        )
+      }
+    } catch (error) {
+      console.error('Erro ao verificar acesso às automações:', error)
+      setAutomationsEnabled(false)
+    } finally {
+      setAccessLoading(false)
+    }
+  }
+
   const loadData = async () => {
+    setLoading(true)
     try {
       // Carregar templates
       const templatesData = await apiRequest<WorkflowTemplate[]>('/workflow-templates')
@@ -176,46 +238,78 @@ export default function AutomacoesPage() {
       <Navigation />
       
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 md:gap-6 px-3 md:px-6 pb-20 md:pb-8 pt-4 md:pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Automações</h1>
-            <p className="text-sm text-text-muted">
-              Gerencie suas automações com IA e n8n
-            </p>
+        {accessLoading ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="rounded-2xl border border-white/10 bg-background-muted/80 px-6 py-8 text-center text-text-muted">
+              Verificando permissões de automação...
+            </div>
           </div>
-        </div>
+        ) : !hasAutomationsAccess ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="w-full max-w-2xl rounded-3xl border border-dashed border-white/10 bg-background-subtle/70 p-8 text-center shadow-inner-glow">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-secondary">
+                <Lock className="h-6 w-6" />
+              </div>
+              <h1 className="mt-4 text-2xl font-semibold text-white">Automações bloqueadas</h1>
+              <p className="mt-2 text-sm text-text-muted">
+                Este tenant não possui acesso às automações ou ainda não foi autenticado com a
+                senha de desbloqueio.
+              </p>
+              <div className="mt-6 flex flex-col gap-2 text-sm text-text-muted">
+                <p>• Pressione <span className="font-semibold text-white">Shift + F2</span> para abrir o menu de automações</p>
+                <p>• Pressione <span className="font-semibold text-white">Shift + F4</span> para ocultar novamente</p>
+              </div>
+              <Button
+                className="mt-6 gap-2 bg-brand-primary text-white"
+                onClick={() => setShowPasswordModal(true)}
+              >
+                <Lock className="h-4 w-4" />
+                Inserir senha de acesso
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-white">Automações</h1>
+                <p className="text-sm text-text-muted">
+                  Gerencie suas automações com IA e n8n
+                </p>
+              </div>
+            </div>
 
-        {/* Tabs */}
-        <div className="flex gap-4 rounded-3xl border border-white/5 bg-background-subtle/80 p-1 shadow-inner-glow">
-          <button
-            onClick={() => setView('instances')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
-              view === 'instances'
-                ? 'bg-brand-primary/20 text-white shadow-glow'
-                : 'text-text-muted hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Bot className="h-4 w-4" />
-            Minhas Automações
-          </button>
-          <button
-            onClick={() => setView('templates')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
-              view === 'templates'
-                ? 'bg-brand-primary/20 text-white shadow-glow'
-                : 'text-text-muted hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Plus className="h-4 w-4" />
-            Criar Nova
-          </button>
-        </div>
+            {/* Tabs */}
+            <div className="flex gap-4 rounded-3xl border border-white/5 bg-background-subtle/80 p-1 shadow-inner-glow">
+              <button
+                onClick={() => setView('instances')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
+                  view === 'instances'
+                    ? 'bg-brand-primary/20 text-white shadow-glow'
+                    : 'text-text-muted hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Bot className="h-4 w-4" />
+                Minhas Automações
+              </button>
+              <button
+                onClick={() => setView('templates')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
+                  view === 'templates'
+                    ? 'bg-brand-primary/20 text-white shadow-glow'
+                    : 'text-text-muted hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Plus className="h-4 w-4" />
+                Criar Nova
+              </button>
+            </div>
 
-        {loading ? (
-          <div className="text-center text-white">Carregando...</div>
-        ) : view === 'instances' ? (
-          /* Minhas Automações */
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {loading ? (
+              <div className="text-center text-white">Carregando...</div>
+            ) : view === 'instances' ? (
+              /* Minhas Automações */
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {instances.map((instance) => (
               <div
                 key={instance.id}
@@ -463,4 +557,20 @@ export default function AutomacoesPage() {
           </div>
         )
       }
+
+      {/* Modal de Senha de Automações */}
+      <AutomationsPasswordModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          setIsUnlocked(true)
+          sessionStorage.setItem(AUTOMATIONS_UNLOCKED_KEY, 'true')
+          window.dispatchEvent(
+            new CustomEvent(AUTOMATIONS_UNLOCKED_EVENT, { detail: { unlocked: true } })
+          )
+        }}
+      />
+    </div>
+  )
+}
 

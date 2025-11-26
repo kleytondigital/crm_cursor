@@ -5,6 +5,7 @@ import { PrismaModule } from '@/shared/prisma/prisma.module';
 import { N8nApiModule } from '@/shared/n8n-api/n8n-api.module';
 import { N8nModule } from '@/shared/n8n/n8n.module';
 import { ConnectionsModule } from '@/modules/connections/connections.module';
+import { AutomationsAccessGuard } from '@/shared/guards/automations-access.guard';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { ConnectionsModule } from '@/modules/connections/connections.module';
     forwardRef(() => ConnectionsModule),
   ],
   controllers: [WorkflowTemplatesController],
-  providers: [WorkflowTemplatesService],
+  providers: [WorkflowTemplatesService, AutomationsAccessGuard],
   exports: [WorkflowTemplatesService],
 })
 export class WorkflowTemplatesModule {}

@@ -157,7 +157,7 @@ export class AttendancesController {
   }
 
   @Post('sync')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.USER)
   async syncLeadsWithAttendances(@CurrentUser() user: any) {
     const data = await this.attendancesService.syncLeadsWithAttendances({
       tenantId: user.companyId,

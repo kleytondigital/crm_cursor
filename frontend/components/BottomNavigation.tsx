@@ -3,13 +3,15 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
-import { MessageCircle, Kanban, Headphones, Calendar, LayoutDashboard, BarChart3 } from 'lucide-react'
+import { MessageCircle, Kanban, Headphones, Calendar, LayoutDashboard, BarChart3, Bot } from 'lucide-react'
+import { useAutomationsAccess } from '@/hooks/useAutomationsAccess'
 
 interface NavItem {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   adminOnly?: boolean
+  requiresAutomationsAccess?: boolean
 }
 
 const navigationItems: NavItem[] = [
@@ -19,11 +21,13 @@ const navigationItems: NavItem[] = [
   { href: '/campanhas', label: 'Campanhas', icon: Calendar },
   { href: '/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
+  { href: '/automacoes', label: 'Automações', icon: Bot, requiresAutomationsAccess: true },
 ]
 
 export default function BottomNavigation() {
   const pathname = usePathname()
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | 'SUPER_ADMIN' | null>(null)
+  const { hasAccess: hasAutomationsAccess } = useAutomationsAccess()
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -47,9 +51,10 @@ export default function BottomNavigation() {
     const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER'
     return navigationItems.filter((item) => {
       if (item.adminOnly) return isAdmin
+      if (item.requiresAutomationsAccess) return hasAutomationsAccess
       return true
     })
-  }, [userRole])
+  }, [userRole, hasAutomationsAccess])
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-background-subtle/95 backdrop-blur-xl lg:hidden">
