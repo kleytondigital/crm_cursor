@@ -89,12 +89,20 @@ npx prisma migrate list
 
 ### Prevenção
 
-A migration `20250125000000_add_custom_lead_status_and_bot_indicator` foi corrigida para:
+Todas as migrations que alteram tabelas existentes foram corrigidas para:
 - Verificar se as tabelas existem antes de criar foreign keys
-- Verificar se as constraints já existem antes de criá-las
+- Verificar se as constraints/colunas já existem antes de criá-las
 - Pular operações se as tabelas necessárias não existirem
 
-Isso torna a migration mais robusta e permite que ela seja aplicada mesmo em bancos novos, desde que as migrations anteriores tenham sido aplicadas primeiro.
+**Migrations protegidas:**
+- ✅ `20250125000000_add_custom_lead_status_and_bot_indicator`
+- ✅ `20250125000001_update_pipeline_stage_to_use_status_id`
+- ✅ `20250125000002_make_pipeline_stage_status_nullable`
+- ✅ `20250125000003_add_automations_enabled_to_company`
+
+Isso torna as migrations mais robustas e permite que sejam aplicadas mesmo em bancos novos, independentemente da ordem de execução.
+
+Veja `docs/MIGRATION_ORDER.md` para entender a ordem ideal de criação das tabelas e suas dependências.
 
 ### Ordem recomendada de aplicação
 
