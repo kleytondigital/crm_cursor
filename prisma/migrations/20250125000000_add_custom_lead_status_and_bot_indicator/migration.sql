@@ -44,11 +44,19 @@ BEGIN
 END $$;
 
 -- AddForeignKey
--- Verificar se a tabela custom_lead_statuses existe antes de criar a foreign key
+-- Verificar se ambas as tabelas existem antes de criar a foreign key
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
-        ALTER TABLE "leads" ADD CONSTRAINT "leads_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'leads') 
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'custom_lead_statuses') THEN
+        -- Verificar se a constraint já não existe
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE constraint_name = 'leads_statusId_fkey' 
+            AND table_name = 'leads'
+        ) THEN
+            ALTER TABLE "leads" ADD CONSTRAINT "leads_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "custom_lead_statuses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+        END IF;
     END IF;
 END $$;
 
@@ -148,18 +156,20 @@ BEGIN
             NOW()
         ) ON CONFLICT DO NOTHING;
 
-        -- Migrar leads: associar ao statusId baseado no enum status atual
-        UPDATE leads
-        SET "statusId" = (
-            CASE 
-                WHEN status = 'NOVO' THEN status_id_novo
-                WHEN status = 'EM_ATENDIMENTO' THEN status_id_em_atendimento
-                WHEN status = 'AGUARDANDO' THEN status_id_aguardando
-                WHEN status = 'CONCLUIDO' THEN status_id_concluido
-                ELSE status_id_novo -- Default para NOVO se houver algum valor inesperado
-            END
-        )
-        WHERE "tenantId" = company_record.id AND "statusId" IS NULL;
+        -- Migrar leads: associar ao statusId baseado no enum status atual (apenas se a tabela leads existir)
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'leads') THEN
+            UPDATE leads
+            SET "statusId" = (
+                CASE 
+                    WHEN status = 'NOVO' THEN status_id_novo
+                    WHEN status = 'EM_ATENDIMENTO' THEN status_id_em_atendimento
+                    WHEN status = 'AGUARDANDO' THEN status_id_aguardando
+                    WHEN status = 'CONCLUIDO' THEN status_id_concluido
+                    ELSE status_id_novo -- Default para NOVO se houver algum valor inesperado
+                END
+            )
+            WHERE "tenantId" = company_record.id AND "statusId" IS NULL;
+        END IF;
     END LOOP;
 END $$;
 

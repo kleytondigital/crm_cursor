@@ -15,10 +15,19 @@ echo "✅ DATABASE_URL is configured"
 if [ "$RUN_MIGRATIONS" = "true" ]; then
   echo "📦 RUN_MIGRATIONS=true — Applying database migrations..."
   
+  # Tentar resolver migrations marcadas como falhas (se houver)
+  if [ "$RESOLVE_FAILED_MIGRATIONS" = "true" ]; then
+    echo "🔧 RESOLVE_FAILED_MIGRATIONS=true — Attempting to resolve failed migrations..."
+    npx prisma migrate resolve --applied 20250125000000_add_custom_lead_status_and_bot_indicator 2>/dev/null || echo "⚠️ Could not resolve failed migrations (this is OK if no migrations are marked as failed)"
+  fi
+  
   if npx prisma migrate deploy; then
     echo "✅ Migrations applied successfully"
   else
-    echo "❌ Failed to apply migrations — container will still start"
+    echo "❌ Failed to apply migrations"
+    echo "💡 Tip: If migrations failed due to missing tables, ensure all base migrations have been applied first"
+    echo "💡 Tip: Set RESOLVE_FAILED_MIGRATIONS=true to attempt automatic resolution"
+    echo "⚠️ Container will still start, but database may be in an inconsistent state"
   fi
 else
   echo "⏭ RUN_MIGRATIONS=false — Skipping migrations"
