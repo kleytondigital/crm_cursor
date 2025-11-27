@@ -120,14 +120,70 @@ export class UsersService {
       return await this.prisma.user.findUnique({
         where: { email },
         include: {
-          company: true,
+          company: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              email: true,
+              phone: true,
+              document: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       });
     } catch (error: any) {
-      // Se a tabela não existe, retornar null ao invés de lançar erro
-      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-        console.error('Tabela users não existe. Execute as migrations primeiro:', error.message);
-        return null;
+      // Se a tabela não existe ou a coluna automationsEnabled não existe, tentar buscar sem a coluna
+      if (error?.code === 'P2021' || error?.code === 'P2022' || error?.message?.includes('does not exist') || error?.message?.includes('automationsEnabled')) {
+        console.warn('Tentando buscar usuário sem incluir campos opcionais:', error.message);
+        
+        // Tentar buscar apenas os campos essenciais do usuário
+        try {
+          const user = await this.prisma.user.findUnique({
+            where: { email },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              name: true,
+              role: true,
+              isActive: true,
+              companyId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+          
+          if (!user) return null;
+          
+          // Buscar company separadamente se necessário, sem campos opcionais
+          try {
+            const company = await this.prisma.company.findUnique({
+              where: { id: user.companyId },
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                email: true,
+                phone: true,
+                document: true,
+                isActive: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            });
+            
+            return { ...user, company };
+          } catch {
+            return user;
+          }
+        } catch (fallbackError) {
+          console.error('Erro ao buscar usuário:', fallbackError);
+          return null;
+        }
       }
       throw error;
     }
