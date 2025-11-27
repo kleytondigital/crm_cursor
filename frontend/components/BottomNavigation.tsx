@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
-import { MessageCircle, Kanban, Headphones, Calendar, LayoutDashboard, BarChart3, Bot } from 'lucide-react'
+import { MessageCircle, Kanban, Headphones, LayoutDashboard, Bot } from 'lucide-react'
 import { useAutomationsAccess } from '@/hooks/useAutomationsAccess'
 
 interface NavItem {
@@ -18,8 +18,6 @@ const navigationItems: NavItem[] = [
   { href: '/', label: 'Conversas', icon: MessageCircle },
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
-  { href: '/campanhas', label: 'Campanhas', icon: Calendar },
-  { href: '/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
   { href: '/automacoes', label: 'Automações', icon: Bot, requiresAutomationsAccess: true },
 ]

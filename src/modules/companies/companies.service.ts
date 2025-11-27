@@ -97,6 +97,23 @@ export class CompaniesService {
     return company;
   }
 
+  async getSummary(id: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Empresa não encontrada');
+    }
+
+    return company;
+  }
+
   async update(id: string, updateCompanyDto: UpdateCompanyDto) {
     const company = await this.findOne(id);
 

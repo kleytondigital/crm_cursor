@@ -27,6 +27,7 @@ import { WorkflowTemplatesModule } from './modules/workflow-templates/workflow-t
 import { PipelineStagesModule } from './modules/pipeline-stages/pipeline-stages.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { LeadStatusModule } from './modules/lead-status/lead-status.module';
+import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { LeadStatusModule } from './modules/lead-status/lead-status.module';
     PipelineStagesModule,
     ReportsModule,
     LeadStatusModule,
+    SystemSettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

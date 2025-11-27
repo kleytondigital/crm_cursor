@@ -343,6 +343,30 @@ export const companiesAPI = {
       body: JSON.stringify({ password }),
     }),
   getAutomationsAccess: () => authFetch('/companies/me/automations-access'),
+  getMySummary: () => authFetch('/companies/me/summary'),
+}
+
+// ============================================
+// SYSTEM SETTINGS API
+// ============================================
+export const systemSettingsAPI = {
+  getPublic: () =>
+    fetch(`${API_URL}/system-settings/public`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    }).then((res) => {
+      if (!res.ok) {
+        throw new Error('Erro ao carregar configurações do sistema')
+      }
+      return res.json()
+    }),
+  update: (data: Partial<{ crmName: string; slogan: string; version: string }>) =>
+    authFetch('/system-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 }
 
 // ============================================

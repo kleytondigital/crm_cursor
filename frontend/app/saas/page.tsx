@@ -6,10 +6,11 @@ import CompaniesManager from '@/components/admin/CompaniesManager'
 import UsersManager from '@/components/admin/UsersManager'
 import WorkflowTemplatesManager from '@/components/admin/WorkflowTemplatesManager'
 import ApiKeysManager from '@/components/admin/ApiKeysManager'
-import { Building2, Users, LayoutDashboard, LogOut, Bot, Key } from 'lucide-react'
+import SystemSettingsManager from '@/components/admin/SystemSettingsManager'
+import { Building2, Users, LayoutDashboard, LogOut, Bot, Key, Sliders } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type Section = 'companies' | 'users' | 'workflows' | 'api-keys'
+type Section = 'settings' | 'companies' | 'users' | 'workflows' | 'api-keys'
 
 export default function SaasDashboardPage() {
   const router = useRouter()
@@ -17,7 +18,7 @@ export default function SaasDashboardPage() {
   const [token, setToken] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | 'SUPER_ADMIN' | null>(null)
   const [userName, setUserName] = useState<string>('')
-  const [selectedSection, setSelectedSection] = useState<Section>('companies')
+  const [selectedSection, setSelectedSection] = useState<Section>('settings')
 
   useEffect(() => {
     setMounted(true)
@@ -64,6 +65,7 @@ export default function SaasDashboardPage() {
   }
 
   const sections = [
+    { id: 'settings' as Section, label: 'Configurações', icon: Sliders },
     { id: 'companies' as Section, label: 'Empresas', icon: Building2 },
     { id: 'users' as Section, label: 'Usuários', icon: Users },
     { id: 'workflows' as Section, label: 'Automações', icon: Bot },
@@ -126,6 +128,7 @@ export default function SaasDashboardPage() {
         </div>
 
         <div className="rounded-3xl border border-white/5 bg-background-subtle/80 p-6 shadow-inner-glow">
+          {selectedSection === 'settings' && <SystemSettingsManager />}
           {selectedSection === 'companies' && <CompaniesManager />}
           {selectedSection === 'users' && <UsersManager />}
           {selectedSection === 'workflows' && <WorkflowTemplatesManager />}

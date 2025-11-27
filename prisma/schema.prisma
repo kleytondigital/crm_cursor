@@ -613,3 +613,18 @@ model WorkflowInstance {
   @@index([n8nWorkflowId])
   @@map("workflow_instances")
 }
+
+// ============================================
+// SYSTEM SETTINGS (Global)
+// ============================================
+
+model SystemSettings {
+  id      Int      @id @default(1) // Singleton - sempre ID 1
+  crmName String   @default("Darkmode CRM")
+  slogan  String   @default("Soluções em atendimento")
+  version String   @default("1.0.0")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

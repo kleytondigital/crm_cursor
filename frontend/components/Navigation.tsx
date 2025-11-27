@@ -15,12 +15,12 @@ import {
   LayoutDashboard,
   Calendar,
   Bot,
-  Sliders,
   User,
-  BarChart3,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useAutomationsAccess } from '@/hooks/useAutomationsAccess'
+import { useSystemSettings } from '@/hooks/useSystemSettings'
+import { companiesAPI } from '@/lib/api'
 
 interface NavItem {
   href: string
@@ -35,8 +35,6 @@ const navigationItems: NavItem[] = [
   { href: '/connections', label: 'Conexões', icon: Share2, adminOnly: true },
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
-  { href: '/campanhas', label: 'Campanhas', icon: Calendar },
-  { href: '/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
   { href: '/automacoes', label: 'Automações', icon: Bot, requiresAutomationsAccess: true },
 ]
@@ -48,7 +46,9 @@ export default function Navigation() {
   const [userRole, setUserRole] = useState<'ADMIN' | 'MANAGER' | 'USER' | 'SUPER_ADMIN' | null>(null)
   const [userName, setUserName] = useState<string>('')
   const [currentDate, setCurrentDate] = useState<string>('')
+  const [companyName, setCompanyName] = useState<string>('')
   const { hasAccess: hasAutomationsAccess } = useAutomationsAccess()
+  const { settings } = useSystemSettings()
 
   useEffect(() => {
     // Obter role do usuário do localStorage
@@ -68,6 +68,28 @@ export default function Navigation() {
       setCurrentDate(format(new Date(), "dd 'de' MMMM", { locale: ptBR }))
     }
   }, [])
+
+  useEffect(() => {
+    let mounted = true
+    if (typeof window === 'undefined') return
+    const token = localStorage.getItem('token')
+    if (!token || userRole === 'SUPER_ADMIN') return
+
+    companiesAPI
+      .getMySummary()
+      .then((data) => {
+        if (mounted && data?.name) {
+          setCompanyName(data.name)
+        }
+      })
+      .catch((error) => {
+        console.warn('Não foi possível carregar o nome da empresa', error)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [userRole])
 
   // Filtrar itens de navegação baseado no role
   // Super Admin não deve ver esta navegação (tem seu próprio dashboard)
@@ -99,8 +121,12 @@ export default function Navigation() {
               <Zap className="h-3 w-3 md:h-4 md:w-4" />
             </div>
             <div className="hidden sm:block min-w-0">
-              <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted truncate">B2X CRM</p>
-              <p className="text-xs md:text-sm font-semibold text-white truncate">Soluções em atendimento</p>
+              <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted truncate">
+                {settings.crmName}
+              </p>
+              <p className="text-xs md:text-sm font-semibold text-white truncate">
+                {companyName || settings.slogan}
+              </p>
             </div>
           </div>
 

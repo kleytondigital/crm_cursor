@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
 import { LineChart, User, Calendar, Package } from 'lucide-react'
+import { useSystemSettings } from '@/hooks/useSystemSettings'
 
 export default function Footer() {
   const [userName, setUserName] = useState<string>('')
   const [currentDate, setCurrentDate] = useState<string>('')
-  const appVersion = process.env.NEXT_PUBLIC_VERSION_APP || '1.0.0'
+  const { settings } = useSystemSettings()
+  const appVersion = settings.version || process.env.NEXT_PUBLIC_VERSION_APP || '1.0.0'
 
   useEffect(() => {
     // Obter nome do usuário do localStorage

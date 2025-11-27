@@ -145,6 +145,18 @@ async function main() {
     },
   });
 
+  // Configurações globais do sistema
+  await prisma.systemSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      id: 1,
+      crmName: 'Darkmode CRM',
+      slogan: 'Soluções em atendimento',
+      version: '1.0.0',
+    },
+  });
+
   // Estágios padrão do pipeline agora são criados pela migration após os status customizados
   // Os estágios devem ser criados manualmente através da interface após criar os status customizados
 

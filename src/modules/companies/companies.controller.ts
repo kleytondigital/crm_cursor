@@ -41,6 +41,14 @@ export class CompaniesController {
     return this.companiesService.findAll(true);
   }
 
+  @Get('me/summary')
+  getMySummary(@CurrentUser() user: any) {
+    if (!user?.companyId) {
+      throw new ForbiddenException('Usuário não associado a uma empresa');
+    }
+    return this.companiesService.getSummary(user.companyId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     // Apenas SUPER_ADMIN pode ver detalhes de qualquer empresa

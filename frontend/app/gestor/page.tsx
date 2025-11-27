@@ -24,12 +24,14 @@ import {
   Menu,
   Share2,
   Tag,
+  Calendar,
+  BarChart3,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
-type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | 'lead-status' | null
+type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | 'campanhas' | 'relatorios' | 'lead-status' | null
 
 interface MenuItem {
   id: MenuSection
@@ -64,6 +66,16 @@ const menuItems: MenuItem[] = [
     id: 'connections',
     label: 'Conexões',
     icon: <Share2 className="h-4 w-4" />,
+  },
+  {
+    id: 'campanhas',
+    label: 'Campanhas',
+    icon: <Calendar className="h-4 w-4" />,
+  },
+  {
+    id: 'relatorios',
+    label: 'Relatórios',
+    icon: <BarChart3 className="h-4 w-4" />,
   },
   {
     id: 'automations',
@@ -484,6 +496,60 @@ function GestorContent() {
                       Acessar Automações
                     </button>
                   </div>
+                </div>
+              </Card>
+            </div>
+          )}
+          {selectedSection === 'campanhas' && (
+            <div className="flex flex-col gap-4">
+              <header>
+                <h2 className="text-xl md:text-2xl font-semibold text-white">Campanhas</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Configure disparos em massa e agendas inteligentes via Gestor.
+                </p>
+              </header>
+              <Card className="rounded-2xl border border-white/5 bg-background-muted/60 p-4 md:p-6 shadow-inner-glow">
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <Calendar className="h-12 w-12 md:h-16 md:w-16 text-brand-secondary opacity-70" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Planejar Campanhas</h3>
+                    <p className="mt-2 text-sm text-text-muted max-w-md">
+                      Crie segmentações, defina conteúdos e acompanhe os envios do time.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/campanhas')}
+                    className="rounded-full bg-brand-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-primary-dark shadow-glow"
+                  >
+                    Abrir Campanhas
+                  </button>
+                </div>
+              </Card>
+            </div>
+          )}
+          {selectedSection === 'relatorios' && (
+            <div className="flex flex-col gap-4">
+              <header>
+                <h2 className="text-xl md:text-2xl font-semibold text-white">Relatórios</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Centralize indicadores e exportações importantes para o gestor.
+                </p>
+              </header>
+              <Card className="rounded-2xl border border-white/5 bg-background-muted/60 p-4 md:p-6 shadow-inner-glow">
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <BarChart3 className="h-12 w-12 md:h-16 md:w-16 text-brand-secondary opacity-70" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Dashboard Analítico</h3>
+                    <p className="mt-2 text-sm text-text-muted max-w-md">
+                      Exporte resultados e monitore o desempenho diário dos times.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/relatorios')}
+                    className="rounded-full bg-brand-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-primary-dark shadow-glow"
+                  >
+                    Acessar Relatórios
+                  </button>
                 </div>
               </Card>
             </div>
