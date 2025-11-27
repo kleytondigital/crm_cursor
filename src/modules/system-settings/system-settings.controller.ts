@@ -26,7 +26,7 @@ export class SystemSettingsController {
 
   @Patch()
   @Roles('SUPER_ADMIN')
-  updateSettings(@Body() dto: UpdateSystemSettingsDto) {
+  updateSettings(@Body() dto: UpdateSystemSettingsDto, @CurrentUser() user: any) {
     return this.systemSettingsService.updateSettings(dto);
   }
 }

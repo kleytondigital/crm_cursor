@@ -362,11 +362,28 @@ export const systemSettingsAPI = {
       }
       return res.json()
     }),
-  update: (data: Partial<{ crmName: string; slogan: string; version: string }>) =>
-    authFetch('/system-settings', {
+  update: async (data: Partial<{ crmName: string; slogan: string; version: string }>) => {
+    const token = localStorage.getItem('token')
+    const url = `${API_URL}/system-settings`
+    
+    const response = await fetch(url, {
       method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
       body: JSON.stringify(data),
-    }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
+      const error = new Error(errorData.message || `Erro ${response.status}`)
+      ;(error as any).response = { data: errorData, status: response.status }
+      throw error
+    }
+
+    return response.json()
+  },
 }
 
 // ============================================

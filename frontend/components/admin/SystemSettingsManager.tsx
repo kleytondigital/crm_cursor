@@ -26,13 +26,26 @@ export default function SystemSettingsManager() {
     setSuccessMessage(null)
     setErrorMessage(null)
     try {
-      await systemSettingsAPI.update(formData)
-      setSettings((prev) => ({ ...prev, ...formData }))
+      // Filtrar apenas campos com valores válidos
+      const dataToSend: any = {}
+      if (formData.crmName && formData.crmName.trim()) {
+        dataToSend.crmName = formData.crmName.trim()
+      }
+      if (formData.slogan && formData.slogan.trim()) {
+        dataToSend.slogan = formData.slogan.trim()
+      }
+      if (formData.version && formData.version.trim()) {
+        dataToSend.version = formData.version.trim()
+      }
+
+      const updated = await systemSettingsAPI.update(dataToSend)
+      setSettings((prev) => ({ ...prev, ...updated }))
       setSuccessMessage('Configurações salvas e aplicadas em todos os tenants.')
       setTimeout(() => setSuccessMessage(null), 5000)
     } catch (error: any) {
       console.error('Erro ao salvar configurações:', error)
-      setErrorMessage(error?.message || 'Não foi possível salvar as configurações.')
+      const errorMsg = error?.response?.data?.message || error?.message || 'Não foi possível salvar as configurações.'
+      setErrorMessage(errorMsg)
     } finally {
       setSaving(false)
     }
