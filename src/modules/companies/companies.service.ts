@@ -40,8 +40,39 @@ export class CompaniesService {
       }
     }
 
-    return this.prisma.company.create({
-      data: createCompanyDto,
+    // Criar empresa dentro de uma transação
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Criar empresa
+      const company = await tx.company.create({
+        data: createCompanyDto,
+      });
+
+      // 2. Criar status padrão "Novo Lead"
+      const defaultStatus = await tx.customLeadStatus.create({
+        data: {
+          name: 'Novo Lead',
+          description: 'Status inicial do lead',
+          color: '#3B82F6', // Azul
+          order: 0,
+          isActive: true,
+          tenantId: company.id,
+        },
+      });
+
+      // 3. Criar estágio padrão "Novos Leads" (estágio 0)
+      await tx.pipelineStage.create({
+        data: {
+          name: 'Novos Leads',
+          statusId: defaultStatus.id,
+          color: '#3B82F6', // Azul
+          order: 0, // Estágio 0 - não pode ser arrastado
+          isDefault: true, // Marcar como estágio padrão
+          isActive: true,
+          tenantId: company.id,
+        },
+      });
+
+      return company;
     });
   }
 

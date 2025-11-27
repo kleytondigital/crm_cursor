@@ -140,17 +140,21 @@ export default function MessageBubble({
             {imageError ? (
               <div className="flex h-48 w-full max-w-[220px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-background-muted/60">
                 <Image className="h-10 w-10 text-text-muted" />
+                <span className="ml-2 text-xs text-text-muted">
+                  {isUser ? 'Imagem enviada' : 'Imagem recebida'}
+                </span>
               </div>
             ) : (
               <div className="relative">
                 <img
                   src={resolveUrl || ''}
-                  alt="Imagem"
+                  alt={isUser ? 'Imagem enviada' : 'Imagem recebida'}
                   onError={() => setImageError(true)}
                   className={`h-auto w-full max-w-[220px] cursor-pointer rounded-xl border border-white/10 object-cover ${
                     message.status === 'sending' ? 'opacity-60' : ''
                   }`}
                   onClick={() => resolveUrl && window.open(resolveUrl, '_blank')}
+                  title={isUser ? 'Imagem enviada' : 'Imagem recebida'}
                 />
                 {message.status === 'sending' && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30">
@@ -167,7 +171,9 @@ export default function MessageBubble({
           return (
             <div className="flex w-full max-w-[240px] items-center gap-3 rounded-xl border border-white/10 bg-background-soft/70 px-3 py-2 text-text-muted">
               <Volume2 className="h-5 w-5" />
-              <span className="text-xs">Áudio não disponível</span>
+              <span className="text-xs">
+                {isUser ? 'Áudio enviado' : 'Áudio recebido'} - não disponível
+              </span>
             </div>
           )
         }
@@ -223,7 +229,9 @@ export default function MessageBubble({
           return (
             <div className="flex w-full max-w-[240px] items-center gap-3 rounded-xl border border-white/10 bg-background-soft/70 px-3 py-2 text-text-muted">
               <Video className="h-5 w-5" />
-              <span className="text-xs">Vídeo não disponível</span>
+              <span className="text-xs">
+                {isUser ? 'Vídeo enviado' : 'Vídeo recebido'} - não disponível
+              </span>
             </div>
           )
         }
@@ -294,7 +302,7 @@ export default function MessageBubble({
               <File className="h-8 w-8 flex-shrink-0 text-brand-secondary" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">
-                  {message.contentText || 'Documento'}
+                  {message.contentText || (isUser ? 'Documento enviado' : 'Documento recebido')}
                 </p>
                 {resolveUrl && (
                   <a
@@ -303,7 +311,7 @@ export default function MessageBubble({
                     className="mt-1 flex items-center gap-1 text-xs text-brand-secondary hover:underline"
                   >
                     <Download className="h-3 w-3" />
-                    <span>Baixar arquivo</span>
+                    <span>{isUser ? 'Baixar arquivo' : 'Baixar arquivo recebido'}</span>
                   </a>
                 )}
               </div>

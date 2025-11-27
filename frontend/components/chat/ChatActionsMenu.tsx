@@ -250,7 +250,7 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
           open={leadStatusDialogOpen}
           onOpenChange={setLeadStatusDialogOpen}
           leadId={lead.id}
-          currentStatus={lead.status}
+          currentLead={lead}
           onSuccess={handleSuccess}
         />
       )}

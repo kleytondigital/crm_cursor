@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { leadsAPI } from '@/lib/api'
+import { pipelineStagesAPI, PipelineStage } from '@/lib/api/pipeline-stages'
 import { Loader2 } from 'lucide-react'
 import { Lead } from '@/types'
 
@@ -18,30 +19,60 @@ interface ChangeLeadStatusDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   leadId: string | null
-  currentStatus: Lead['status']
+  currentLead: Lead | null // Receber o lead completo para pegar o statusId atual
   onSuccess: () => void
-}
-
-const statusLabels: Record<Lead['status'], { label: string; color: string }> = {
-  NOVO: { label: 'Novo', color: 'text-blue-300' },
-  EM_ATENDIMENTO: { label: 'Em Atendimento', color: 'text-yellow-300' },
-  AGUARDANDO: { label: 'Aguardando', color: 'text-orange-300' },
-  CONCLUIDO: { label: 'Concluído', color: 'text-green-300' },
 }
 
 export default function ChangeLeadStatusDialog({
   open,
   onOpenChange,
   leadId,
-  currentStatus,
+  currentLead,
   onSuccess,
 }: ChangeLeadStatusDialogProps) {
-  const [selectedStatus, setSelectedStatus] = useState<Lead['status']>(currentStatus)
+  const [stages, setStages] = useState<PipelineStage[]>([])
+  const [loadingStages, setLoadingStages] = useState(true)
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Carregar estágios quando o modal abrir
+  useEffect(() => {
+    if (open) {
+      loadStages()
+      // Definir estágio atual baseado no statusId do lead
+      if (currentLead?.statusId) {
+        setSelectedStageId(currentLead.statusId)
+      }
+    }
+  }, [open, currentLead])
+
+  const loadStages = async () => {
+    try {
+      setLoadingStages(true)
+      const data = await pipelineStagesAPI.getAll()
+      // Filtrar apenas estágios ativos e ordenar por ordem
+      const activeStages = data
+        .filter((stage) => stage.isActive)
+        .sort((a, b) => a.order - b.order)
+      setStages(activeStages)
+    } catch (err: any) {
+      console.error('Erro ao carregar estágios:', err)
+      setError('Erro ao carregar estágios do pipeline')
+    } finally {
+      setLoadingStages(false)
+    }
+  }
+
   const handleUpdate = async () => {
-    if (!leadId || selectedStatus === currentStatus) {
+    if (!leadId || !selectedStageId) {
+      onOpenChange(false)
+      return
+    }
+
+    // Verificar se realmente mudou
+    const selectedStage = stages.find((s) => s.statusId === selectedStageId)
+    if (!selectedStage || currentLead?.statusId === selectedStage.statusId) {
       onOpenChange(false)
       return
     }
@@ -50,12 +81,13 @@ export default function ChangeLeadStatusDialog({
       setUpdating(true)
       setError(null)
 
-      await leadsAPI.updateStatus(leadId, selectedStatus)
+      // Atualizar usando o statusId do estágio selecionado
+      await leadsAPI.updateStatusId(leadId, selectedStage.statusId)
 
       onSuccess()
       onOpenChange(false)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao atualizar status do lead')
+      setError(err.response?.data?.message || 'Erro ao atualizar etapa do lead')
     } finally {
       setUpdating(false)
     }
@@ -63,7 +95,9 @@ export default function ChangeLeadStatusDialog({
 
   const handleClose = () => {
     if (!updating) {
-      setSelectedStatus(currentStatus)
+      if (currentLead?.statusId) {
+        setSelectedStageId(currentLead.statusId)
+      }
       setError(null)
       onOpenChange(false)
     }
@@ -86,33 +120,49 @@ export default function ChangeLeadStatusDialog({
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            {(['NOVO', 'EM_ATENDIMENTO', 'AGUARDANDO', 'CONCLUIDO'] as Lead['status'][]).map((status) => {
-              const meta = statusLabels[status]
-              const isSelected = selectedStatus === status
+          {loadingStages ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-brand-secondary" />
+            </div>
+          ) : stages.length === 0 ? (
+            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+              Nenhum estágio configurado. Configure estágios no painel Gestor primeiro.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+              {stages.map((stage) => {
+                const isSelected = selectedStageId === stage.statusId
+                const isCurrent = currentLead?.statusId === stage.statusId
 
-              return (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => setSelectedStatus(status)}
-                  disabled={updating}
-                  className={`rounded-lg border px-4 py-3 text-left transition ${
-                    isSelected
-                      ? 'border-brand-secondary bg-brand-secondary/20 text-brand-secondary'
-                      : 'border-white/10 bg-background-muted/50 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{meta.label}</span>
-                    {isSelected && (
-                      <span className={`text-sm ${meta.color}`}>Atual</span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+                return (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setSelectedStageId(stage.statusId)}
+                    disabled={updating}
+                    className={`rounded-lg border px-4 py-3 text-left transition ${
+                      isSelected
+                        ? 'border-brand-secondary bg-brand-secondary/20 text-brand-secondary'
+                        : 'border-white/10 bg-background-muted/50 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div
+                          className="h-3 w-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        <span className="font-medium truncate">{stage.name}</span>
+                      </div>
+                      {isCurrent && (
+                        <span className="text-sm text-brand-secondary flex-shrink-0">Atual</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -125,7 +175,7 @@ export default function ChangeLeadStatusDialog({
           </Button>
           <Button
             onClick={handleUpdate}
-            disabled={updating || selectedStatus === currentStatus}
+            disabled={updating || !selectedStageId || currentLead?.statusId === selectedStageId}
             className="gap-2"
           >
             {updating && <Loader2 className="h-4 w-4 animate-spin" />}

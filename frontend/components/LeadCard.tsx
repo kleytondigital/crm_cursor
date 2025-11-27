@@ -11,9 +11,10 @@ interface LeadCardProps {
   lead: Lead
   index: number
   onOpenChat?: (leadId: string) => void
+  isDragDisabled?: boolean
 }
 
-export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
+export default function LeadCard({ lead, index, onOpenChat, isDragDisabled = false }: LeadCardProps) {
   const router = useRouter()
 
   const handleOpenChat = () => {
@@ -52,13 +53,17 @@ export default function LeadCard({ lead, index, onOpenChat }: LeadCardProps) {
   }
 
   return (
-    <Draggable draggableId={lead.id} index={index}>
+    <Draggable draggableId={lead.id} index={index} isDragDisabled={isDragDisabled}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`w-full cursor-move rounded-2xl border border-white/10 bg-background-subtle/80 p-3 sm:p-4 shadow-inner-glow transition-all ${
+          className={`w-full rounded-2xl border border-white/10 bg-background-subtle/80 p-3 sm:p-4 shadow-inner-glow transition-all ${
+            isDragDisabled 
+              ? 'cursor-default opacity-75' 
+              : 'cursor-move'
+          } ${
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
         >

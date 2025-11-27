@@ -87,7 +87,12 @@ export default function KanbanColumn({ stage, leads, onEdit, droppableId }: Kanb
           >
             <div className="space-y-2 md:space-y-3 lg:space-y-4">
               {leads.map((lead, index) => (
-                <LeadCard key={lead.id} lead={lead} index={index} />
+                <LeadCard 
+                  key={lead.id} 
+                  lead={lead} 
+                  index={index}
+                  isDragDisabled={stage.isDefault || stage.order === 0}
+                />
               ))}
               {provided.placeholder}
             </div>

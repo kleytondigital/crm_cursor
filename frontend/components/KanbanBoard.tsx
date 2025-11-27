@@ -101,10 +101,30 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
 
     const leadId = draggableId
     const destinationStageId = destination.droppableId
+    const sourceStageId = source.droppableId
 
-    // Encontrar o estágio de destino
+    // Encontrar os estágios de origem e destino
+    const sourceStage = stages.find((s) => s.id === sourceStageId)
     const destinationStage = stages.find((s) => s.id === destinationStageId)
-    if (!destinationStage) return
+    
+    if (!destinationStage || !sourceStage) return
+
+    // Bloquear arrastar leads do estágio 0 (isDefault ou order === 0)
+    if (sourceStage.isDefault || sourceStage.order === 0) {
+      setError('Não é possível mover leads do estágio inicial')
+      setTimeout(() => setError(null), 3000) // Remover erro após 3 segundos
+      return
+    }
+
+    // Bloquear arrastar leads para o estágio 0 (isDefault ou order === 0)
+    if (destinationStage.isDefault || destinationStage.order === 0) {
+      setError('Não é possível mover leads para o estágio inicial')
+      setTimeout(() => setError(null), 3000) // Remover erro após 3 segundos
+      return
+    }
+
+    // Limpar erro se chegou até aqui
+    setError(null)
 
     // Encontrar o lead atual
     const currentLead = leads.find((l) => l.id === leadId)
