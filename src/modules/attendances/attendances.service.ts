@@ -679,7 +679,46 @@ export class AttendancesService {
           leadId,
           tenantId: context.tenantId,
         },
-        include: this.defaultAttendanceInclude(),
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          connectionId: true,
+          departmentId: true,
+          assignedUserId: true,
+          status: true,
+          priority: true,
+          isUrgent: true,
+          lastMessage: true,
+          lastMessageAt: true,
+          startedAt: true,
+          endedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          transferredById: true,
+          closedById: true,
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              profilePictureURL: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -701,7 +740,7 @@ export class AttendancesService {
         leadId,
         status: { in: [AttendanceStatus.OPEN, AttendanceStatus.TRANSFERRED] },
       },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     if (!attendance) {
@@ -784,7 +823,7 @@ export class AttendancesService {
     // SEGUNDO: Recarregar o atendimento completo com includes para garantir que assignedUser esteja presente
     const updated = await this.prisma.attendance.findUnique({
       where: { id: attendance.id },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     if (!updated) {
@@ -812,7 +851,7 @@ export class AttendancesService {
   ) {
     const attendance = await this.prisma.attendance.findFirst({
       where: { id, tenantId: context.tenantId },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     if (!attendance) {
@@ -906,7 +945,7 @@ export class AttendancesService {
     const updated = await this.prisma.attendance.update({
       where: { id: attendance.id },
       data: updateData,
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     this.emitAttendanceEvent(
@@ -923,7 +962,7 @@ export class AttendancesService {
   ) {
     const attendance = await this.prisma.attendance.findFirst({
       where: { id, tenantId: context.tenantId },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     if (!attendance) {
@@ -954,7 +993,7 @@ export class AttendancesService {
           },
         },
       },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     this.emitAttendanceEvent('attendance:update', updated);
@@ -968,7 +1007,7 @@ export class AttendancesService {
   ) {
     const attendance = await this.prisma.attendance.findFirst({
       where: { id, tenantId: context.tenantId },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     if (!attendance) {
@@ -982,7 +1021,7 @@ export class AttendancesService {
     const updated = await this.prisma.attendance.update({
       where: { id },
       data: { priority: dto.priority },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     this.emitAttendanceEvent('attendance:update', updated);
@@ -1026,7 +1065,7 @@ export class AttendancesService {
             },
           },
         },
-        include: this.defaultAttendanceInclude(),
+        select: this.defaultAttendanceSelect(),
       });
 
       // Sincronizar conversa com o departmentId do atendimento criado
@@ -1080,7 +1119,7 @@ export class AttendancesService {
             ? AttendanceStatus.OPEN
             : active.status,
       },
-      include: this.defaultAttendanceInclude(),
+      select: this.defaultAttendanceSelect(),
     });
 
     // Sincronizar conversa com departmentId e assignedUserId do atendimento atualizado
@@ -1148,7 +1187,46 @@ export class AttendancesService {
             ? AttendanceStatus.IN_PROGRESS
             : attendance.status,
       },
-      include: this.defaultAttendanceInclude(),
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        connectionId: true,
+        departmentId: true,
+        assignedUserId: true,
+        status: true,
+        priority: true,
+        isUrgent: true,
+        lastMessage: true,
+        lastMessageAt: true,
+        startedAt: true,
+        endedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        transferredById: true,
+        closedById: true,
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            profilePictureURL: true,
+          },
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     this.emitAttendanceEvent('attendance:update', updated);
