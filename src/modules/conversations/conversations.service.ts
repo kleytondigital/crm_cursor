@@ -76,7 +76,7 @@ export class ConversationsService {
             name: true,
             phone: true,
             tags: true,
-            profilePictureURL: true,
+            // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
           },
         },
         assignedUser: {
@@ -130,7 +130,7 @@ export class ConversationsService {
             name: true,
             phone: true,
             tags: true,
-            profilePictureURL: true,
+            // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
           },
         },
         assignedUser: {
@@ -179,7 +179,7 @@ export class ConversationsService {
             name: true,
             phone: true,
             tags: true,
-            profilePictureURL: true,
+            // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
           },
         },
         assignedUser: {

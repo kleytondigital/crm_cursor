@@ -113,24 +113,34 @@ export class PipelineStagesService {
    * Listar todos os estágios do tenant (incluindo estágios padrão globais)
    */
   async findAll(tenantId: string) {
-    // Buscar estágios personalizados do tenant
-    const customStages = await this.prisma.pipelineStage.findMany({
-      where: { tenantId },
-      orderBy: { order: 'asc' },
-      include: {
-        customStatus: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            color: true,
-            order: true,
+    try {
+      // Buscar estágios personalizados do tenant
+      const customStages = await this.prisma.pipelineStage.findMany({
+        where: { tenantId },
+        orderBy: { order: 'asc' },
+        include: {
+          customStatus: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              color: true,
+              order: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return customStages;
+      return customStages;
+    } catch (error: any) {
+      console.error('[PipelineStagesService.findAll] Erro ao buscar estágios:', {
+        error: error.message,
+        code: error.code,
+        meta: error.meta,
+        tenantId,
+      });
+      throw error;
+    }
   }
 
   /**

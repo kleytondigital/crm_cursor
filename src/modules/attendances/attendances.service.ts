@@ -158,13 +158,14 @@ export class AttendancesService {
       }
     }
 
-    if (filters.urgent !== undefined) {
-      if (where.AND && Array.isArray(where.AND)) {
-        where.AND.push({ isUrgent: filters.urgent === 'true' });
-      } else {
-        where.isUrgent = filters.urgent === 'true';
-      }
-    }
+    // Filtro urgent removido temporariamente até migration ser aplicada
+    // if (filters.urgent !== undefined) {
+    //   if (where.AND && Array.isArray(where.AND)) {
+    //     where.AND.push({ isUrgent: filters.urgent === 'true' });
+    //   } else {
+    //     where.isUrgent = filters.urgent === 'true';
+    //   }
+    // }
 
     if (filters.search) {
       const searchCondition: Prisma.AttendanceWhereInput = {
@@ -192,7 +193,6 @@ export class AttendancesService {
     const attendances = await this.prisma.attendance.findMany({
       where,
       orderBy: [
-        { isUrgent: 'desc' },
         { priority: 'desc' },
         { lastMessageAt: 'desc' },
         { createdAt: 'desc' },
@@ -267,7 +267,6 @@ export class AttendancesService {
       where,
       orderBy: [
         { priority: 'desc' },
-        { isUrgent: 'desc' },
         { createdAt: 'asc' },
       ],
       take: 10,
@@ -353,12 +352,13 @@ export class AttendancesService {
           where: {
             ...whereClause,
             status: AttendanceStatus.CLOSED,
-            startedAt: { not: null },
-            endedAt: { not: null },
+            // startedAt: { not: null }, // Removido temporariamente até migration ser aplicada
+            // endedAt: { not: null },
             // Para agents, apenas atendimentos finalizados por eles
             ...(isAdmin ? {} : { assignedUserId: context.userId }),
           },
-          select: { startedAt: true, endedAt: true },
+          // select: { startedAt: true, endedAt: true }, // Removido temporariamente até migration ser aplicada
+          select: { id: true },
         }),
       ]);
 
@@ -366,10 +366,8 @@ export class AttendancesService {
       durations.length > 0
         ? Math.round(
             durations.reduce((acc, cur) => {
-              const diff =
-                (cur.endedAt!.getTime() - cur.startedAt!.getTime()) /
-                1000 /
-                60;
+              // const diff = (cur.endedAt!.getTime() - cur.startedAt!.getTime()) / 1000 / 60; // Removido temporariamente até migration ser aplicada
+              const diff = 0; // Placeholder até migration ser aplicada
               return acc + diff;
             }, 0) / durations.length,
           )
@@ -647,8 +645,8 @@ export class AttendancesService {
         status: AttendanceStatus.IN_PROGRESS,
         assignedUserId: context.userId, // Garantir que o assignedUserId seja definido
         departmentId: departmentId, // Usar o departmentId determinado acima
-        startedAt: attendance.startedAt ?? new Date(),
-        isUrgent: false,
+        // startedAt: attendance.startedAt ?? new Date(), // Removido temporariamente até migration ser aplicada
+        // isUrgent: false, // Removido temporariamente até migration ser aplicada
         lastMessageAt: attendance.lastMessageAt ?? new Date(),
         logs: {
           create: {
@@ -1041,7 +1039,7 @@ export class AttendancesService {
           id: true,
           name: true,
           phone: true,
-          profilePictureURL: true,
+          // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
         },
       },
       assignedUser: {
