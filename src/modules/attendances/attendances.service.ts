@@ -539,7 +539,15 @@ export class AttendancesService {
           tenantId: context.tenantId,
           leadId: attendance.leadId,
         },
-        include: {
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
           lead: {
             select: {
               id: true,
@@ -627,7 +635,6 @@ export class AttendancesService {
                 status: conversation.status,
                 tenantId: conversation.tenantId,
                 createdAt: conversation.createdAt.toISOString(),
-                updatedAt: conversation.updatedAt.toISOString(),
               } : null,
             };
           } catch (error) {
@@ -654,7 +661,6 @@ export class AttendancesService {
                 status: conversation.status,
                 tenantId: conversation.tenantId,
                 createdAt: conversation.createdAt.toISOString(),
-                updatedAt: conversation.updatedAt.toISOString(),
               } : null,
             };
           }
@@ -1075,6 +1081,16 @@ export class AttendancesService {
           tenantId: params.tenantId,
           leadId: params.leadId,
         },
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
+        },
       });
 
       if (existingConversation) {
@@ -1127,6 +1143,16 @@ export class AttendancesService {
       where: {
         tenantId: params.tenantId,
         leadId: params.leadId,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        assignedUserId: true,
+        departmentId: true,
+        status: true,
+        isBotAttending: true,
+        createdAt: true,
       },
     });
 
@@ -1804,6 +1830,16 @@ export class AttendancesService {
         tenantId,
         leadId,
       },
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        assignedUserId: true,
+        departmentId: true,
+        status: true,
+        isBotAttending: true,
+        createdAt: true,
+      },
     });
 
     const conversationData: any = {
@@ -1850,6 +1886,16 @@ export class AttendancesService {
         tenantId,
         leadId,
       },
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        assignedUserId: true,
+        departmentId: true,
+        status: true,
+        isBotAttending: true,
+        createdAt: true,
+      },
     });
 
     if (conversation) {
@@ -1881,6 +1927,16 @@ export class AttendancesService {
       where: {
         tenantId,
         leadId,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        assignedUserId: true,
+        departmentId: true,
+        status: true,
+        isBotAttending: true,
+        createdAt: true,
       },
     });
 
