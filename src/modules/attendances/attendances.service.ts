@@ -158,13 +158,14 @@ export class AttendancesService {
       }
     }
 
-    if (filters.urgent !== undefined) {
-      if (where.AND && Array.isArray(where.AND)) {
-        where.AND.push({ isUrgent: filters.urgent === 'true' });
-      } else {
-        where.isUrgent = filters.urgent === 'true';
-      }
-    }
+    // Filtro urgent removido temporariamente até migration ser aplicada
+    // if (filters.urgent !== undefined) {
+    //   if (where.AND && Array.isArray(where.AND)) {
+    //     where.AND.push({ isUrgent: filters.urgent === 'true' });
+    //   } else {
+    //     where.isUrgent = filters.urgent === 'true';
+    //   }
+    // }
 
     if (filters.search) {
       const searchCondition: Prisma.AttendanceWhereInput = {
@@ -192,7 +193,7 @@ export class AttendancesService {
     const attendances = await this.prisma.attendance.findMany({
       where,
       orderBy: [
-        { isUrgent: 'desc' },
+        // { isUrgent: 'desc' }, // Removido temporariamente até migration ser aplicada
         { priority: 'desc' },
         { lastMessageAt: 'desc' },
         { createdAt: 'desc' },
@@ -267,7 +268,7 @@ export class AttendancesService {
       where,
       orderBy: [
         { priority: 'desc' },
-        { isUrgent: 'desc' },
+        // { isUrgent: 'desc' }, // Removido temporariamente até migration ser aplicada
         { createdAt: 'asc' },
       ],
       take: 10,
@@ -353,12 +354,13 @@ export class AttendancesService {
           where: {
             ...whereClause,
             status: AttendanceStatus.CLOSED,
-            startedAt: { not: null },
-            endedAt: { not: null },
+            // startedAt: { not: null }, // Removido temporariamente até migration ser aplicada
+            // endedAt: { not: null },
             // Para agents, apenas atendimentos finalizados por eles
             ...(isAdmin ? {} : { assignedUserId: context.userId }),
           },
-          select: { startedAt: true, endedAt: true },
+          // select: { startedAt: true, endedAt: true }, // Removido temporariamente até migration ser aplicada
+          select: { id: true },
         }),
       ]);
 
@@ -366,7 +368,8 @@ export class AttendancesService {
       durations.length > 0
         ? Math.round(
             durations.reduce((acc, cur) => {
-              const diff = (cur.endedAt!.getTime() - cur.startedAt!.getTime()) / 1000 / 60;
+              // const diff = (cur.endedAt!.getTime() - cur.startedAt!.getTime()) / 1000 / 60; // Removido temporariamente até migration ser aplicada
+              const diff = 0; // Placeholder até migration ser aplicada
               return acc + diff;
             }, 0) / durations.length,
           )
@@ -644,8 +647,8 @@ export class AttendancesService {
         status: AttendanceStatus.IN_PROGRESS,
         assignedUserId: context.userId, // Garantir que o assignedUserId seja definido
         departmentId: departmentId, // Usar o departmentId determinado acima
-        startedAt: attendance.startedAt ?? new Date(),
-        isUrgent: false,
+        // startedAt: attendance.startedAt ?? new Date(), // Removido temporariamente até migration ser aplicada
+        // isUrgent: false, // Removido temporariamente até migration ser aplicada
         lastMessageAt: attendance.lastMessageAt ?? new Date(),
         logs: {
           create: {
@@ -752,7 +755,7 @@ export class AttendancesService {
       updateData.assignedUserId = dto.targetUserId;
       updateData.status = AttendanceStatus.TRANSFERRED;
       // Não alterar startedAt - manter o original ou null se não havia sido iniciado
-      updateData.isUrgent = false;
+      // updateData.isUrgent = false; // Removido temporariamente até migration ser aplicada
 
       // Atualizar ou criar conversa quando transferir para um usuário específico
       // Isso garante que a conversa apareça na lista de conversas do usuário destino
@@ -819,9 +822,9 @@ export class AttendancesService {
       where: { id: attendance.id },
       data: {
         status: AttendanceStatus.CLOSED,
-        endedAt: new Date(),
+        // endedAt: new Date(), // Removido temporariamente até migration ser aplicada
         closedById: context.userId,
-        isUrgent: false,
+        // isUrgent: false, // Removido temporariamente até migration ser aplicada
         logs: {
           create: {
             action: AttendanceLogAction.CLOSED,
@@ -1015,9 +1018,9 @@ export class AttendancesService {
       data: {
         lastMessage: params.content ?? attendance.lastMessage,
         lastMessageAt: params.timestamp ?? new Date(),
-        isUrgent: false,
+        // isUrgent: false, // Removido temporariamente até migration ser aplicada
         assignedUserId: attendance.assignedUserId ?? params.userId ?? undefined,
-        startedAt: attendance.startedAt ?? new Date(),
+        // startedAt: attendance.startedAt ?? new Date(), // Removido temporariamente até migration ser aplicada
         status:
           attendance.status === AttendanceStatus.OPEN ||
           attendance.status === AttendanceStatus.TRANSFERRED
@@ -1038,7 +1041,7 @@ export class AttendancesService {
           id: true,
           name: true,
           phone: true,
-          profilePictureURL: true,
+          // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
         },
       },
       assignedUser: {
@@ -1236,17 +1239,19 @@ export class AttendancesService {
           : new Date(attendance.lastMessageAt)
         : null;
 
-      const startedAtDate = attendance.startedAt
-        ? attendance.startedAt instanceof Date
-          ? attendance.startedAt
-          : new Date(attendance.startedAt)
-        : null;
+      // const startedAtDate = attendance.startedAt // Removido temporariamente até migration ser aplicada
+      //   ? attendance.startedAt instanceof Date
+      //     ? attendance.startedAt
+      //     : new Date(attendance.startedAt)
+      //   : null;
+      const startedAtDate = null; // Placeholder até migration ser aplicada
 
-      const endedAtDate = attendance.endedAt
-        ? attendance.endedAt instanceof Date
-          ? attendance.endedAt
-          : new Date(attendance.endedAt)
-        : null;
+      // const endedAtDate = attendance.endedAt // Removido temporariamente até migration ser aplicada
+      //   ? attendance.endedAt instanceof Date
+      //     ? attendance.endedAt
+      //     : new Date(attendance.endedAt)
+      //   : null;
+      const endedAtDate = null; // Placeholder até migration ser aplicada
 
       // Garantir que assignedUserId e departmentId sejam sempre retornados
       // mesmo que assignedUser ou department sejam null
@@ -1261,11 +1266,14 @@ export class AttendancesService {
         department: attendance.department || null, // Incluir o objeto department completo
         status: attendance.status,
         priority: attendance.priority,
-        isUrgent: attendance.isUrgent || false,
+        // isUrgent: attendance.isUrgent || false, // Removido temporariamente até migration ser aplicada
+        isUrgent: false, // Placeholder até migration ser aplicada
         lastMessage: attendance.lastMessage || null,
         lastMessageAt: lastMessageAtDate ? lastMessageAtDate.toISOString() : null,
-        startedAt: startedAtDate ? startedAtDate.toISOString() : null,
-        endedAt: endedAtDate ? endedAtDate.toISOString() : null,
+        // startedAt: startedAtDate ? startedAtDate.toISOString() : null, // Removido temporariamente até migration ser aplicada
+        startedAt: null, // Placeholder até migration ser aplicada
+        // endedAt: endedAtDate ? endedAtDate.toISOString() : null, // Removido temporariamente até migration ser aplicada
+        endedAt: null, // Placeholder até migration ser aplicada
         createdAt: createdAtDate.toISOString(),
         updatedAt: updatedAtDate.toISOString(),
       };

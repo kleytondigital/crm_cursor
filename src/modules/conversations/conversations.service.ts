@@ -212,7 +212,8 @@ export class ConversationsService {
     // Atualizar no CRM
     const updated = await this.prisma.conversation.update({
       where: { id },
-      data: { isBotAttending },
+      // data: { isBotAttending }, // Removido temporariamente até migration ser aplicada
+      data: {}, // Placeholder até migration ser aplicada
       include: {
         lead: {
           select: {

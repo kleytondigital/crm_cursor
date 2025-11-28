@@ -70,7 +70,8 @@ export class ReportsService {
       origin: lead.origin || 'Orgânico',
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString(),
-      convertedAt: lead.attendances[0]?.endedAt?.toISOString() || null,
+      // convertedAt: lead.attendances[0]?.endedAt?.toISOString() || null, // Removido temporariamente até migration ser aplicada
+      convertedAt: null, // Placeholder até migration ser aplicada
       totalMessages: lead.messages.length,
       totalAttendances: lead.attendances.length,
     }));
@@ -134,13 +135,16 @@ export class ReportsService {
       assignedUserId: attendance.assignedUser?.id || '',
       assignedUserName: attendance.assignedUser?.name || 'Não atribuído',
       status: attendance.status,
-      startedAt: attendance.startedAt.toISOString(),
-      endedAt: attendance.endedAt?.toISOString() || null,
-      duration: attendance.endedAt
-        ? Math.round(
-            (attendance.endedAt.getTime() - attendance.startedAt.getTime()) / 60000,
-          )
-        : null,
+      // startedAt: attendance.startedAt.toISOString(), // Removido temporariamente até migration ser aplicada
+      startedAt: null, // Placeholder até migration ser aplicada
+      // endedAt: attendance.endedAt?.toISOString() || null, // Removido temporariamente até migration ser aplicada
+      endedAt: null, // Placeholder até migration ser aplicada
+      // duration: attendance.endedAt // Removido temporariamente até migration ser aplicada
+      //   ? Math.round(
+      //       (attendance.endedAt.getTime() - attendance.startedAt.getTime()) / 60000,
+      //     )
+      //   : null,
+      duration: null, // Placeholder até migration ser aplicada
       totalMessages: 0, // TODO: Buscar mensagens via leadId se necessário
     }));
 
@@ -857,9 +861,9 @@ export class ReportsService {
     if (attendances.length === 0) return 0;
 
     const totalTime = attendances.reduce((sum, att) => {
-      if (att.startedAt && att.endedAt) {
-        return sum + (att.endedAt.getTime() - att.startedAt.getTime());
-      }
+      // if (att.startedAt && att.endedAt) { // Removido temporariamente até migration ser aplicada
+      //   return sum + (att.endedAt.getTime() - att.startedAt.getTime());
+      // }
       return sum;
     }, 0);
 
@@ -950,15 +954,16 @@ export class ReportsService {
         const totalAttendances = attendances.length;
         
         // Tempo médio de atendimento
-        const completedAttendances = attendances.filter(
-          (att) => att.startedAt && att.endedAt,
-        );
+        // const completedAttendances = attendances.filter( // Removido temporariamente até migration ser aplicada
+        //   (att) => att.startedAt && att.endedAt,
+        // );
+        const completedAttendances: any[] = []; // Placeholder até migration ser aplicada
         const averageTime =
           completedAttendances.length > 0
             ? completedAttendances.reduce((sum, att) => {
-                if (att.startedAt && att.endedAt) {
-                  return sum + (att.endedAt.getTime() - att.startedAt.getTime());
-                }
+                // if (att.startedAt && att.endedAt) { // Removido temporariamente até migration ser aplicada
+                //   return sum + (att.endedAt.getTime() - att.startedAt.getTime());
+                // }
                 return sum;
               }, 0) / completedAttendances.length / 1000 / 60
             : 0;
