@@ -125,7 +125,7 @@ function SortableStage({ stage, onEdit, onDelete }: SortableStageProps) {
 export default function PipelinePage() {
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [selectedStage, setSelectedStage] = useState<PipelineStage | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<PipelineStage | null>(null)
@@ -144,7 +144,7 @@ export default function PipelinePage() {
   const loadStages = async () => {
     try {
       setLoading(true)
-      setError('')
+      setError(null)
       const data = await pipelineStagesAPI.getAll()
       // Ordenar por order
       const sorted = data.sort((a, b) => a.order - b.order)
@@ -207,7 +207,7 @@ export default function PipelinePage() {
         order: stage.isDefault || stage.order === 0 ? 0 : index,
       }))
       await pipelineStagesAPI.reorder(reorderData)
-      setError('') // Limpar erro se houver
+      setError(null) // Limpar erro se houver
     } catch (err: any) {
       console.error('Erro ao reordenar estágios:', err)
       setError('Erro ao reordenar estágios')
