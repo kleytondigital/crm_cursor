@@ -1450,7 +1450,46 @@ export class AttendancesService {
         status: { in: [AttendanceStatus.OPEN, AttendanceStatus.IN_PROGRESS, AttendanceStatus.TRANSFERRED] },
       },
       orderBy: { createdAt: 'desc' },
-      include: this.defaultAttendanceInclude(),
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        connectionId: true,
+        departmentId: true,
+        assignedUserId: true,
+        status: true,
+        priority: true,
+        isUrgent: true,
+        lastMessage: true,
+        lastMessageAt: true,
+        startedAt: true,
+        endedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        transferredById: true,
+        closedById: true,
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            profilePictureURL: true,
+          },
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 
