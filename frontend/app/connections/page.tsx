@@ -41,6 +41,8 @@ import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer';
 import BottomNavigation from '@/components/BottomNavigation';
 import ManageConnectionAutomationsModal from '@/components/admin/ManageConnectionAutomationsModal';
+import ConnectSocialDialog from '@/components/connections/ConnectSocialDialog';
+import SocialConnectionsList from '@/components/connections/SocialConnectionsList';
 
 const DEFAULT_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_WAHA_WEBHOOK ||
@@ -211,6 +213,7 @@ export default function ConnectionsPage() {
     open: boolean;
     connection: Connection | null;
   }>({ open: false, connection: null });
+  const [socialConnectOpen, setSocialConnectOpen] = useState(false);
   const [webhookForms, setWebhookForms] = useState<
     Array<{
       url: string;
@@ -1305,6 +1308,40 @@ export default function ConnectionsPage() {
           }}
         />
       )}
+
+      {/* Seção de Conexões Sociais */}
+      <div className="mt-8 space-y-4">
+        <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-background-muted to-background-card px-6 py-8">
+          <div className="absolute inset-0 bg-hero-grid opacity-70" />
+          <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-text-muted">INTEGRAÇÕES SOCIAIS</p>
+              <h2 className="mt-3 text-2xl font-bold text-white">
+                Instagram & Facebook Messenger
+              </h2>
+              <p className="mt-1 text-sm text-text-muted max-w-xl">
+                Conecte suas contas do Instagram e Facebook para receber e enviar mensagens diretas pelo CRM.
+              </p>
+            </div>
+            <Button onClick={() => setSocialConnectOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Conectar Rede Social
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-background-subtle/60 p-6">
+          <SocialConnectionsList />
+        </div>
+      </div>
+
+      <ConnectSocialDialog
+        open={socialConnectOpen}
+        onOpenChange={setSocialConnectOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['social-connections'] });
+        }}
+      />
       </main>
       <Footer />
       <BottomNavigation />

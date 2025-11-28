@@ -154,6 +154,28 @@ export const connectionsAPI = {
     authFetch(`/connections/${id}`, {
       method: 'DELETE',
     }),
+  // Social Connections
+  startSocialOAuth: (provider: 'INSTAGRAM' | 'FACEBOOK') =>
+    authFetch(`/connections/social/oauth/start?provider=${provider}`),
+  getSocialConnections: () => authFetch('/connections/social'),
+  createSocialConnection: (data: { provider: 'INSTAGRAM' | 'FACEBOOK'; name: string }) =>
+    authFetch('/connections/social', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateSocialConnection: (id: string, data: any) =>
+    authFetch(`/connections/social/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  disconnectSocial: (id: string) =>
+    authFetch(`/connections/social/${id}/disconnect`, {
+      method: 'POST',
+    }),
+  refreshSocialToken: (id: string) =>
+    authFetch(`/connections/social/oauth/refresh/${id}`, {
+      method: 'POST',
+    }),
 }
 
 // ============================================
