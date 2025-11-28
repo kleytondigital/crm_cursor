@@ -973,7 +973,16 @@ export class WahaWebhookController {
         tenantId,
         leadId,
       },
-      include: {
+      select: {
+        id: true,
+        tenantId: true,
+        leadId: true,
+        assignedUserId: true,
+        departmentId: true,
+        status: true,
+        isBotAttending: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
           select: {
             id: true,
@@ -998,7 +1007,16 @@ export class WahaWebhookController {
           tenantId,
           leadId,
         },
-        include: {
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
+          updatedAt: true,
           lead: {
             select: {
               id: true,
