@@ -2,10 +2,12 @@
 
 import { Draggable } from 'react-beautiful-dnd'
 import { Lead } from '@/types'
-import { Phone, Tag, Calendar, MessageSquare, FileText, Bot } from 'lucide-react'
+import { Phone, Tag, Calendar, MessageSquare, FileText, Bot, User, Building2, Flag } from 'lucide-react'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
 import { useRouter } from 'next/navigation'
+import { useConversationTags } from '@/hooks/useConversationTags'
+import TagComponent from './ui/Tag'
 
 interface LeadCardProps {
   lead: Lead
@@ -16,6 +18,22 @@ interface LeadCardProps {
 
 export default function LeadCard({ lead, index, onOpenChat, isDragDisabled = false }: LeadCardProps) {
   const router = useRouter()
+  // Criar uma conversa fake para usar o hook (precisa de conversation.leadId)
+  const fakeConversation = lead.conversations?.[0] || {
+    id: '',
+    leadId: lead.id,
+    status: 'ACTIVE' as const,
+    tenantId: lead.tenantId,
+    createdAt: lead.createdAt,
+    updatedAt: lead.updatedAt,
+    lead: {
+      id: lead.id,
+      name: lead.name,
+      phone: lead.phone,
+      tags: lead.tags,
+    },
+  }
+  const { stage, attendance } = useConversationTags(fakeConversation)
 
   const handleOpenChat = () => {
     if (onOpenChat) {
@@ -59,7 +77,7 @@ export default function LeadCard({ lead, index, onOpenChat, isDragDisabled = fal
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`w-full rounded-2xl border border-white/10 bg-background-subtle/80 p-3 sm:p-4 shadow-inner-glow transition-all ${
+          className={`w-full rounded-xl border border-white/10 bg-background-subtle/80 p-2 shadow-inner-glow transition-all ${
             isDragDisabled 
               ? 'cursor-default opacity-75' 
               : 'cursor-move'
@@ -67,68 +85,105 @@ export default function LeadCard({ lead, index, onOpenChat, isDragDisabled = fal
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
         >
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 className="line-clamp-2 break-words text-sm sm:text-base font-semibold text-white flex-1">{getDisplayName()}</h3>
-            {/* Indicador de bot */}
+          {/* Nome e Bot */}
+          <div className="mb-1.5 flex items-center justify-between gap-1.5">
+            <h3 className="line-clamp-1 break-words text-xs font-semibold text-white flex-1">{getDisplayName()}</h3>
             {lead.conversations?.some((conv) => conv.isBotAttending) && (
-              <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-primary/20 px-2 py-0.5 text-[10px] font-semibold text-brand-secondary" title="Sendo atendido por bot">
-                <Bot className="h-3 w-3" />
-                <span className="hidden sm:inline">Bot</span>
-              </div>
+              <TagComponent variant="bot" title="Sendo atendido por bot">
+                <Bot className="h-2 w-2" />
+              </TagComponent>
             )}
           </div>
 
-          {/* Status customizado */}
-          {lead.customStatus && (
-            <div className="mb-2 flex items-center gap-2">
-              <div
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: lead.customStatus.color }}
-              />
-              <span className="text-xs text-text-muted">{lead.customStatus.name}</span>
-            </div>
-          )}
+          {/* Tags de indicadores visuais */}
+          <div className="mb-1.5 flex items-center gap-1 flex-wrap">
+            {stage && (
+              <TagComponent variant="stage" color={stage.color} title={`Etapa: ${stage.name}`}>
+                <div className="h-1 w-1 rounded-full" style={{ backgroundColor: stage.color }} />
+                <span className="truncate max-w-[60px]">{stage.name}</span>
+              </TagComponent>
+            )}
+            {attendance?.assignedUser && (
+              <TagComponent variant="user" title={`Atendente: ${attendance.assignedUser.name}`}>
+                <User className="h-2 w-2" />
+                <span className="truncate max-w-[40px]">{attendance.assignedUser.name.split(' ')[0]}</span>
+              </TagComponent>
+            )}
+            {attendance?.department && (
+              <TagComponent variant="department" title={`Departamento: ${attendance.department.name}`}>
+                <Building2 className="h-2 w-2" />
+                <span className="truncate max-w-[50px]">{attendance.department.name}</span>
+              </TagComponent>
+            )}
+            {attendance?.priority && (
+              <TagComponent
+                variant={
+                  attendance.priority === 'HIGH'
+                    ? 'priorityHigh'
+                    : attendance.priority === 'LOW'
+                    ? 'priorityLow'
+                    : 'priorityNormal'
+                }
+                title={`Prioridade: ${attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}`}
+              >
+                <Flag className="h-2 w-2" />
+                <span className="truncate">
+                  {attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}
+                </span>
+              </TagComponent>
+            )}
+          </div>
 
-          <div className="mb-3 flex items-center text-xs sm:text-sm text-text-muted">
-            <Phone className="mr-2 h-4 w-4 text-brand-secondary" />
+          {/* Telefone */}
+          <div className="mb-1.5 flex items-center text-[10px] text-text-muted">
+            <Phone className="mr-1 h-3 w-3 text-brand-secondary" />
             <span className="truncate">{formatPhone(lead.phone)}</span>
           </div>
 
+          {/* Tags do lead */}
           {lead.tags && lead.tags.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {lead.tags.slice(0, 3).map((tag, tagIndex) => (
+            <div className="mb-1.5 flex flex-wrap gap-1">
+              {lead.tags.slice(0, 2).map((tag, tagIndex) => (
                 <span
                   key={tagIndex}
-                  className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] sm:text-[11px] uppercase tracking-wide text-text-muted"
+                  className="inline-flex items-center gap-0.5 rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-text-muted"
                 >
-                  <Tag className="h-3 w-3 text-brand-secondary" />
+                  <Tag className="h-2.5 w-2.5 text-brand-secondary" />
                   {tag}
                 </span>
               ))}
-              {lead.tags.length > 3 && (
-                <span className="text-xs text-text-muted">+{lead.tags.length - 3}</span>
+              {lead.tags.length > 2 && (
+                <span className="text-[9px] text-text-muted">+{lead.tags.length - 2}</span>
               )}
             </div>
           )}
 
-          <div className="flex items-center gap-2 border-t border-white/5 pt-3 text-[11px] text-text-muted">
-            <Calendar className="h-3 w-3 text-brand-secondary" />
+          {/* Data de criação */}
+          <div className="mb-1.5 flex items-center gap-1 border-t border-white/5 pt-1.5 text-[9px] text-text-muted">
+            <Calendar className="h-2.5 w-2.5 text-brand-secondary" />
             <span>Criado em {formatDate(lead.createdAt)}</span>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          {/* Botões */}
+          <div className="mt-1.5 flex flex-wrap gap-1">
             <button
-              onClick={() => router.push(`/leads/${lead.id}`)}
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] sm:text-xs uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push(`/leads/${lead.id}`)
+              }}
+              className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
             >
-              <FileText className="h-3.5 w-3.5" />
+              <FileText className="h-2.5 w-2.5" />
               Ver dados
             </button>
             <button
-              onClick={handleOpenChat}
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] sm:text-xs uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenChat()
+              }}
+              className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] uppercase tracking-wide text-text-muted transition hover:border-brand-secondary/40 hover:text-brand-secondary"
             >
-              <MessageSquare className="h-3.5 w-3.5" />
+              <MessageSquare className="h-2.5 w-2.5" />
               Abrir chat
             </button>
           </div>

@@ -866,6 +866,18 @@ export class WahaWebhookController {
     });
 
     if (!lead) {
+      // Buscar o estágio padrão (order 0) para atribuir ao novo lead
+      const defaultStage = await this.prisma.pipelineStage.findFirst({
+        where: {
+          tenantId,
+          order: 0,
+          isActive: true,
+        },
+        include: {
+          customStatus: true,
+        },
+      });
+
       lead = await this.prisma.lead.create({
         data: {
           tenantId,
@@ -874,6 +886,7 @@ export class WahaWebhookController {
           tags: [],
           status: LeadStatus.NOVO,
           profilePictureURL: profilePictureURL || null,
+          statusId: defaultStage?.statusId || null, // Atribuir ao estágio de ordem 0
         },
       });
     } else {
