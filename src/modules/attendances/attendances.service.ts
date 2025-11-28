@@ -950,7 +950,7 @@ export class AttendancesService {
 
     this.emitAttendanceEvent(
       dto.targetUserId ? 'attendance:update' : 'attendance:transferred',
-      updated,
+      updated as any,
     );
     return this.serializeAttendance(updated);
   }
