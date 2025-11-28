@@ -207,7 +207,46 @@ export class AttendancesService {
           { lastMessageAt: 'desc' },
           { createdAt: 'desc' },
         ],
-        include: this.defaultAttendanceInclude(),
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          connectionId: true,
+          departmentId: true,
+          assignedUserId: true,
+          status: true,
+          priority: true,
+          isUrgent: true,
+          lastMessage: true,
+          lastMessageAt: true,
+          startedAt: true,
+          endedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          transferredById: true,
+          closedById: true,
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              profilePictureURL: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
 
       this.logger.log(`[listAttendances] Sucesso - encontrados ${attendances.length} atendimentos`);
@@ -303,7 +342,46 @@ export class AttendancesService {
           { createdAt: 'asc' },
         ],
         take: 10,
-        include: this.defaultAttendanceInclude(),
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          connectionId: true,
+          departmentId: true,
+          assignedUserId: true,
+          status: true,
+          priority: true,
+          isUrgent: true,
+          lastMessage: true,
+          lastMessageAt: true,
+          startedAt: true,
+          endedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          transferredById: true,
+          closedById: true,
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              profilePictureURL: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
 
       this.logger.log(`[getSmartQueue] Sucesso - encontrados ${attendances.length} atendimentos na fila`);
@@ -1079,6 +1157,49 @@ export class AttendancesService {
 
   private defaultAttendanceInclude(): Prisma.AttendanceInclude {
     return {
+      lead: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          profilePictureURL: true,
+        },
+      },
+      assignedUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      department: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    };
+  }
+
+  private defaultAttendanceSelect() {
+    return {
+      id: true,
+      tenantId: true,
+      leadId: true,
+      connectionId: true,
+      departmentId: true,
+      assignedUserId: true,
+      status: true,
+      priority: true,
+      isUrgent: true,
+      lastMessage: true,
+      lastMessageAt: true,
+      startedAt: true,
+      endedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      transferredById: true,
+      closedById: true,
       lead: {
         select: {
           id: true,

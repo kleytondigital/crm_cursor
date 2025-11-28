@@ -81,7 +81,19 @@ export class LeadsService {
         orderBy: {
           createdAt: 'desc',
         },
-        include: {
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          phone: true,
+          document: true,
+          statusId: true,
+          stageId: true,
+          tags: true,
+          profilePictureURL: true,
+          origin: true,
+          createdAt: true,
+          updatedAt: true,
           customStatus: {
             select: {
               id: true,

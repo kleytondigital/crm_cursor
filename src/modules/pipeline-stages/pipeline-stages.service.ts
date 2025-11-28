@@ -123,7 +123,17 @@ export class PipelineStagesService {
       const customStages = await this.prisma.pipelineStage.findMany({
         where: { tenantId },
         orderBy: { order: 'asc' },
-        include: {
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          order: true,
+          statusId: true,
+          color: true,
+          isDefault: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
           customStatus: {
             select: {
               id: true,
@@ -156,14 +166,23 @@ export class PipelineStagesService {
     const stage = await this.prisma.pipelineStage.findFirst({
       where: {
         id,
-        tenantId, // Agora sempre filtrar por tenantId
+        tenantId,
       },
-      include: {
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        order: true,
+        statusId: true,
+        color: true,
+        isDefault: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
         customStatus: {
           select: {
             id: true,
             name: true,
-            description: true,
             color: true,
             order: true,
           },
@@ -246,12 +265,21 @@ export class PipelineStagesService {
         ...(dto.order !== undefined && { order: dto.order }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
-      include: {
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        order: true,
+        statusId: true,
+        color: true,
+        isDefault: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
         customStatus: {
           select: {
             id: true,
             name: true,
-            description: true,
             color: true,
             order: true,
           },
