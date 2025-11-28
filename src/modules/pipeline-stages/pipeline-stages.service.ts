@@ -81,7 +81,6 @@ export class PipelineStagesService {
             select: {
               id: true,
               name: true,
-              description: true,
               color: true,
             },
           },
@@ -123,7 +122,6 @@ export class PipelineStagesService {
             select: {
               id: true,
               name: true,
-              description: true,
               color: true,
               order: true,
             },
