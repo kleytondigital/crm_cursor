@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { authAPI } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,7 +41,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background pb-20">
       <div className="pointer-events-none absolute inset-0 bg-hero-grid opacity-70" />
       <div className="relative z-10 grid w-full max-w-5xl gap-10 rounded-3xl border border-white/10 bg-background-subtle/80 p-10 shadow-glow backdrop-blur-2xl lg:grid-cols-[1.2fr_1fr]">
         <div className="space-y-6">
@@ -119,6 +120,30 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Footer com links de políticas */}
+      <footer className="absolute bottom-0 left-0 right-0 border-t border-white/5 bg-background-subtle/85 backdrop-blur-xl py-4">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center gap-4 px-4 md:flex-row md:justify-between">
+          <p className="text-xs text-text-muted">
+            © {new Date().getFullYear()} B2X CRM. Todos os direitos reservados.
+          </p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/politicas-de-privacidade"
+              className="text-xs text-text-muted hover:text-white transition-colors"
+            >
+              Política de Privacidade
+            </Link>
+            <span className="text-text-muted">•</span>
+            <Link
+              href="/termos-de-servico"
+              className="text-xs text-text-muted hover:text-white transition-colors"
+            >
+              Termos de Serviço
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

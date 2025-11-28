@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Permitir acesso à página de login sem token
-  if (request.nextUrl.pathname === '/login') {
+  // Rotas públicas que não requerem autenticação
+  const publicRoutes = [
+    '/login',
+    '/politicas-de-privacidade',
+    '/termos-de-servico',
+  ]
+
+  if (publicRoutes.includes(request.nextUrl.pathname)) {
     return NextResponse.next()
   }
 
