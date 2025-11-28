@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { ConnectionProvider, ConnectionStatus } from '@prisma/client';
 import { MetaOAuthService } from './meta-oauth.service';
@@ -17,9 +16,11 @@ export class TokenRefreshService {
   ) {}
 
   /**
-   * Job agendado: verifica tokens próximos do vencimento a cada 6 horas
+   * Verifica tokens próximos do vencimento
+   * Nota: Para habilitar execução automática, instale @nestjs/schedule e adicione ScheduleModule ao AppModule
+   * Depois, descomente o decorator @Cron abaixo
    */
-  @Cron(CronExpression.EVERY_6_HOURS)
+  // @Cron(CronExpression.EVERY_6_HOURS)
   async checkAndRefreshTokens() {
     this.logger.log('Iniciando verificação de tokens próximos do vencimento...');
 

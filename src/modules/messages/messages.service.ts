@@ -20,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
 import { SocialMessageSenderService } from './services/social-message-sender.service';
 import { ConnectionProvider } from '@prisma/client';
+import { SocialMessageType } from '@/modules/connections/dto/send-social-message.dto';
 
 @Injectable()
 export class MessagesService {
@@ -567,22 +568,22 @@ export class MessagesService {
       const senderId = leadPhone.replace(/^social_/, '');
 
       // Mapear ContentType para tipo de mensagem social
-      let messageType: 'text' | 'image' | 'video' | 'audio' | 'file' = 'text';
+      let messageType: SocialMessageType = SocialMessageType.TEXT;
       switch (message.contentType) {
         case ContentType.IMAGE:
-          messageType = 'image';
+          messageType = SocialMessageType.IMAGE;
           break;
         case ContentType.VIDEO:
-          messageType = 'video';
+          messageType = SocialMessageType.VIDEO;
           break;
         case ContentType.AUDIO:
-          messageType = 'audio';
+          messageType = SocialMessageType.AUDIO;
           break;
         case ContentType.DOCUMENT:
-          messageType = 'file';
+          messageType = SocialMessageType.FILE;
           break;
         default:
-          messageType = 'text';
+          messageType = SocialMessageType.TEXT;
       }
 
       // Buscar replyTo se necessário

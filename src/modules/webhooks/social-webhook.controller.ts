@@ -146,17 +146,17 @@ export class SocialWebhookController {
 
     // Criar ou atualizar atendimento
     if (normalized.direction === MessageDirection.INCOMING) {
-      await this.attendancesService.createOrUpdateFromMessage(
-        connection.tenantId,
-        lead.id,
-        connection.id,
-        message.id,
-        normalized.contentText || '',
-      );
+      await this.attendancesService.handleIncomingMessage({
+        tenantId: connection.tenantId,
+        leadId: lead.id,
+        connectionId: connection.id,
+        content: normalized.contentText || '',
+        timestamp: normalized.timestamp,
+      });
     }
 
     // Notificar via WebSocket
-    this.messagesGateway.handleNewMessage(message);
+    this.messagesGateway.emitNewMessage(connection.tenantId, conversation, message);
 
     this.logger.log(`Mensagem social processada: messageId=${normalized.messageId}`);
     return true;

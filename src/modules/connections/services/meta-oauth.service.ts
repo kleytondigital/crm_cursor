@@ -90,11 +90,12 @@ export class MetaOAuthService {
 
       this.logger.log('Token OAuth obtido com sucesso');
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       if (this.isAxiosError(error)) {
-        this.logger.error(`Erro ao trocar code por token: ${JSON.stringify(error.response?.data)}`);
+        const errorData = error.response?.data as any;
+        this.logger.error(`Erro ao trocar code por token: ${JSON.stringify(errorData)}`);
         throw new BadRequestException(
-          error.response?.data?.error?.message || 'Erro ao obter token de acesso',
+          errorData?.error?.message || 'Erro ao obter token de acesso',
         );
       }
       throw new InternalServerErrorException('Erro inesperado ao obter token OAuth');
@@ -124,11 +125,12 @@ export class MetaOAuthService {
 
       this.logger.log('Long-lived token obtido com sucesso');
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       if (this.isAxiosError(error)) {
-        this.logger.error(`Erro ao obter long-lived token: ${JSON.stringify(error.response?.data)}`);
+        const errorData = error.response?.data as any;
+        this.logger.error(`Erro ao obter long-lived token: ${JSON.stringify(errorData)}`);
         throw new BadRequestException(
-          error.response?.data?.error?.message || 'Erro ao obter token de longa duração',
+          errorData?.error?.message || 'Erro ao obter token de longa duração',
         );
       }
       throw new InternalServerErrorException('Erro inesperado ao obter long-lived token');
@@ -158,11 +160,12 @@ export class MetaOAuthService {
 
       this.logger.log('Token renovado com sucesso');
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       if (this.isAxiosError(error)) {
-        this.logger.error(`Erro ao renovar token: ${JSON.stringify(error.response?.data)}`);
+        const errorData = error.response?.data as any;
+        this.logger.error(`Erro ao renovar token: ${JSON.stringify(errorData)}`);
         throw new BadRequestException(
-          error.response?.data?.error?.message || 'Erro ao renovar token',
+          errorData?.error?.message || 'Erro ao renovar token',
         );
       }
       throw new InternalServerErrorException('Erro inesperado ao renovar token');
@@ -182,11 +185,12 @@ export class MetaOAuthService {
       });
 
       return response.data.data || [];
-    } catch (error) {
+    } catch (error: unknown) {
       if (this.isAxiosError(error)) {
-        this.logger.error(`Erro ao buscar páginas: ${JSON.stringify(error.response?.data)}`);
+        const errorData = error.response?.data as any;
+        this.logger.error(`Erro ao buscar páginas: ${JSON.stringify(errorData)}`);
         throw new BadRequestException(
-          error.response?.data?.error?.message || 'Erro ao buscar páginas',
+          errorData?.error?.message || 'Erro ao buscar páginas',
         );
       }
       throw new InternalServerErrorException('Erro inesperado ao buscar páginas');
@@ -206,11 +210,12 @@ export class MetaOAuthService {
       });
 
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       if (this.isAxiosError(error)) {
-        this.logger.error(`Erro ao buscar informações da página: ${JSON.stringify(error.response?.data)}`);
+        const errorData = error.response?.data as any;
+        this.logger.error(`Erro ao buscar informações da página: ${JSON.stringify(errorData)}`);
         throw new BadRequestException(
-          error.response?.data?.error?.message || 'Erro ao buscar informações da página',
+          errorData?.error?.message || 'Erro ao buscar informações da página',
         );
       }
       throw new InternalServerErrorException('Erro inesperado ao buscar informações da página');
