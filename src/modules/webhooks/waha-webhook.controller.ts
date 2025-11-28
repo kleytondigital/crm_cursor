@@ -884,8 +884,17 @@ export class WahaWebhookController {
           order: 0,
           isActive: true,
         },
-        include: {
-          customStatus: true,
+        select: {
+          id: true,
+          statusId: true,
+          customStatus: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+              order: true,
+            },
+          },
         },
       });
 
