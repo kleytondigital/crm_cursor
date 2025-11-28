@@ -868,7 +868,6 @@ export class WahaWebhookController {
         name: true,
         phone: true,
         statusId: true,
-        stageId: true,
         tags: true,
         profilePictureURL: true,
         origin: true,
