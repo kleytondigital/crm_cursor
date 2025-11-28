@@ -38,10 +38,11 @@ export default function TransferAttendanceDialog({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open && attendanceId) {
+    if (open) {
+      // Carregar dados sempre que o modal abrir, mesmo sem attendanceId
       loadData()
     }
-  }, [open, attendanceId])
+  }, [open])
 
   const loadData = async () => {
     try {

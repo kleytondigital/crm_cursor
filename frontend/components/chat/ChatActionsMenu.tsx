@@ -104,9 +104,10 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
     if (onRefresh) {
       onRefresh()
     }
-    // Disparar evento para recarregar conversas
+    // Disparar evento para recarregar conversas e lead
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('attendance:updated'))
+      window.dispatchEvent(new CustomEvent('lead:updated'))
     }
   }
 

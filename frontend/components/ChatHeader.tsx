@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Conversation } from '@/types'
+import { Conversation, Lead } from '@/types'
 import ChatActionsMenu from './chat/ChatActionsMenu'
 import EditableText from './EditableText'
 import { useChat } from '@/contexts/ChatContext'
@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { Calendar, ArrowLeft, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { leadsAPI } from '@/lib/api'
+import { pipelineStagesAPI, PipelineStage } from '@/lib/api/pipeline-stages'
 
 interface ChatHeaderProps {
   conversation: Conversation
@@ -21,6 +22,8 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
   const [imageError, setImageError] = useState(false)
   const [leadName, setLeadName] = useState(conversation.lead.name)
   const [leadPhone, setLeadPhone] = useState(conversation.lead.phone)
+  const [lead, setLead] = useState<Lead | null>(null)
+  const [currentStage, setCurrentStage] = useState<PipelineStage | null>(null)
 
   // Resetar erro de imagem quando a conversa mudar
   useEffect(() => {
@@ -32,6 +35,46 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
     setLeadName(conversation.lead.name)
     setLeadPhone(conversation.lead.phone)
   }, [conversation.lead.id, conversation.lead.name, conversation.lead.phone])
+
+  // Buscar lead completo e estágio atual
+  useEffect(() => {
+    const loadLeadAndStage = async () => {
+      try {
+        const leadData = await leadsAPI.getById(conversation.leadId)
+        const fullLead = leadData?.data || leadData || null
+        setLead(fullLead)
+
+        // Buscar estágio atual baseado no statusId do lead
+        if (fullLead?.statusId) {
+          try {
+            const stages = await pipelineStagesAPI.getAll()
+            const stage = stages.find((s) => s.statusId === fullLead.statusId && s.isActive)
+            setCurrentStage(stage || null)
+          } catch (err) {
+            console.error('Erro ao carregar estágios:', err)
+          }
+        } else {
+          setCurrentStage(null)
+        }
+      } catch (err) {
+        console.error('Erro ao carregar lead:', err)
+      }
+    }
+
+    loadLeadAndStage()
+
+    // Escutar evento de atualização do lead
+    const handleLeadUpdate = () => {
+      loadLeadAndStage()
+    }
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead:updated', handleLeadUpdate)
+      return () => {
+        window.removeEventListener('lead:updated', handleLeadUpdate)
+      }
+    }
+  }, [conversation.leadId])
 
   const showImage = conversation.lead.profilePictureURL && !imageError
 
@@ -168,6 +211,42 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
               <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand-secondary" title="Sendo atendido por bot">
                 <Bot className="h-3 w-3" />
                 <span className="hidden sm:inline">Bot</span>
+              </div>
+            )}
+            {/* Tag do estágio do lead */}
+            {currentStage && (
+              <div
+                className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white border"
+                style={{
+                  backgroundColor: `${currentStage.color}20`,
+                  borderColor: currentStage.color,
+                  color: currentStage.color,
+                }}
+                title={`Etapa: ${currentStage.name}`}
+              >
+                <div
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: currentStage.color }}
+                />
+                <span className="truncate max-w-[100px]">{currentStage.name}</span>
+              </div>
+            )}
+            {/* Fallback para mostrar status customizado se houver mas não estágio */}
+            {lead?.customStatus && !currentStage && (
+              <div
+                className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white border"
+                style={{
+                  backgroundColor: `${lead.customStatus.color}20`,
+                  borderColor: lead.customStatus.color,
+                  color: lead.customStatus.color,
+                }}
+                title={`Status: ${lead.customStatus.name}`}
+              >
+                <div
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: lead.customStatus.color }}
+                />
+                <span className="truncate max-w-[100px]">{lead.customStatus.name}</span>
               </div>
             )}
           </div>
