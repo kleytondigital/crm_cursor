@@ -610,9 +610,43 @@ export class WahaWebhookController {
             // Manter tempId para referência
             tempId: existingMessage.tempId,
           },
-          include: {
+          select: {
+            id: true,
+            conversationId: true,
+            leadId: true,
+            connectionId: true,
+            senderType: true,
+            sender: true,
+            contentType: true,
+            contentUrl: true,
+            contentText: true,
+            transcriptionText: true,
+            latitude: true,
+            longitude: true,
+            direction: true,
+            messageId: true,
+            tempId: true,
+            timestamp: true,
+            tenantId: true,
+            createdAt: true,
+            reply: true,
+            replyText: true,
+            replyMessageId: true,
+            editedAt: true,
+            deletedAt: true,
+            editedBy: true,
+            deletedBy: true,
+            originalText: true,
             conversation: {
-              include: {
+              select: {
+                id: true,
+                tenantId: true,
+                leadId: true,
+                assignedUserId: true,
+                departmentId: true,
+                status: true,
+                isBotAttending: true,
+                createdAt: true,
                 lead: {
                   select: {
                     id: true,
@@ -732,7 +766,7 @@ export class WahaWebhookController {
     const shouldReopen = conversation.status === 'CLOSED' && !fromMe;
 
     const updateData: any = {
-      updatedAt: new Date(),
+      // Não incluir updatedAt pois pode não existir no banco
     };
 
     // Sincronizar departmentId da conversa com o atendimento (se existir)
@@ -764,7 +798,6 @@ export class WahaWebhookController {
         status: true,
         isBotAttending: true,
         createdAt: true,
-        updatedAt: true,
         lead: {
           select: {
             id: true,
@@ -1026,7 +1059,6 @@ export class WahaWebhookController {
         status: true,
         isBotAttending: true,
         createdAt: true,
-        updatedAt: true,
         lead: {
           select: {
             id: true,
