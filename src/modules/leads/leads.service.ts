@@ -133,38 +133,78 @@ export class LeadsService {
   }
 
   async findOne(id: string, tenantId: string) {
-    const lead = await this.prisma.lead.findFirst({
-      where: {
-        id,
-        tenantId,
-      },
-      include: {
-        customStatus: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            color: true,
-          },
+    try {
+      this.logger.log(`[findOne] Buscando lead - id: ${id}, tenantId: ${tenantId}`);
+      
+      const lead = await this.prisma.lead.findFirst({
+        where: {
+          id,
+          tenantId,
         },
-        conversations: {
-          include: {
-            messages: {
-              take: 1,
-              orderBy: {
-                createdAt: 'desc',
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          phone: true,
+          statusId: true,
+          tags: true,
+          profilePictureURL: true,
+          origin: true,
+          createdAt: true,
+          updatedAt: true,
+          customStatus: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              color: true,
+            },
+          },
+          conversations: {
+            take: 1,
+            orderBy: {
+              createdAt: 'desc',
+            },
+            select: {
+              id: true,
+              status: true,
+              messages: {
+                take: 1,
+                orderBy: {
+                  createdAt: 'desc',
+                },
+                select: {
+                  id: true,
+                  contentText: true,
+                  contentType: true,
+                  senderType: true,
+                  direction: true,
+                  createdAt: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!lead) {
-      throw new NotFoundException('Lead não encontrado');
+      if (!lead) {
+        this.logger.warn(`[findOne] Lead não encontrado - id: ${id}, tenantId: ${tenantId}`);
+        throw new NotFoundException('Lead não encontrado');
+      }
+
+      this.logger.log(`[findOne] Lead encontrado com sucesso - id: ${id}`);
+      return lead;
+    } catch (error: any) {
+      this.logger.error(`[findOne] ERRO ao buscar lead:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        id,
+        tenantId,
+      });
+      throw error;
     }
-
-    return lead;
   }
 
   async update(id: string, updateLeadDto: UpdateLeadDto, tenantId: string) {
