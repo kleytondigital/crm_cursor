@@ -1599,7 +1599,7 @@ export class AttendancesService {
 
       // Emitir eventos para os novos atendimentos
       createdAttendances.forEach((attendance) => {
-        this.emitAttendanceEvent('attendance:new', attendance);
+        this.emitAttendanceEvent('attendance:new', attendance as any);
       });
 
       const result = {
