@@ -105,11 +105,8 @@ export class N8nWebhooksService {
         }
 
         updateData.statusId = dto.statusId;
-      } else if (dto.status) {
-        // Manter compatibilidade com enum
-        updateData.status = dto.status;
       } else {
-        throw new BadRequestException('É necessário fornecer status ou statusId');
+        throw new BadRequestException('É necessário fornecer statusId');
       }
 
       const updatedLead = await this.prisma.lead.update({
@@ -124,7 +121,7 @@ export class N8nWebhooksService {
         phone,
         cleanPhone: this.cleanPhoneNumber(phone),
         tenantId: tenantId || 'global',
-        status: dto.status,
+        status: dto.statusId || dto.status || 'unknown',
         error: error.message,
         stack: error.stack,
       });

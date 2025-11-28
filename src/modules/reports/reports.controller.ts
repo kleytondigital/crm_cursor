@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@/shared/guards/roles.guard';
 import { Roles } from '@/shared/decorators/roles.decorator';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
-import { UserRole, LeadStatus } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,7 +45,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getOverview(user.companyId, filters);
@@ -70,7 +70,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getLeads(
@@ -98,7 +98,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getConversion(user.companyId, filters);
@@ -122,7 +122,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getAttendance(user.companyId, filters);
@@ -146,7 +146,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getCampaigns(user.companyId, filters);
@@ -170,7 +170,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getJourney(user.companyId, filters);
@@ -194,7 +194,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getMessages(user.companyId, filters);
@@ -218,7 +218,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getScheduled(user.companyId, filters);
@@ -244,7 +244,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getLeadsDetail(
@@ -275,7 +275,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getAttendancesDetail(
@@ -306,7 +306,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
     return this.reportsService.getMessagesDetail(
@@ -336,7 +336,7 @@ export class ReportsController {
       userId,
       campaignId,
       origin,
-      status: status as LeadStatus[],
+      statusId: status as string[],
       converted: converted === 'true' ? true : converted === 'false' ? false : undefined,
     };
 

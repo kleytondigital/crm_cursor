@@ -5,7 +5,6 @@ import { MessagesGateway } from '@/modules/messages/messages.gateway';
 import {
   ContentType,
   Lead,
-  LeadStatus,
   MessageDirection,
   SenderType,
   ConnectionProvider,
@@ -204,7 +203,7 @@ export class SocialWebhookController {
           phone,
           name,
           tags: [],
-          status: LeadStatus.NOVO,
+          // status removido - usar statusId
           statusId: defaultPipelineStage?.statusId || null,
           profilePictureURL: profilePictureURL || null,
           origin: 'Social Media',

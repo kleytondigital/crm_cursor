@@ -33,7 +33,18 @@ export class ExcelProcessorService {
 
     try {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(file.buffer);
+      // Converter para Buffer nativo do Node.js
+      // Converter para Buffer nativo do Node.js
+      let buffer: Buffer;
+      if (Buffer.isBuffer(file.buffer)) {
+        buffer = file.buffer;
+      } else {
+        // Converter ArrayBuffer ou Uint8Array para Buffer
+        const source = (file.buffer as any).buffer || file.buffer;
+        buffer = Buffer.from(source);
+      }
+      // ExcelJS aceita Buffer, ArrayBuffer ou Uint8Array
+      await workbook.xlsx.load(buffer as any);
 
       const worksheet = workbook.worksheets[0];
       if (!worksheet) {

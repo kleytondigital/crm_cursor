@@ -79,22 +79,25 @@ enum UserRole {
 }
 
 model Lead {
-  id          String   @id @default(uuid())
-  tenantId    String
-  name        String
-  phone       String
-  email       String?
-  document    String?
-  statusId    String?
-  stageId     String?
-  tags        String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(uuid())
+  tenantId         String
+  name             String
+  phone            String
+  email            String?
+  document         String?
+  statusId         String?
+  stageId          String?
+  tags             String[]
+  profilePictureURL String?
+  origin           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  company     Company              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  conversations     Conversation[]
-  messages          Message[]
-  attendances       Attendance[]
+  company          Company              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customStatus     CustomLeadStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  conversations    Conversation[]
+  messages         Message[]
+  attendances      Attendance[]
   scheduledMessages ScheduledMessage[]
 
   @@index([tenantId])
@@ -110,6 +113,7 @@ model Conversation {
   assignedUserId String?
   departmentId  String?
   status        ConversationStatus @default(ACTIVE)
+  isBotAttending Boolean           @default(false)
   lastMessageAt DateTime?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
@@ -184,7 +188,8 @@ model Message {
 model MessageEditHistory {
   id        String   @id @default(uuid())
   messageId String
-  editedBy  String
+  editedBy  String?
+  tenantId  String
   oldText   String
   newText   String
   editedAt  DateTime @default(now())
@@ -192,6 +197,7 @@ model MessageEditHistory {
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
+  @@index([tenantId])
   @@map("message_edit_history")
 }
 
@@ -264,7 +270,7 @@ model Department {
   updatedAt   DateTime @updatedAt
 
   company         Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users           DepartmentUser[]
+  memberships     DepartmentUser[]
   conversations   Conversation[]
   attendances     Attendance[]
   scheduledMessages ScheduledMessage[]
@@ -299,8 +305,11 @@ model Attendance {
   assignedUserId String?
   status        AttendanceStatus  @default(OPEN)
   priority      AttendancePriority @default(NORMAL)
+  isUrgent      Boolean           @default(false)
   lastMessage   String?
   lastMessageAt DateTime?
+  startedAt     DateTime?
+  endedAt       DateTime?
   closedAt      DateTime?
   createdAt     DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -692,12 +701,14 @@ model PipelineStage {
   description String?
   order       Int      @default(0)
   statusId    String
+  color       String?  @default("#3B82F6")
   isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   company Company         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  status  CustomLeadStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  customStatus CustomLeadStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
 
   @@index([tenantId])
   @@index([tenantId, order])
@@ -711,12 +722,16 @@ model CustomLeadStatus {
   name        String
   description String?
   color       String?  @default("#3B82F6")
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   company Company        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   stages  PipelineStage[]
+  leads   Lead[]
 
   @@index([tenantId])
+  @@index([tenantId, order])
   @@map("custom_lead_statuses")
 }

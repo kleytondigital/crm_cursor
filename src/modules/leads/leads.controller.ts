@@ -14,7 +14,6 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
-import { LeadStatus } from '@prisma/client';
 
 @Controller('leads')
 @UseGuards(JwtAuthGuard)
@@ -28,7 +27,7 @@ export class LeadsController {
 
   @Get()
   findAll(
-    @Query('status') status: LeadStatus,
+    @Query('status') status: string,
     @Query('statusId') statusId: string,
     @CurrentUser() user: any,
   ) {
@@ -51,17 +50,13 @@ export class LeadsController {
     if ((updateLeadDto as any).statusId !== undefined) {
       return this.leadsService.updateStatusId(id, (updateLeadDto as any).statusId, user.companyId);
     }
-    // Se o status (enum) estiver no body, usar o método de atualização de status (compatibilidade)
-    if (updateLeadDto.status) {
-      return this.leadsService.updateStatus(id, updateLeadDto.status, user.companyId);
-    }
     return this.leadsService.update(id, updateLeadDto, user.companyId);
   }
 
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Body('status') status: LeadStatus,
+    @Body('status') status: any,
     @CurrentUser() user: any,
   ) {
     return this.leadsService.updateStatus(id, status, user.companyId);

@@ -16,7 +16,7 @@ import { CreateMessageDto, EditMessageDto, DeleteMessageDto } from './dto/create
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { File as MulterFile } from 'multer';
+// import type { File as MulterFile } from 'multer';
 import { randomUUID } from 'crypto';
 import { MinioService } from '@/shared/minio/minio.service';
 
@@ -65,7 +65,7 @@ export class MessagesController {
     }),
   )
   async uploadMedia(
-    @UploadedFile() file: MulterFile,
+    @UploadedFile() file: any,
   ): Promise<{ url: string; mimetype: string; filename: string }> {
     if (!file) {
       throw new BadRequestException('Arquivo não encontrado no upload.');

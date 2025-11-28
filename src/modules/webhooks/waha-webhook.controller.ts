@@ -5,7 +5,6 @@ import { MessagesGateway } from '@/modules/messages/messages.gateway';
 import {
   ContentType,
   Lead,
-  LeadStatus,
   MessageDirection,
   SenderType,
 } from '@prisma/client';
@@ -884,7 +883,7 @@ export class WahaWebhookController {
           phone,
           name,
           tags: [],
-          status: LeadStatus.NOVO,
+          // status removido - usar statusId
           profilePictureURL: profilePictureURL || null,
           statusId: defaultStage?.statusId || null, // Atribuir ao estágio de ordem 0
         },

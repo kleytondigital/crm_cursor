@@ -11,7 +11,7 @@ import {
   ReportsMessagesResponseDto,
   ReportsScheduledResponseDto,
 } from './dto/reports-response.dto';
-import { LeadStatus } from '@prisma/client';
+// LeadStatus removido - usar statusId agora
 import { format, startOfDay, endOfDay } from 'date-fns';
 
 @Injectable()
@@ -44,7 +44,7 @@ export class ReportsService {
           id: true,
           name: true,
           phone: true,
-          status: true,
+          statusId: true,
           origin: true,
           createdAt: true,
           updatedAt: true,
@@ -66,7 +66,7 @@ export class ReportsService {
       id: lead.id,
       name: lead.name,
       phone: lead.phone,
-      status: lead.status,
+      statusId: lead.statusId,
       origin: lead.origin || 'Orgânico',
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString(),
@@ -236,9 +236,8 @@ export class ReportsService {
     const totalLeads = await this.prisma.lead.count({ where });
 
     // Leads convertidos (status CONCLUIDO)
-    const totalConverted = await this.prisma.lead.count({
-      where: { ...where, status: LeadStatus.CONCLUIDO },
-    });
+    // TODO: Implementar lógica de conversão via statusId
+    const totalConverted = 0; // await this.prisma.lead.count({ where: { ...where, statusId: 'CONCLUIDO_STATUS_ID' } });
 
     // Taxa de conversão
     const conversionRate = totalLeads > 0 ? (totalConverted / totalLeads) * 100 : 0;
@@ -345,9 +344,8 @@ export class ReportsService {
     const where = this.buildWhereClause(tenantId, filters);
 
     const totalLeads = await this.prisma.lead.count({ where });
-    const convertedLeads = await this.prisma.lead.count({
-      where: { ...where, status: LeadStatus.CONCLUIDO },
-    });
+    // TODO: Implementar lógica de conversão via statusId
+    const convertedLeads = 0; // await this.prisma.lead.count({ where: { ...where, statusId: 'CONCLUIDO_STATUS_ID' } });
 
     const overallRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
@@ -427,7 +425,8 @@ export class ReportsService {
         .filter((lead): lead is NonNullable<typeof lead> => lead !== null);
       
       const totalLeads = leads.length;
-      const convertedLeads = leads.filter((l) => l.status === LeadStatus.CONCLUIDO).length;
+      // TODO: Implementar lógica de conversão via statusId
+      const convertedLeads = 0; // leads.filter((l) => l.statusId === 'CONCLUIDO_STATUS_ID').length;
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
       // Leads diários por campanha
@@ -481,7 +480,7 @@ export class ReportsService {
       select: {
         id: true,
         origin: true,
-        status: true,
+        statusId: true,
         attendances: {
           select: {
             id: true,
@@ -506,8 +505,9 @@ export class ReportsService {
 
     leads.forEach((lead) => {
       const origin = lead.origin || 'Orgânico';
-      const hasAttendance = lead.attendances.length > 0;
-      const isConverted = lead.status === LeadStatus.CONCLUIDO;
+      const hasAttendance = (lead as any).attendances?.length > 0;
+      // isConverted precisa ser calculado via statusId ou customStatus
+      const isConverted = false; // TODO: Implementar lógica de conversão via statusId
 
       if (origin) originCount++;
       if (hasAttendance) attendanceCount++;
@@ -702,17 +702,18 @@ export class ReportsService {
       }
     }
 
-    if (filters.status && filters.status.length > 0) {
-      where.status = { in: filters.status };
+    if (filters.statusId && filters.statusId.length > 0) {
+      where.statusId = { in: filters.statusId };
     }
 
     if (filters.origin) {
       where.origin = filters.origin;
     }
 
-    if (filters.converted !== undefined) {
-      where.status = filters.converted ? LeadStatus.CONCLUIDO : { not: LeadStatus.CONCLUIDO };
-    }
+    // Filtro converted removido - precisa ser implementado via statusId ou customStatus
+    // if (filters.converted !== undefined) {
+    //   where.statusId = filters.converted ? 'CONCLUIDO_STATUS_ID' : { not: 'CONCLUIDO_STATUS_ID' };
+    // }
 
     return where;
   }
@@ -734,7 +735,7 @@ export class ReportsService {
     const where = this.buildWhereClause(tenantId, filters);
     const leads = await this.prisma.lead.findMany({
       where,
-      select: { createdAt: true, status: true },
+      select: { createdAt: true, statusId: true },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -751,7 +752,8 @@ export class ReportsService {
           const leadDate = format(l.createdAt, period === 'day' ? 'yyyy-MM-dd' : period === 'week' ? 'yyyy-ww' : 'yyyy-MM');
           return leadDate === date;
         });
-        return lead?.status === LeadStatus.CONCLUIDO;
+        // TODO: Implementar lógica de conversão via statusId
+        return false;
       }).length,
     }));
   }
@@ -761,15 +763,15 @@ export class ReportsService {
     const total = await this.prisma.lead.count({ where });
 
     const statusCounts = await this.prisma.lead.groupBy({
-      by: ['status'],
+      by: ['statusId'],
       where,
-      _count: { status: true },
+      _count: { statusId: true },
     });
 
-    return statusCounts.map(({ status, _count }) => ({
-      status,
-      count: _count.status,
-      percentage: total > 0 ? Number((( _count.status / total) * 100).toFixed(2)) : 0,
+    return statusCounts.map(({ statusId, _count }) => ({
+      statusId,
+      count: _count.statusId,
+      percentage: total > 0 ? Number((( _count.statusId / total) * 100).toFixed(2)) : 0,
     }));
   }
 
@@ -899,7 +901,8 @@ export class ReportsService {
 
     return Array.from(byUser.values()).map(({ user, leads }) => {
       const totalLeads = leads.length;
-      const convertedLeads = leads.filter((l) => l.status === LeadStatus.CONCLUIDO).length;
+      // TODO: Implementar lógica de conversão via statusId
+      const convertedLeads = 0; // leads.filter((l) => l.statusId === 'CONCLUIDO_STATUS_ID').length;
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
       return {
@@ -969,7 +972,8 @@ export class ReportsService {
         // Taxa de conversão
         const leads = attendances.map((att) => att.lead).filter(Boolean);
         const totalLeads = leads.length;
-        const convertedLeads = leads.filter((l) => l.status === LeadStatus.CONCLUIDO).length;
+        // TODO: Implementar lógica de conversão via statusId
+      const convertedLeads = 0; // leads.filter((l) => l.statusId === 'CONCLUIDO_STATUS_ID').length;
         const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
         return {

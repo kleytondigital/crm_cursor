@@ -1,5 +1,4 @@
-import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
-import { LeadStatus } from '@prisma/client';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 
 export class CreateLeadDto {
   @IsString()
@@ -13,8 +12,8 @@ export class CreateLeadDto {
   @IsOptional()
   tags?: string[];
 
-  @IsEnum(LeadStatus)
+  @IsString()
   @IsOptional()
-  status?: LeadStatus;
+  statusId?: string;
 }
 

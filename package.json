@@ -20,7 +20,6 @@
         "test:e2e": "jest --config ./test/jest-e2e.json",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "echo 'Skipping Prisma migrations on startup'",
-
         "prisma:studio": "prisma studio",
         "prisma:seed": "node prisma/seed.js",
         "baseline:create": "node scripts/create-baseline.js",
@@ -64,6 +63,7 @@
         "@types/bcrypt": "^5.0.2",
         "@types/express": "^4.17.21",
         "@types/jest": "^29.5.11",
+        "@types/multer": "^2.0.0",
         "@types/node": "^20.10.6",
         "@types/passport-jwt": "^4.0.1",
         "@types/socket.io": "^3.0.2",

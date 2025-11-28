@@ -1,13 +1,13 @@
-import { IsEnum, IsString, IsOptional } from 'class-validator';
-import { LeadStatus } from '@prisma/client';
+import { IsString, IsOptional } from 'class-validator';
 
 export class UpdateLeadStatusDto {
-  @IsEnum(LeadStatus)
-  @IsOptional()
-  status?: LeadStatus;
-
   @IsString()
   @IsOptional()
   statusId?: string;
+  
+  // Campo obsoleto - manter apenas para compatibilidade de logs
+  @IsString()
+  @IsOptional()
+  status?: string;
 }
 

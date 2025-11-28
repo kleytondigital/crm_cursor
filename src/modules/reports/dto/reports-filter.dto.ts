@@ -1,5 +1,4 @@
-import { IsOptional, IsString, IsDateString, IsEnum, IsBoolean, IsArray } from 'class-validator';
-import { LeadStatus } from '@prisma/client';
+import { IsOptional, IsString, IsDateString, IsBoolean, IsArray } from 'class-validator';
 
 export class ReportsFilterDto {
   @IsOptional()
@@ -24,8 +23,8 @@ export class ReportsFilterDto {
 
   @IsOptional()
   @IsArray()
-  @IsEnum(LeadStatus, { each: true })
-  status?: LeadStatus[];
+  @IsString({ each: true })
+  statusId?: string[];
 
   @IsOptional()
   @IsBoolean()

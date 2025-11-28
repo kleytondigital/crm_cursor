@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException, Logger } from '@nestj
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
-import { LeadStatus, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class LeadsService {
@@ -19,7 +19,7 @@ export class LeadsService {
     });
   }
 
-  async findAll(tenantId: string, status?: LeadStatus, statusId?: string, userId?: string, userRole?: UserRole) {
+  async findAll(tenantId: string, status?: string, statusId?: string, userId?: string, userRole?: UserRole) {
     const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
     const where: any = { tenantId };
     
@@ -145,13 +145,11 @@ export class LeadsService {
     });
   }
 
-  async updateStatus(id: string, status: LeadStatus, tenantId: string) {
+  async updateStatus(id: string, status: any, tenantId: string) {
     const lead = await this.findOne(id, tenantId);
 
-    return this.prisma.lead.update({
-      where: { id },
-      data: { status },
-    });
+    // Método obsoleto - usar updateStatusId ao invés
+    throw new Error('Método updateStatus está obsoleto. Use updateStatusId.');
   }
 
   async updateStatusId(id: string, statusId: string | null, tenantId: string) {

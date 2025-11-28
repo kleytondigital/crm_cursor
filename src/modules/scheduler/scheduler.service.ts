@@ -14,7 +14,6 @@ import {
   ScheduledMessageStatus,
   ScheduledContentType,
   CampaignStatus,
-  LeadStatus,
 } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
@@ -593,7 +592,7 @@ export class SchedulerService {
     // Filtrar por estágios
     if (filterStages.length > 0) {
       where.status = {
-        in: filterStages as LeadStatus[],
+        in: filterStages as string[],
       };
     }
 

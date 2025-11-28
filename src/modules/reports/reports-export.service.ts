@@ -41,7 +41,7 @@ export class ReportsExportService {
     csvLines.push('DISTRIBUIÇÃO POR STATUS');
     csvLines.push('Status,Quantidade,Percentual');
     leads.byStatus.forEach((item) => {
-      csvLines.push(`${item.status},${item.count},${item.percentage}%`);
+      csvLines.push(`${item.statusId || 'N/A'},${item.count},${item.percentage}%`);
     });
     csvLines.push('');
 

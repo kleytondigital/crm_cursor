@@ -17,7 +17,7 @@ export interface LeadsByPeriodDto {
 export interface ReportsLeadsResponseDto {
   total: number;
   byPeriod: LeadsByPeriodDto[]; // dia, semana ou mês
-  byStatus: Array<{ status: string; count: number; percentage: number }>;
+  byStatus: Array<{ statusId: string; count: number; percentage: number }>;
   byOrigin: Array<{ origin: string; count: number; percentage: number }>;
 }
 
