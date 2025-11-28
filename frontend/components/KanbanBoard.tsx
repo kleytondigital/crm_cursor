@@ -2,6 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { DragDropContext, DropResult } from 'react-beautiful-dnd'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent as DndKitDragEndEvent,
+  DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import KanbanColumn from './KanbanColumn'
 import { Lead } from '@/types'
 import { leadsAPI } from '@/lib/api'
@@ -18,6 +33,19 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null)
+
+  // Sensors para @dnd-kit (arrastar colunas)
+  // Só ativar quando o drag começar em um elemento com data-dnd-handle
+  const columnSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Requer 8px de movimento antes de ativar
+        delay: 100, // Pequeno delay para diferenciar de cliques
+      },
+    }),
+    useSensor(KeyboardSensor)
+  )
 
   const loadStages = async () => {
     try {
@@ -83,6 +111,80 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
     }
   }, [loadLeads])
 
+  // Handler para arrastar colunas (estágios)
+  const handleColumnDragEnd = async (event: DndKitDragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      setActiveColumnId(null)
+      return
+    }
+
+    const oldIndex = stages.findIndex((s) => s.id === active.id)
+    const newIndex = stages.findIndex((s) => s.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      setActiveColumnId(null)
+      return
+    }
+
+    const sourceStage = stages[oldIndex]
+    const destinationStage = stages[newIndex]
+
+    // Bloquear arrastar estágio 0 (isDefault ou order === 0)
+    if (sourceStage.isDefault || sourceStage.order === 0) {
+      setError('Não é possível mover o estágio inicial')
+      setTimeout(() => setError(null), 3000)
+      setActiveColumnId(null)
+      return
+    }
+
+    // Bloquear arrastar para a posição do estágio 0
+    if (destinationStage.isDefault || destinationStage.order === 0) {
+      setError('Não é possível mover estágios para antes do estágio inicial')
+      setTimeout(() => setError(null), 3000)
+      setActiveColumnId(null)
+      return
+    }
+
+    const newStages = arrayMove(stages, oldIndex, newIndex)
+
+    // Garantir que o estágio 0 sempre fique na primeira posição
+    const defaultStage = newStages.find((s) => s.isDefault || s.order === 0)
+    if (defaultStage) {
+      const defaultIndex = newStages.indexOf(defaultStage)
+      if (defaultIndex !== 0) {
+        newStages.splice(defaultIndex, 1)
+        newStages.unshift(defaultStage)
+      }
+    }
+
+    // Atualizar ordem localmente (otimista)
+    setStages(newStages)
+
+    try {
+      // Enviar nova ordem para o backend
+      const reorderData = newStages.map((stage, index) => ({
+        id: stage.id,
+        order: stage.isDefault || stage.order === 0 ? 0 : index,
+      }))
+      await pipelineStagesAPI.reorder(reorderData)
+      setError(null)
+    } catch (err: any) {
+      // Reverter em caso de erro
+      setStages(stages)
+      setError(err.response?.data?.message || 'Erro ao reordenar estágios')
+      setTimeout(() => setError(null), 3000)
+    } finally {
+      setActiveColumnId(null)
+    }
+  }
+
+  const handleColumnDragStart = (event: DragStartEvent) => {
+    setActiveColumnId(event.active.id as string)
+  }
+
+  // Handler para arrastar cards (leads) - mantém lógica existente
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result
 
@@ -187,27 +289,45 @@ export default function KanbanBoard({ onEditStage }: KanbanBoardProps) {
       )}
 
       <div className="flex-1 overflow-hidden px-2 md:px-3 lg:px-4 xl:px-6 py-2 md:py-3 lg:py-4 xl:py-6 min-h-0">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div 
-            className="flex h-full gap-2 md:gap-3 lg:gap-4 xl:gap-6 overflow-x-auto overflow-y-hidden" 
-            style={{ 
-              scrollbarWidth: 'thin',
-              WebkitOverflowScrolling: 'touch',
-              scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
-            }}
+        {/* Contexto @dnd-kit para arrastar colunas */}
+        <DndContext
+          sensors={columnSensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleColumnDragStart}
+          onDragEnd={handleColumnDragEnd}
+          // Prevenir que o drag de coluna interfira com o drag de cards
+          modifiers={[]}
+        >
+          <SortableContext
+            items={stages.map((s) => s.id)}
+            strategy={horizontalListSortingStrategy}
           >
-            {/* Renderizar apenas estágios do pipeline (que referenciam status customizados) */}
-            {stages.map((stage) => (
-              <KanbanColumn
-                key={stage.id}
-                stage={stage}
-                leads={getLeadsByStage(stage.id)}
-                onEdit={isAdmin && onEditStage ? () => onEditStage(stage) : undefined}
-                droppableId={stage.id}
-              />
-            ))}
-          </div>
-        </DragDropContext>
+            {/* Contexto react-beautiful-dnd para arrastar cards dentro das colunas */}
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div 
+                className="flex h-full gap-2 md:gap-3 overflow-x-auto overflow-y-hidden" 
+                style={{ 
+                  scrollbarWidth: 'thin',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+                }}
+              >
+                {/* Renderizar apenas estágios do pipeline (que referenciam status customizados) */}
+                {stages.map((stage) => (
+                  <KanbanColumn
+                    key={stage.id}
+                    stage={stage}
+                    leads={getLeadsByStage(stage.id)}
+                    onEdit={isAdmin && onEditStage ? () => onEditStage(stage) : undefined}
+                    droppableId={stage.id}
+                    isDragging={activeColumnId === stage.id}
+                    isDefault={stage.isDefault || stage.order === 0}
+                  />
+                ))}
+              </div>
+            </DragDropContext>
+          </SortableContext>
+        </DndContext>
       </div>
 
       {stages.length === 0 && !loading && (

@@ -77,17 +77,18 @@ export default function LeadCard({ lead, index, onOpenChat, isDragDisabled = fal
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`w-full rounded-xl border border-white/10 bg-background-subtle/80 p-2 shadow-inner-glow transition-all ${
+          className={`w-full max-w-full rounded-xl border border-white/10 bg-background-subtle/80 p-2 shadow-inner-glow transition-all ${
             isDragDisabled 
               ? 'cursor-default opacity-75' 
               : 'cursor-move'
           } ${
             snapshot.isDragging ? 'scale-[1.02] border-brand-secondary/50 shadow-glow' : ''
           }`}
+          style={{ maxWidth: '100%' }}
         >
           {/* Nome e Bot */}
-          <div className="mb-1.5 flex items-center justify-between gap-1.5">
-            <h3 className="line-clamp-1 break-words text-xs font-semibold text-white flex-1">{getDisplayName()}</h3>
+          <div className="mb-1.5 flex items-center justify-between gap-1.5 min-w-0">
+            <h3 className="text-xs font-semibold text-white flex-1 min-w-0 truncate" title={getDisplayName()}>{getDisplayName()}</h3>
             {lead.conversations?.some((conv) => conv.isBotAttending) && (
               <TagComponent variant="bot" title="Sendo atendido por bot">
                 <Bot className="h-2 w-2" />
@@ -96,43 +97,45 @@ export default function LeadCard({ lead, index, onOpenChat, isDragDisabled = fal
           </div>
 
           {/* Tags de indicadores visuais */}
-          <div className="mb-1.5 flex items-center gap-1 flex-wrap">
-            {stage && (
-              <TagComponent variant="stage" color={stage.color} title={`Etapa: ${stage.name}`}>
-                <div className="h-1 w-1 rounded-full" style={{ backgroundColor: stage.color }} />
-                <span className="truncate max-w-[60px]">{stage.name}</span>
-              </TagComponent>
-            )}
-            {attendance?.assignedUser && (
-              <TagComponent variant="user" title={`Atendente: ${attendance.assignedUser.name}`}>
-                <User className="h-2 w-2" />
-                <span className="truncate max-w-[40px]">{attendance.assignedUser.name.split(' ')[0]}</span>
-              </TagComponent>
-            )}
-            {attendance?.department && (
-              <TagComponent variant="department" title={`Departamento: ${attendance.department.name}`}>
-                <Building2 className="h-2 w-2" />
-                <span className="truncate max-w-[50px]">{attendance.department.name}</span>
-              </TagComponent>
-            )}
-            {attendance?.priority && (
-              <TagComponent
-                variant={
-                  attendance.priority === 'HIGH'
-                    ? 'priorityHigh'
-                    : attendance.priority === 'LOW'
-                    ? 'priorityLow'
-                    : 'priorityNormal'
-                }
-                title={`Prioridade: ${attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}`}
-              >
-                <Flag className="h-2 w-2" />
-                <span className="truncate">
-                  {attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}
-                </span>
-              </TagComponent>
-            )}
-          </div>
+          {(stage || attendance?.assignedUser || attendance?.department || attendance?.priority) && (
+            <div className="mb-1.5 flex items-center gap-1 flex-wrap">
+              {stage && (
+                <TagComponent variant="stage" color={stage.color} title={`Etapa: ${stage.name}`}>
+                  <div className="h-1 w-1 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                  <span className="truncate max-w-[60px]">{stage.name}</span>
+                </TagComponent>
+              )}
+              {attendance?.assignedUser && (
+                <TagComponent variant="user" title={`Atendente: ${attendance.assignedUser.name}`}>
+                  <User className="h-2 w-2 flex-shrink-0" />
+                  <span className="truncate max-w-[40px]">{attendance.assignedUser.name.split(' ')[0]}</span>
+                </TagComponent>
+              )}
+              {attendance?.department && (
+                <TagComponent variant="department" title={`Departamento: ${attendance.department.name}`}>
+                  <Building2 className="h-2 w-2 flex-shrink-0" />
+                  <span className="truncate max-w-[50px]">{attendance.department.name}</span>
+                </TagComponent>
+              )}
+              {attendance?.priority && (
+                <TagComponent
+                  variant={
+                    attendance.priority === 'HIGH'
+                      ? 'priorityHigh'
+                      : attendance.priority === 'LOW'
+                      ? 'priorityLow'
+                      : 'priorityNormal'
+                  }
+                  title={`Prioridade: ${attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}`}
+                >
+                  <Flag className="h-2 w-2 flex-shrink-0" />
+                  <span className="truncate">
+                    {attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}
+                  </span>
+                </TagComponent>
+              )}
+            </div>
+          )}
 
           {/* Telefone */}
           <div className="mb-1.5 flex items-center text-[10px] text-text-muted">
