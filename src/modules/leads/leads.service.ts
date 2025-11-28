@@ -96,7 +96,6 @@ export class LeadsService {
             select: {
               id: true,
               name: true,
-              description: true,
               color: true,
             },
           },
@@ -156,7 +155,6 @@ export class LeadsService {
             select: {
               id: true,
               name: true,
-              description: true,
               color: true,
             },
           },
@@ -243,12 +241,21 @@ export class LeadsService {
     return this.prisma.lead.update({
       where: { id },
       data: { statusId },
-      include: {
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        phone: true,
+        statusId: true,
+        tags: true,
+        profilePictureURL: true,
+        origin: true,
+        createdAt: true,
+        updatedAt: true,
         customStatus: {
           select: {
             id: true,
             name: true,
-            description: true,
             color: true,
           },
         },

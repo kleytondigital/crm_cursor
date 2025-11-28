@@ -251,62 +251,101 @@ export class MessagesService {
   }
 
   async findByConversation(conversationId: string, tenantId: string) {
-    // Verificar se a conversa pertence ao tenant e incluir lead com profilePictureURL
-    const conversation = await this.prisma.conversation.findFirst({
-      where: {
-        id: conversationId,
-        tenantId: tenantId,
-      },
-      include: {
-        lead: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            tags: true,
-            profilePictureURL: true,
+    try {
+      this.logger.log(`[findByConversation] Buscando mensagens - conversationId: ${conversationId}, tenantId: ${tenantId}`);
+      
+      // Verificar se a conversa pertence ao tenant e incluir lead com profilePictureURL
+      const conversation = await this.prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          tenantId: tenantId,
+        },
+        select: {
+          id: true,
+          leadId: true,
+          assignedUserId: true,
+          status: true,
+          tenantId: true,
+          createdAt: true,
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              tags: true,
+              profilePictureURL: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        assignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+      });
 
-    if (!conversation) {
-      throw new NotFoundException('Conversa não encontrada');
+      if (!conversation) {
+        this.logger.warn(`[findByConversation] Conversa não encontrada - conversationId: ${conversationId}, tenantId: ${tenantId}`);
+        throw new NotFoundException('Conversa não encontrada');
+      }
+
+      const messages = await this.prisma.message.findMany({
+        where: {
+          conversationId: conversationId,
+          tenantId: tenantId,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          conversationId: true,
+          leadId: true,
+          connectionId: true,
+          contentText: true,
+          contentType: true,
+          contentUrl: true,
+          senderType: true,
+          direction: true,
+          sender: true,
+          messageId: true,
+          timestamp: true,
+          replyMessageId: true,
+          createdAt: true,
+        },
+      });
+
+      this.logger.log(`[findByConversation] Encontradas ${messages.length} mensagens para conversationId: ${conversationId}`);
+
+      // Converter URLs de mídia para URLs absolutas e incluir conversa com lead
+      return messages.map((message) => ({
+        ...message,
+        contentUrl: this.buildAbsoluteMediaUrl(message.contentUrl),
+        conversation: {
+          id: conversation.id,
+          leadId: conversation.leadId,
+          lead: conversation.lead,
+          assignedUserId: conversation.assignedUserId,
+          assignedUser: conversation.assignedUser,
+          status: conversation.status,
+          tenantId: conversation.tenantId,
+          createdAt: conversation.createdAt,
+        },
+      }));
+    } catch (error: any) {
+      this.logger.error(`[findByConversation] ERRO ao buscar mensagens:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        conversationId,
+        tenantId,
+      });
+      throw error;
     }
-
-    const messages = await this.prisma.message.findMany({
-      where: {
-        conversationId: conversationId,
-        tenantId: tenantId,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-
-    // Converter URLs de mídia para URLs absolutas e incluir conversa com lead
-    return messages.map((message) => ({
-      ...message,
-      contentUrl: this.buildAbsoluteMediaUrl(message.contentUrl),
-      conversation: {
-        id: conversation.id,
-        leadId: conversation.leadId,
-        lead: conversation.lead,
-        assignedUserId: conversation.assignedUserId,
-        assignedUser: conversation.assignedUser,
-        status: conversation.status,
-        tenantId: conversation.tenantId,
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-      },
-    }));
   }
 
   private async handleAttendanceSync(
