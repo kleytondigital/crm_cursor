@@ -14,107 +14,127 @@ export class ConversationsService {
   ) {}
 
   async findAll(tenantId: string, userId?: string, userRole?: UserRole) {
-    // Filtrar conversas:
-    // - Admin/MANAGER: Todas as conversas em andamento (ACTIVE)
-    //   - Com ou sem atendente atribuído (permite que admin veja e interaja com qualquer conversa)
-    // - Agent/USER: Apenas conversas de leads que têm atendimentos atribuídos a eles
-    //   - Baseado nos atendimentos (assignedUserId = userId) do agente
-    // - Conversas com status CLOSED não aparecem aqui (aparecem apenas em atendimentos)
-    const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
-
-    this.logger.log(`Buscando conversas - tenantId: ${tenantId}, userId: ${userId}, userRole: ${userRole}, isAdmin: ${isAdmin}`);
-
-    const where: any = {
-      tenantId: tenantId,
-      status: 'ACTIVE', // Apenas conversas ativas
-    };
-
-    // Para agents (USER), filtrar apenas conversas de leads que têm atendimentos atribuídos a eles
-    // Para admins e managers, retornar todas as conversas ativas
-    if (!isAdmin && userId) {
-      this.logger.log(`Filtrando conversas para agente - userId: ${userId}`);
+    try {
+      this.logger.log(`[findAll] Iniciando busca de conversas - tenantId: ${tenantId}, userId: ${userId}, userRole: ${userRole}`);
       
-      // Buscar TODOS os atendimentos do agente (qualquer status: OPEN, IN_PROGRESS, TRANSFERRED, CLOSED)
-      // Isso garante que o agente veja todas as conversas de leads que já foram atribuídos a ele
-      const attendances = await this.prisma.attendance.findMany({
-        where: {
-          tenantId,
-          assignedUserId: userId,
-          // Não filtrar por status - incluir todos os atendimentos do agente
+      // Filtrar conversas:
+      // - Admin/MANAGER: Todas as conversas em andamento (ACTIVE)
+      //   - Com ou sem atendente atribuído (permite que admin veja e interaja com qualquer conversa)
+      // - Agent/USER: Apenas conversas de leads que têm atendimentos atribuídos a eles
+      //   - Baseado nos atendimentos (assignedUserId = userId) do agente
+      // - Conversas com status CLOSED não aparecem aqui (aparecem apenas em atendimentos)
+      const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
+
+      this.logger.log(`[findAll] isAdmin: ${isAdmin}`);
+
+      const where: any = {
+        tenantId: tenantId,
+        status: 'ACTIVE', // Apenas conversas ativas
+      };
+
+      // Para agents (USER), filtrar apenas conversas de leads que têm atendimentos atribuídos a eles
+      // Para admins e managers, retornar todas as conversas ativas
+      if (!isAdmin && userId) {
+        this.logger.log(`[findAll] Filtrando conversas para agente - userId: ${userId}`);
+        
+        // Buscar TODOS os atendimentos do agente (qualquer status: OPEN, IN_PROGRESS, TRANSFERRED, CLOSED)
+        // Isso garante que o agente veja todas as conversas de leads que já foram atribuídos a ele
+        const attendances = await this.prisma.attendance.findMany({
+          where: {
+            tenantId,
+            assignedUserId: userId,
+            // Não filtrar por status - incluir todos os atendimentos do agente
+          },
+          select: {
+            leadId: true,
+          },
+        });
+
+        this.logger.log(`[findAll] Encontrados ${attendances.length} atendimentos para o agente ${userId}`);
+
+        // Remover duplicatas usando Set (pode haver múltiplos atendimentos para o mesmo lead)
+        const leadIds = Array.from(new Set(attendances.map((att) => att.leadId)));
+        
+        this.logger.log(`[findAll] Leads únicos encontrados: ${leadIds.length}`);
+        
+        // Se não há atendimentos atribuídos ao agente, retornar array vazio
+        if (leadIds.length === 0) {
+          this.logger.log(`[findAll] Nenhum atendimento encontrado para o agente ${userId}, retornando array vazio`);
+          return [];
+        }
+
+        // Filtrar conversas pelos IDs dos leads que têm atendimentos atribuídos ao agente
+        where.leadId = { in: leadIds };
+      } else {
+        this.logger.log(`[findAll] Admin/Manager - retornando todas as conversas ativas do tenant ${tenantId}`);
+      }
+      // Admin: vê todas as conversas ativas (com ou sem atendente) - não aplica filtro adicional
+
+      this.logger.log(`[findAll] Executando query Prisma com where: ${JSON.stringify(where)}`);
+
+      const conversations = await this.prisma.conversation.findMany({
+        where,
+        include: {
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              tags: true,
+              profilePictureURL: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: {
+              createdAt: 'desc',
+            },
+            select: {
+              id: true,
+              contentText: true,
+              contentType: true,
+              createdAt: true,
+              senderType: true,
+            },
+          },
         },
-        select: {
-          leadId: true,
+        orderBy: {
+          updatedAt: 'desc',
         },
       });
 
-      this.logger.log(`Encontrados ${attendances.length} atendimentos para o agente ${userId}`);
+      this.logger.log(`[findAll] Retornando ${conversations.length} conversas`);
 
-      // Remover duplicatas usando Set (pode haver múltiplos atendimentos para o mesmo lead)
-      const leadIds = Array.from(new Set(attendances.map((att) => att.leadId)));
-      
-      this.logger.log(`Leads únicos encontrados: ${leadIds.length} - IDs: ${leadIds.join(', ')}`);
-      
-      // Se não há atendimentos atribuídos ao agente, retornar array vazio
-      if (leadIds.length === 0) {
-        this.logger.log(`Nenhum atendimento encontrado para o agente ${userId}, retornando array vazio`);
-        return [];
-      }
+      // Mapear para incluir última mensagem
+      const result = conversations.map((conv) => {
+        const { messages, ...rest } = conv;
+        return {
+          ...rest,
+          lastMessage: messages[0] || null,
+        };
+      });
 
-      // Filtrar conversas pelos IDs dos leads que têm atendimentos atribuídos ao agente
-      where.leadId = { in: leadIds };
-    } else {
-      this.logger.log(`Admin/Manager - retornando todas as conversas ativas do tenant ${tenantId}`);
+      this.logger.log(`[findAll] Sucesso - retornando ${result.length} conversas`);
+      return result;
+    } catch (error: any) {
+      this.logger.error(`[findAll] ERRO ao buscar conversas:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        tenantId,
+        userId,
+        userRole,
+      });
+      throw error;
     }
-    // Admin: vê todas as conversas ativas (com ou sem atendente) - não aplica filtro adicional
-
-    const conversations = await this.prisma.conversation.findMany({
-      where,
-      include: {
-        lead: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            tags: true,
-            profilePictureURL: true,
-          },
-        },
-        assignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        messages: {
-          take: 1,
-          orderBy: {
-            createdAt: 'desc',
-          },
-          select: {
-            id: true,
-            contentText: true,
-            contentType: true,
-            createdAt: true,
-            senderType: true,
-          },
-        },
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-    });
-
-    this.logger.log(`Retornando ${conversations.length} conversas`);
-
-    // Mapear para incluir última mensagem
-    return conversations.map((conv) => {
-      const { messages, ...rest } = conv;
-      return {
-        ...rest,
-        lastMessage: messages[0] || null,
-      };
-    });
   }
 
   async findOne(id: string, tenantId: string) {

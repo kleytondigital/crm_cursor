@@ -20,85 +20,106 @@ export class LeadsService {
   }
 
   async findAll(tenantId: string, status?: string, statusId?: string, userId?: string, userRole?: UserRole) {
-    const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
-    const where: any = { tenantId };
-    
-    this.logger.log(`Buscando leads - tenantId: ${tenantId}, status: ${status || 'todos'}, statusId: ${statusId || 'todos'}, userId: ${userId}, userRole: ${userRole}, isAdmin: ${isAdmin}`);
-    
-    // Priorizar statusId se fornecido, senão usar status (enum) para compatibilidade
-    if (statusId) {
-      where.statusId = statusId;
-    } else if (status) {
-      where.status = status;
-    }
-
-    // Para agents (USER), filtrar apenas leads que têm atendimentos atribuídos a eles
-    // Para admins e managers, retornar todos os leads
-    if (!isAdmin && userId) {
-      this.logger.log(`Filtrando leads para agente - userId: ${userId}`);
+    try {
+      this.logger.log(`[findAll] Iniciando busca de leads - tenantId: ${tenantId}, status: ${status || 'todos'}, statusId: ${statusId || 'todos'}, userId: ${userId}, userRole: ${userRole}`);
       
-      // Buscar TODOS os atendimentos do agente (qualquer status: OPEN, IN_PROGRESS, TRANSFERRED, CLOSED)
-      // Isso garante que o agente veja todos os leads que já foram atribuídos a ele
-      const attendances = await this.prisma.attendance.findMany({
-        where: {
-          tenantId,
-          assignedUserId: userId,
-          // Não filtrar por status - incluir todos os atendimentos do agente
+      const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.MANAGER;
+      const where: any = { tenantId };
+      
+      this.logger.log(`[findAll] isAdmin: ${isAdmin}`);
+      
+      // Priorizar statusId se fornecido, senão usar status (enum) para compatibilidade
+      if (statusId) {
+        where.statusId = statusId;
+        this.logger.log(`[findAll] Filtrando por statusId: ${statusId}`);
+      } else if (status) {
+        where.status = status;
+        this.logger.log(`[findAll] Filtrando por status: ${status}`);
+      }
+
+      // Para agents (USER), filtrar apenas leads que têm atendimentos atribuídos a eles
+      // Para admins e managers, retornar todos os leads
+      if (!isAdmin && userId) {
+        this.logger.log(`[findAll] Filtrando leads para agente - userId: ${userId}`);
+        
+        // Buscar TODOS os atendimentos do agente (qualquer status: OPEN, IN_PROGRESS, TRANSFERRED, CLOSED)
+        // Isso garante que o agente veja todos os leads que já foram atribuídos a ele
+        const attendances = await this.prisma.attendance.findMany({
+          where: {
+            tenantId,
+            assignedUserId: userId,
+            // Não filtrar por status - incluir todos os atendimentos do agente
+          },
+          select: {
+            leadId: true,
+          },
+        });
+
+        this.logger.log(`[findAll] Encontrados ${attendances.length} atendimentos para o agente ${userId}`);
+
+        // Remover duplicatas usando Set (pode haver múltiplos atendimentos para o mesmo lead)
+        const leadIds = Array.from(new Set(attendances.map((att) => att.leadId)));
+        
+        this.logger.log(`[findAll] Leads únicos encontrados: ${leadIds.length}`);
+        
+        // Se não há atendimentos atribuídos ao agente, retornar array vazio
+        if (leadIds.length === 0) {
+          this.logger.log(`[findAll] Nenhum atendimento encontrado para o agente ${userId}, retornando array vazio`);
+          return [];
+        }
+
+        // Filtrar leads pelos IDs dos atendimentos do agente
+        where.id = { in: leadIds };
+      } else {
+        this.logger.log(`[findAll] Admin/Manager - retornando todos os leads do tenant ${tenantId}`);
+      }
+
+      this.logger.log(`[findAll] Executando query Prisma com where: ${JSON.stringify(where)}`);
+
+      const leads = await this.prisma.lead.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
         },
-        select: {
-          leadId: true,
+        include: {
+          customStatus: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              color: true,
+            },
+          },
+          conversations: {
+            take: 1,
+            orderBy: {
+              createdAt: 'desc',
+            },
+            select: {
+              id: true,
+              status: true,
+              isBotAttending: true,
+            },
+          },
         },
       });
 
-      this.logger.log(`Encontrados ${attendances.length} atendimentos para o agente ${userId}`);
-
-      // Remover duplicatas usando Set (pode haver múltiplos atendimentos para o mesmo lead)
-      const leadIds = Array.from(new Set(attendances.map((att) => att.leadId)));
-      
-      this.logger.log(`Leads únicos encontrados: ${leadIds.length} - IDs: ${leadIds.join(', ')}`);
-      
-      // Se não há atendimentos atribuídos ao agente, retornar array vazio
-      if (leadIds.length === 0) {
-        this.logger.log(`Nenhum atendimento encontrado para o agente ${userId}, retornando array vazio`);
-        return [];
-      }
-
-      // Filtrar leads pelos IDs dos atendimentos do agente
-      where.id = { in: leadIds };
-    } else {
-      this.logger.log(`Admin/Manager - retornando todos os leads do tenant ${tenantId}`);
+      this.logger.log(`[findAll] Sucesso - retornando ${leads.length} leads`);
+      return leads;
+    } catch (error: any) {
+      this.logger.error(`[findAll] ERRO ao buscar leads:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        tenantId,
+        status,
+        statusId,
+        userId,
+        userRole,
+      });
+      throw error;
     }
-
-    const leads = await this.prisma.lead.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        customStatus: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            color: true,
-          },
-        },
-        conversations: {
-          take: 1,
-          orderBy: {
-            createdAt: 'desc',
-          },
-          select: {
-            id: true,
-            status: true,
-            isBotAttending: true,
-          },
-        },
-      },
-    });
-
-    this.logger.log(`Retornando ${leads.length} leads`);
-    return leads;
   }
 
   async findOne(id: string, tenantId: string) {

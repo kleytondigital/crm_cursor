@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { CreatePipelineStageDto } from './dto/create-stage.dto';
@@ -11,6 +12,8 @@ import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class PipelineStagesService {
+  private readonly logger = new Logger(PipelineStagesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -113,7 +116,10 @@ export class PipelineStagesService {
    */
   async findAll(tenantId: string) {
     try {
+      this.logger.log(`[findAll] Iniciando busca de estágios - tenantId: ${tenantId}`);
+      
       // Buscar estágios personalizados do tenant
+      this.logger.log(`[findAll] Executando query Prisma para buscar estágios`);
       const customStages = await this.prisma.pipelineStage.findMany({
         where: { tenantId },
         orderBy: { order: 'asc' },
@@ -129,10 +135,12 @@ export class PipelineStagesService {
         },
       });
 
+      this.logger.log(`[findAll] Sucesso - encontrados ${customStages.length} estágios`);
       return customStages;
     } catch (error: any) {
-      console.error('[PipelineStagesService.findAll] Erro ao buscar estágios:', {
-        error: error.message,
+      this.logger.error(`[findAll] ERRO ao buscar estágios:`, {
+        message: error.message,
+        stack: error.stack,
         code: error.code,
         meta: error.meta,
         tenantId,

@@ -12,6 +12,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { AttendancesGateway } from './attendances.gateway';
@@ -30,6 +31,8 @@ interface AuthContext {
 
 @Injectable()
 export class AttendancesService {
+  private readonly logger = new Logger(AttendancesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: AttendancesGateway,
@@ -44,10 +47,15 @@ export class AttendancesService {
     filters: AttendanceFilterDto,
     context: AuthContext,
   ) {
-    const userDepartmentIds = await this.findUserDepartmentIds(context.userId);
-    const where: Prisma.AttendanceWhereInput = {
-      tenantId: context.tenantId,
-    };
+    try {
+      this.logger.log(`[listAttendances] Iniciando busca de atendimentos - tenantId: ${context.tenantId}, userId: ${context.userId}, role: ${context.role}`);
+      
+      const userDepartmentIds = await this.findUserDepartmentIds(context.userId);
+      this.logger.log(`[listAttendances] Departamentos do usuário: ${userDepartmentIds.length}`);
+      
+      const where: Prisma.AttendanceWhereInput = {
+        tenantId: context.tenantId,
+      };
 
     // Filtros por role:
     // - Admin/MANAGER: Vê TODOS os atendimentos (sem restrição adicional)
@@ -189,30 +197,52 @@ export class AttendancesService {
       }
     }
 
-    const attendances = await this.prisma.attendance.findMany({
-      where,
-      orderBy: [
-        { isUrgent: 'desc' },
-        { priority: 'desc' },
-        { lastMessageAt: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      include: this.defaultAttendanceInclude(),
-    });
+      this.logger.log(`[listAttendances] Executando query Prisma com where: ${JSON.stringify(where)}`);
 
-    return attendances.map((attendance) =>
-      this.serializeAttendance(attendance),
-    );
+      const attendances = await this.prisma.attendance.findMany({
+        where,
+        orderBy: [
+          { isUrgent: 'desc' },
+          { priority: 'desc' },
+          { lastMessageAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        include: this.defaultAttendanceInclude(),
+      });
+
+      this.logger.log(`[listAttendances] Sucesso - encontrados ${attendances.length} atendimentos`);
+
+      return attendances.map((attendance) =>
+        this.serializeAttendance(attendance),
+      );
+    } catch (error: any) {
+      this.logger.error(`[listAttendances] ERRO ao buscar atendimentos:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        tenantId: context.tenantId,
+        userId: context.userId,
+        role: context.role,
+        filters,
+      });
+      throw error;
+    }
   }
 
   async getSmartQueue(context: AuthContext) {
-    // Smart Queue: Fila inteligente de atendimentos disponíveis
-    // - Admin: vê todos os atendimentos disponíveis (OPEN e TRANSFERRED)
-    // - Agent: vê apenas atendimentos disponíveis dos seus departamentos
-    const isAdmin = this.isAdmin(context.role);
-    const where: Prisma.AttendanceWhereInput = {
-      tenantId: context.tenantId,
-    };
+    try {
+      this.logger.log(`[getSmartQueue] Iniciando busca de fila inteligente - tenantId: ${context.tenantId}, userId: ${context.userId}, role: ${context.role}`);
+      
+      // Smart Queue: Fila inteligente de atendimentos disponíveis
+      // - Admin: vê todos os atendimentos disponíveis (OPEN e TRANSFERRED)
+      // - Agent: vê apenas atendimentos disponíveis dos seus departamentos
+      const isAdmin = this.isAdmin(context.role);
+      this.logger.log(`[getSmartQueue] isAdmin: ${isAdmin}`);
+      
+      const where: Prisma.AttendanceWhereInput = {
+        tenantId: context.tenantId,
+      };
 
     if (!isAdmin) {
       // Para agents, mostrar atendimentos:
@@ -263,20 +293,36 @@ export class AttendancesService {
       where.status = { in: [AttendanceStatus.OPEN, AttendanceStatus.TRANSFERRED] };
     }
 
-    const attendances = await this.prisma.attendance.findMany({
-      where,
-      orderBy: [
-        { priority: 'desc' },
-        { isUrgent: 'desc' },
-        { createdAt: 'asc' },
-      ],
-      take: 10,
-      include: this.defaultAttendanceInclude(),
-    });
+      this.logger.log(`[getSmartQueue] Executando query Prisma com where: ${JSON.stringify(where)}`);
 
-    return attendances.map((attendance) =>
-      this.serializeAttendance(attendance),
-    );
+      const attendances = await this.prisma.attendance.findMany({
+        where,
+        orderBy: [
+          { priority: 'desc' },
+          { isUrgent: 'desc' },
+          { createdAt: 'asc' },
+        ],
+        take: 10,
+        include: this.defaultAttendanceInclude(),
+      });
+
+      this.logger.log(`[getSmartQueue] Sucesso - encontrados ${attendances.length} atendimentos na fila`);
+
+      return attendances.map((attendance) =>
+        this.serializeAttendance(attendance),
+      );
+    } catch (error: any) {
+      this.logger.error(`[getSmartQueue] ERRO ao buscar fila inteligente:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        tenantId: context.tenantId,
+        userId: context.userId,
+        role: context.role,
+      });
+      throw error;
+    }
   }
 
   async getStats(context: AuthContext) {
@@ -1332,63 +1378,90 @@ export class AttendancesService {
   }
 
   async syncLeadsWithAttendances(context: AuthContext) {
-    // Garantir que o departamento "Recepcionista" existe
-    const receptionistDepartment = await this.ensureReceptionistDepartment(
-      context.tenantId,
-    );
+    try {
+      this.logger.log(`[syncLeadsWithAttendances] Iniciando sincronização - tenantId: ${context.tenantId}, userId: ${context.userId}`);
+      
+      // Garantir que o departamento "Recepcionista" existe
+      this.logger.log(`[syncLeadsWithAttendances] Garantindo existência do departamento Recepcionista`);
+      const receptionistDepartment = await this.ensureReceptionistDepartment(
+        context.tenantId,
+      );
+      this.logger.log(`[syncLeadsWithAttendances] Departamento Recepcionista ID: ${receptionistDepartment.id}`);
 
-    // Buscar todos os leads do tenant
-    const leads = await this.prisma.lead.findMany({
-      where: { tenantId: context.tenantId },
-      select: { id: true },
-    });
+      // Buscar todos os leads do tenant
+      this.logger.log(`[syncLeadsWithAttendances] Buscando todos os leads do tenant`);
+      const leads = await this.prisma.lead.findMany({
+        where: { tenantId: context.tenantId },
+        select: { id: true },
+      });
+      this.logger.log(`[syncLeadsWithAttendances] Encontrados ${leads.length} leads`);
 
-    // Buscar todos os atendimentos existentes
-    const existingAttendances = await this.prisma.attendance.findMany({
-      where: { tenantId: context.tenantId },
-      select: { leadId: true },
-    });
+      // Buscar todos os atendimentos existentes
+      this.logger.log(`[syncLeadsWithAttendances] Buscando atendimentos existentes`);
+      const existingAttendances = await this.prisma.attendance.findMany({
+        where: { tenantId: context.tenantId },
+        select: { leadId: true },
+      });
+      this.logger.log(`[syncLeadsWithAttendances] Encontrados ${existingAttendances.length} atendimentos existentes`);
 
-    const existingLeadIds = new Set(existingAttendances.map((att) => att.leadId));
+      const existingLeadIds = new Set(existingAttendances.map((att) => att.leadId));
 
-    // Identificar leads sem atendimentos
-    const leadsWithoutAttendances = leads.filter(
-      (lead) => !existingLeadIds.has(lead.id),
-    );
+      // Identificar leads sem atendimentos
+      const leadsWithoutAttendances = leads.filter(
+        (lead) => !existingLeadIds.has(lead.id),
+      );
+      this.logger.log(`[syncLeadsWithAttendances] Leads sem atendimentos: ${leadsWithoutAttendances.length}`);
 
-    // Criar atendimentos para leads sem atendimentos, atrelados ao departamento Recepcionista
-    const createdAttendances = await Promise.all(
-      leadsWithoutAttendances.map((lead) =>
-        this.prisma.attendance.create({
-          data: {
-            tenantId: context.tenantId,
-            leadId: lead.id,
-            departmentId: receptionistDepartment.id, // Atrelar ao departamento Recepcionista
-            status: AttendanceStatus.OPEN,
-            priority: AttendancePriority.NORMAL,
-            logs: {
-              create: {
-                action: AttendanceLogAction.CREATED,
-                performedById: null,
-                notes: 'Atendimento criado automaticamente durante sincronização',
+      // Criar atendimentos para leads sem atendimentos, atrelados ao departamento Recepcionista
+      this.logger.log(`[syncLeadsWithAttendances] Criando ${leadsWithoutAttendances.length} novos atendimentos`);
+      const createdAttendances = await Promise.all(
+        leadsWithoutAttendances.map((lead) =>
+          this.prisma.attendance.create({
+            data: {
+              tenantId: context.tenantId,
+              leadId: lead.id,
+              departmentId: receptionistDepartment.id, // Atrelar ao departamento Recepcionista
+              status: AttendanceStatus.OPEN,
+              priority: AttendancePriority.NORMAL,
+              logs: {
+                create: {
+                  action: AttendanceLogAction.CREATED,
+                  performedById: null,
+                  notes: 'Atendimento criado automaticamente durante sincronização',
+                },
               },
             },
-          },
-          include: this.defaultAttendanceInclude(),
-        }),
-      ),
-    );
+            include: this.defaultAttendanceInclude(),
+          }),
+        ),
+      );
+      this.logger.log(`[syncLeadsWithAttendances] Criados ${createdAttendances.length} atendimentos com sucesso`);
 
-    // Emitir eventos para os novos atendimentos
-    createdAttendances.forEach((attendance) => {
-      this.emitAttendanceEvent('attendance:new', attendance);
-    });
+      // Emitir eventos para os novos atendimentos
+      createdAttendances.forEach((attendance) => {
+        this.emitAttendanceEvent('attendance:new', attendance);
+      });
 
-    return {
-      totalLeads: leads.length,
-      existingAttendances: existingAttendances.length,
-      createdAttendances: createdAttendances.length,
-    };
+      const result = {
+        totalLeads: leads.length,
+        existingAttendances: existingAttendances.length,
+        createdAttendances: createdAttendances.length,
+      };
+      
+      this.logger.log(`[syncLeadsWithAttendances] Sucesso - ${JSON.stringify(result)}`);
+      return result;
+    } catch (error: any) {
+      this.logger.error(`[syncLeadsWithAttendances] ERRO ao sincronizar:`, {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        meta: error.meta,
+        tenantId: context.tenantId,
+        userId: context.userId,
+        role: context.role,
+      });
+      throw error;
+    }
   }
 
   private async ensureReceptionistDepartment(tenantId: string) {
