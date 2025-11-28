@@ -113,9 +113,15 @@ export class WahaWebhookController {
     const info = payload?._data?.Info ?? {};
 
     // Extrair tempId (ID temporário para correlação)
-    const tempId = payload?.tempId ?? event?.tempId ?? null;
+    // O tempId pode vir diretamente do body (event) ou dentro de payload
+    // IMPORTANTE: O body do webhook vem diretamente em event, então priorizar event.tempId
+    const tempId = event?.tempId ?? payload?.tempId ?? null;
     if (tempId) {
-      this.logger.log(`Mensagem com tempId recebida: ${tempId}`);
+      this.logger.log(`[TEMPID] Mensagem com tempId recebida: ${tempId}`);
+    } else {
+      const fromMeValue = event?.fromMe ?? payload?.fromMe ?? false;
+      this.logger.warn(`[TEMPID] tempId NÃO encontrado! fromMe=${fromMeValue} event keys: ${Object.keys(event || {}).join(', ')}`);
+      this.logger.debug(`[TEMPID] Body completo: ${JSON.stringify(event).substring(0, 500)}`);
     }
 
     // Extrair informações de mídia
@@ -197,9 +203,13 @@ export class WahaWebhookController {
         : new Date();
     
     // Extrair idMessage (prioritário sobre extractMessageId)
-    // idMessage vem direto do JSON da API
-    const idMessage = payload?.idMessage ?? event?.idMessage ?? null;
-    const messageId = idMessage ?? this.extractMessageId(payload) ?? this.extractMessageId(event);
+    // idMessage vem direto do JSON da API - IMPORTANTE: priorizar event.idMessage pois o body vem diretamente
+    const idMessage = event?.idMessage ?? payload?.idMessage ?? null;
+    const messageId = idMessage ?? this.extractMessageId(event) ?? this.extractMessageId(payload);
+    
+    if (messageId) {
+      this.logger.log(`[MESSAGEID] idMessage extraído: ${messageId} (idMessage=${idMessage})`);
+    }
 
     const explicitContact =
       event?.senderFinal ?? payload?.senderFinal ?? payload?.chatId ?? payload?.to;
