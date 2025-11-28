@@ -216,9 +216,9 @@ export class SocialWebhookController {
         updateData.name = name;
       }
 
-      // if (profilePictureURL) { // Removido temporariamente até migration ser aplicada
-      //   updateData.profilePictureURL = profilePictureURL;
-      // }
+      if (profilePictureURL) {
+        updateData.profilePictureURL = profilePictureURL;
+      }
 
       if (Object.keys(updateData).length > 0) {
         lead = await this.prisma.lead.update({

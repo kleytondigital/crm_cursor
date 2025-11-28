@@ -76,7 +76,7 @@ export class ConversationsService {
             name: true,
             phone: true,
             tags: true,
-            // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
+            profilePictureURL: true,
           },
         },
         assignedUser: {
@@ -130,7 +130,7 @@ export class ConversationsService {
             name: true,
             phone: true,
             tags: true,
-            // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
+            profilePictureURL: true,
           },
         },
         assignedUser: {
@@ -179,7 +179,7 @@ export class ConversationsService {
             name: true,
             phone: true,
             tags: true,
-            // profilePictureURL: true, // Removido temporariamente até migration ser aplicada
+            profilePictureURL: true,
           },
         },
         assignedUser: {
@@ -212,8 +212,7 @@ export class ConversationsService {
     // Atualizar no CRM
     const updated = await this.prisma.conversation.update({
       where: { id },
-      // data: { isBotAttending }, // Removido temporariamente até migration ser aplicada
-      data: {}, // Placeholder até migration ser aplicada
+      data: { isBotAttending },
       include: {
         lead: {
           select: {

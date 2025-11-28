@@ -897,10 +897,10 @@ export class WahaWebhookController {
       
       // Atualizar profilePictureURL sempre que fornecido (mesmo que diferente)
       // Isso garante que fotos de perfil sejam atualizadas quando o WhatsApp envia
-      // if (profilePictureURL) { // Removido temporariamente até migration ser aplicada
-      //   // Atualizar mesmo se já existir, pois a foto pode ter mudado
-      //   updateData.profilePictureURL = profilePictureURL;
-      // }
+      if (profilePictureURL) {
+        // Atualizar mesmo se já existir, pois a foto pode ter mudado
+        updateData.profilePictureURL = profilePictureURL;
+      }
       
       if (Object.keys(updateData).length > 0) {
         lead = await this.prisma.lead.update({
@@ -908,7 +908,7 @@ export class WahaWebhookController {
           data: updateData,
         });
         this.logger.log(
-          `Lead atualizado. leadId=${lead.id} name=${updateData.name || lead.name}`, // profilePictureURL removido temporariamente
+          `Lead atualizado. leadId=${lead.id} name=${updateData.name || lead.name} profilePictureURL=${updateData.profilePictureURL ? 'atualizado' : 'mantido'}`,
         );
       }
     }

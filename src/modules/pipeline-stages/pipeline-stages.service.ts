@@ -155,7 +155,7 @@ export class PipelineStagesService {
           select: {
             id: true,
             name: true,
-            // description: true, // Removido temporariamente até migration ser aplicada
+            description: true,
             color: true,
             order: true,
           },
@@ -243,7 +243,7 @@ export class PipelineStagesService {
           select: {
             id: true,
             name: true,
-            // description: true, // Removido temporariamente até migration ser aplicada
+            description: true,
             color: true,
             order: true,
           },

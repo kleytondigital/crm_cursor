@@ -91,7 +91,7 @@ export class LeadsService {
           select: {
             id: true,
             status: true,
-            // isBotAttending: true, // Removido temporariamente até migration ser aplicada
+            isBotAttending: true,
           },
         },
       },
