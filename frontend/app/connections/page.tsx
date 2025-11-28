@@ -41,8 +41,8 @@ import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer';
 import BottomNavigation from '@/components/BottomNavigation';
 import ManageConnectionAutomationsModal from '@/components/admin/ManageConnectionAutomationsModal';
-import ConnectSocialDialog from '@/components/connections/ConnectSocialDialog';
-import SocialConnectionsList from '@/components/connections/SocialConnectionsList';
+import CreateConnectionDialog from '@/components/connections/CreateConnectionDialog';
+import { connectionsAPI } from '@/lib/api';
 
 const DEFAULT_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_WAHA_WEBHOOK ||
@@ -189,9 +189,6 @@ export default function ConnectionsPage() {
 
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [connectInfo, setConnectInfo] = useState<SessionInfo | null>(null);
   const [connectCode, setConnectCode] = useState<string | null>(null);
@@ -213,7 +210,7 @@ export default function ConnectionsPage() {
     open: boolean;
     connection: Connection | null;
   }>({ open: false, connection: null });
-  const [socialConnectOpen, setSocialConnectOpen] = useState(false);
+  const [createConnectionOpen, setCreateConnectionOpen] = useState(false);
   const [webhookForms, setWebhookForms] = useState<
     Array<{
       url: string;
@@ -298,61 +295,45 @@ export default function ConnectionsPage() {
     return data;
   };
 
-  const { data, isLoading, isError, error } = useQuery<Connection[], Error>({
+  const { data: whatsappConnections = [], isLoading: isLoadingWhatsApp, isError: isErrorWhatsApp, error: errorWhatsApp } = useQuery<Connection[], Error>({
     queryKey: ['connections'],
     queryFn: fetchConnections,
     enabled: mounted && !!token,
   });
 
-  const createConnection = async (name: string) => {
-    const response = await fetch('/api/connections', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders(),
-      },
-      body: JSON.stringify({
-        name,
-        ...(DEFAULT_WEBHOOK_URL
-          ? {
-              webhookUrl: DEFAULT_WEBHOOK_URL,
-              config: {
-                webhooks: [
-                  {
-                    url: DEFAULT_WEBHOOK_URL,
-                    events: DEFAULT_WEBHOOK_EVENTS,
-                    hmac: null,
-                    retries: null,
-                    customHeaders: null,
-                  },
-                ],
-              },
-            }
-          : {}),
-      }),
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      throw new Error(responseData?.message || 'Erro ao criar conexão.');
-    }
-
-    return responseData;
-  };
-
-  const createMutation = useMutation({
-    mutationFn: createConnection,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['connections'] });
-      setCreateOpen(false);
-      setNewName('');
-      setErrorMessage(null);
-    },
-    onError: (err: any) => {
-      setErrorMessage(err?.message || 'Erro ao criar conexão.');
-    },
+  // Buscar conexões sociais
+  const { data: socialConnections = [], isLoading: isLoadingSocial, isError: isErrorSocial, error: errorSocial } = useQuery({
+    queryKey: ['social-connections'],
+    queryFn: () => connectionsAPI.getSocialConnections(),
+    enabled: mounted && !!token,
   });
+
+  // Combinar todas as conexões
+  const allConnections = useMemo(() => {
+    const combined: any[] = []
+    
+    // Adicionar conexões WhatsApp
+    if (whatsappConnections) {
+      combined.push(...whatsappConnections.map(conn => ({ ...conn, type: 'WHATSAPP' })))
+    }
+    
+    // Adicionar conexões sociais
+    if (socialConnections) {
+      combined.push(...socialConnections.map((conn: any) => ({ ...conn, type: conn.provider })))
+    }
+    
+    // Ordenar por data de criação (mais recentes primeiro)
+    return combined.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.updatedAt).getTime()
+      const dateB = new Date(b.createdAt || b.updatedAt).getTime()
+      return dateB - dateA
+    })
+  }, [whatsappConnections, socialConnections])
+
+  const isLoading = isLoadingWhatsApp || isLoadingSocial
+  const isError = isErrorWhatsApp || isErrorSocial
+  const error: Error | null = errorWhatsApp || (errorSocial as Error | null) || null
+  const data = allConnections
 
   const actionMutation = useMutation({
     mutationFn: async ({
@@ -420,14 +401,6 @@ export default function ConnectionsPage() {
       setStatusError(err?.message || 'Erro ao buscar QR Code. Tente novamente.');
     },
   });
-
-  const handleCreate = () => {
-    if (!newName.trim()) {
-      setErrorMessage('Informe um nome para a conexão.');
-      return;
-    }
-    createMutation.mutate(newName.trim());
-  };
 
   const handleAction = (
     id: string,
@@ -740,12 +713,12 @@ export default function ConnectionsPage() {
         <div className="absolute inset-0 bg-hero-grid opacity-70" />
         <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-text-muted">Orquestração WHATSAPP</p>
+            <p className="text-xs uppercase tracking-[0.4em] text-text-muted">Conexões de Redes Sociais</p>
             <h1 className="mt-3 text-3xl font-bold text-white">
               Conexões Inteligentes
             </h1>
             <p className="mt-1 text-sm text-text-muted max-w-xl">
-              Controle todas as conexões do whatsapp, com API WAHA ou API oficial META, monitoramento em tempo real, QR Codes dinâmicos e ações de recuperação instantânea.
+              Gerencie todas as suas conexões de redes sociais (WhatsApp, Instagram e Facebook Messenger). Monitore em tempo real, configure QR Codes dinâmicos, gerencie automações e tenha controle total sobre seus canais de comunicação.
             </p>
             {statusError && (
               <div className="mt-4 rounded-2xl border border-brand-danger/30 bg-brand-danger/10 px-4 py-3 text-sm text-brand-danger">
@@ -754,51 +727,10 @@ export default function ConnectionsPage() {
             )}
           </div>
 
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nova conexão
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Provisionar sessão WAHA</DialogTitle>
-                <DialogDescription>
-                  Defina um identificador. O n8n irá criar a sessão, configurar webhooks e responder com o nome definitivo.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="connection-name">Nome descritivo</Label>
-                  <Input
-                    id="connection-name"
-                    placeholder="Ex: Unidade Paulista"
-                    value={newName}
-                    onChange={(event) => setNewName(event.target.value)}
-                    disabled={createMutation.isLoading}
-                  />
-                </div>
-                {errorMessage && (
-                  <p className="text-sm text-brand-danger">{errorMessage}</p>
-                )}
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="secondary"
-                  onClick={() => setCreateOpen(false)}
-                  disabled={createMutation.isLoading}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handleCreate} disabled={createMutation.isLoading}>
-                  {createMutation.isLoading ? 'Provisionando...' : 'Criar sessão'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setCreateConnectionOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova conexão
+          </Button>
         </div>
       </div>
 
@@ -829,10 +761,10 @@ export default function ConnectionsPage() {
 
               return (
                 <Card key={connection.id} className="flex h-full flex-col">
-                  <CardHeader className="border-b border-white/5 p-3 md:p-6">
+                  <CardHeader className="border-b border-white/5 p-3 md:p-4">
                     <CardTitle className="flex items-start justify-between gap-2 text-white">
                       <div className="min-w-0 flex-1">
-                        <p className="text-base md:text-lg lg:text-xl font-semibold truncate">{connection.name}</p>
+                        <p className="text-sm md:text-base font-semibold truncate">{connection.name}</p>
                       </div>
                       <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
                         <Badge variant={status.tone} className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">{status.label}</Badge>
@@ -861,19 +793,31 @@ export default function ConnectionsPage() {
                       ID: {connection.sessionName}
                     </CardDescription> */}
                   </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-2 md:gap-3 lg:gap-4 text-sm text-text-muted p-3 md:p-6">
-                    <div className="rounded-xl md:rounded-2xl border border-white/5 bg-background-soft/50 px-2.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3">
-                      <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">
-                        Sessão
-                      </p>
-                      <p className="mt-0.5 md:mt-1 text-xs md:text-sm text-text-primary break-words">
-                        {connection.sessionName}
-                      </p>
-                    </div>
+                  <CardContent className="flex flex-1 flex-col gap-2 md:gap-2.5 text-xs md:text-sm text-text-muted p-3 md:p-4">
+                    {connection.sessionName && (
+                      <div className="rounded-lg border border-white/5 bg-background-soft/50 px-2.5 md:px-3 py-1.5 md:py-2">
+                        <p className="text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted">
+                          {connection.type === 'WHATSAPP' ? 'Sessão' : 'ID'}
+                        </p>
+                        <p className="mt-0.5 md:mt-1 text-[11px] md:text-xs text-text-primary break-words truncate">
+                          {connection.sessionName}
+                        </p>
+                      </div>
+                    )}
+                    {connection.metadata && (connection.type === 'INSTAGRAM' || connection.type === 'FACEBOOK') && (
+                      <div className="rounded-lg border border-white/5 bg-background-soft/50 px-2.5 md:px-3 py-1.5 md:py-2">
+                        <p className="text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted">
+                          Conta
+                        </p>
+                        <p className="mt-0.5 md:mt-1 text-[11px] md:text-xs text-text-primary break-words truncate">
+                          {connection.metadata?.pageName || connection.metadata?.instagramUsername || connection.name}
+                        </p>
+                      </div>
+                    )}
 
                     {isConnected && (
-                      <div className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-white/5 bg-white/5 px-2.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3">
-                        <div className="flex h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-secondary/20 text-brand-secondary text-xs md:text-sm lg:text-base">
+                      <div className="flex items-center gap-2 md:gap-2 rounded-lg border border-white/5 bg-white/5 px-2.5 md:px-3 py-2 md:py-2">
+                        <div className="flex h-7 w-7 md:h-8 md:w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-secondary/20 text-brand-secondary text-[11px] md:text-xs">
                           {connection.statusInfo?.picture ? (
                             <img
                               src={connection.statusInfo.picture}
@@ -885,39 +829,39 @@ export default function ConnectionsPage() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs md:text-sm font-semibold text-white">
+                          <p className="truncate text-[11px] md:text-xs font-semibold text-white">
                             {connection.statusInfo?.pushName || 'Dispositivo autenticado'}
                           </p>
-                          <p className="truncate text-[10px] md:text-xs text-text-muted">
+                          <p className="truncate text-[10px] md:text-[11px] text-text-muted">
                             {connection.statusInfo?.waId || 'Número indisponível'}
                           </p>
                         </div>
                       </div>
                     )}
 
-                    <div className="rounded-xl md:rounded-2xl border border-white/5 bg-background-soft/50 px-2.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3">
+                    <div className="rounded-lg border border-white/5 bg-background-soft/50 px-2.5 md:px-3 py-2 md:py-2">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-[10px] md:text-xs uppercase tracking-wide text-text-muted">
+                        <p className="text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted">
                           Webhooks
                         </p>
                         <Badge
                           variant={hasSessionWebhooks ? 'default' : 'destructive'}
-                          className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1"
+                          className="text-[10px] md:text-[11px] px-1.5 md:px-2 py-0.5 md:py-1"
                         >
                           {hasSessionWebhooks ? 'Configurado' : 'Não configurado'}
                         </Badge>
                       </div>
                       {hasSessionWebhooks ? (
-                        <div className="mt-1.5 md:mt-2 space-y-1">
+                        <div className="mt-1.5 md:mt-1.5 space-y-1">
                           {sessionWebhooks.slice(0, 2).map((hook, index) => (
                             <div
                               key={`${hook.url}-${index}`}
-                              className="rounded-lg md:rounded-xl border border-white/5 bg-black/10 px-2 md:px-3 py-1.5 md:py-2"
+                              className="rounded-lg border border-white/5 bg-black/10 px-2 md:px-2 py-1.5 md:py-1.5"
                             >
-                              <p className="text-xs md:text-sm text-text-primary break-words line-clamp-2">
+                              <p className="text-[11px] md:text-xs text-text-primary break-words line-clamp-2">
                                 {hook.url || 'URL não informada'}
                               </p>
-                              <p className="mt-0.5 md:mt-1 text-[10px] md:text-xs text-text-muted break-words line-clamp-2">
+                              <p className="mt-0.5 md:mt-0.5 text-[10px] md:text-[11px] text-text-muted break-words line-clamp-2">
                                 {hook.events.length > 0
                                   ? hook.events.slice(0, 2).join(', ') + (hook.events.length > 2 ? '...' : '')
                                   : 'Sem eventos'}
@@ -960,7 +904,7 @@ export default function ConnectionsPage() {
                     {!isConnected && (
                       <Button
                         size="sm"
-                        className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
+                        className="gap-1.5 md:gap-1.5 text-[11px] md:text-xs px-2 md:px-2.5 py-1.5 md:py-1.5"
                         onClick={() => openConnectDialog(connection)}
                         disabled={actionMutation.isLoading || qrMutation.isLoading}
                       >
@@ -974,7 +918,7 @@ export default function ConnectionsPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
+                          className="gap-1.5 md:gap-1.5 text-[11px] md:text-xs px-2 md:px-2.5 py-1.5 md:py-1.5"
                           onClick={() => handleAction(connection.id, 'disconnect')}
                           disabled={actionMutation.isLoading}
                         >
@@ -1309,36 +1253,12 @@ export default function ConnectionsPage() {
         />
       )}
 
-      {/* Seção de Conexões Sociais */}
-      <div className="mt-8 space-y-4">
-        <div className="relative overflow-hidden border-b border-white/5 bg-gradient-to-br from-background-muted to-background-card px-6 py-8">
-          <div className="absolute inset-0 bg-hero-grid opacity-70" />
-          <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-text-muted">INTEGRAÇÕES SOCIAIS</p>
-              <h2 className="mt-3 text-2xl font-bold text-white">
-                Instagram & Facebook Messenger
-              </h2>
-              <p className="mt-1 text-sm text-text-muted max-w-xl">
-                Conecte suas contas do Instagram e Facebook para receber e enviar mensagens diretas pelo CRM.
-              </p>
-            </div>
-            <Button onClick={() => setSocialConnectOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Conectar Rede Social
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-background-subtle/60 p-6">
-          <SocialConnectionsList />
-        </div>
-      </div>
-
-      <ConnectSocialDialog
-        open={socialConnectOpen}
-        onOpenChange={setSocialConnectOpen}
+      {/* Componente unificado para criar conexões */}
+      <CreateConnectionDialog
+        open={createConnectionOpen}
+        onOpenChange={setCreateConnectionOpen}
         onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['connections'] });
           queryClient.invalidateQueries({ queryKey: ['social-connections'] });
         }}
       />

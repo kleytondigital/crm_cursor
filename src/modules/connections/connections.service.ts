@@ -9,8 +9,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { CreateConnectionDto } from './dto/create-connection.dto';
+import { CreateSocialConnectionDto } from './dto/create-social-connection.dto';
+import { UpdateSocialConnectionDto } from './dto/update-social-connection.dto';
 import { N8nService } from '@/shared/n8n/n8n.service';
-import { ConnectionStatus } from '@prisma/client';
+import { MetaOAuthService } from './services/meta-oauth.service';
+import { N8nSocialConfigService } from './services/n8n-social-config.service';
+import { ConnectionStatus, ConnectionProvider } from '@prisma/client';
+import { SocialConnectionMetadata } from './types/social-connection-metadata.interface';
 
 type ConnectionAction =
   | 'start'
@@ -30,6 +35,8 @@ export class ConnectionsService {
     private readonly prisma: PrismaService,
     private readonly n8nService: N8nService,
     private readonly configService: ConfigService,
+    private readonly metaOAuthService: MetaOAuthService,
+    private readonly n8nSocialConfigService: N8nSocialConfigService,
   ) {}
 
   async create(dto: CreateConnectionDto, tenantId: string) {
@@ -643,6 +650,299 @@ export class ConnectionsService {
       default:
         return null;
     }
+  }
+
+  // ========== Social Connections Methods ==========
+
+  /**
+   * Inicia fluxo OAuth para conexão social
+   */
+  async startSocialOAuth(provider: 'INSTAGRAM' | 'FACEBOOK', tenantId: string) {
+    const authUrl = this.metaOAuthService.generateAuthUrl(tenantId, provider);
+    return { authUrl, provider };
+  }
+
+  /**
+   * Processa callback OAuth da Meta
+   */
+  async handleOAuthCallback(code: string, state?: string) {
+    if (!code) {
+      throw new BadRequestException('Code OAuth não fornecido');
+    }
+
+    // Decodificar state para obter tenantId e provider
+    let tenantId: string;
+    let provider: 'INSTAGRAM' | 'FACEBOOK';
+
+    if (state) {
+      try {
+        const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+        tenantId = decoded.tenantId;
+        provider = decoded.provider;
+      } catch (error) {
+        this.logger.error(`Erro ao decodificar state: ${error}`);
+        throw new BadRequestException('State inválido');
+      }
+    } else {
+      throw new BadRequestException('State não fornecido');
+    }
+
+    // Trocar code por token
+    const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(code);
+
+    // Converter para long-lived token
+    const longLivedToken = await this.metaOAuthService.getLongLivedToken(
+      tokenResponse.access_token,
+    );
+
+    // Buscar páginas do usuário
+    const pages = await this.metaOAuthService.getPages(longLivedToken.access_token);
+
+    if (pages.length === 0) {
+      throw new BadRequestException('Nenhuma página encontrada. Conecte uma página do Facebook primeiro.');
+    }
+
+    // Para Instagram, precisamos de uma página com Instagram Business vinculado
+    // Para Facebook, podemos usar qualquer página
+    let selectedPage = pages[0];
+    let instagramBusinessAccount = null;
+
+    if (provider === 'INSTAGRAM') {
+      // Tentar encontrar página com Instagram Business
+      for (const page of pages) {
+        if (page.access_token) {
+          const instagram = await this.metaOAuthService.getInstagramBusinessAccount(
+            page.id,
+            page.access_token,
+          );
+          if (instagram) {
+            selectedPage = page;
+            instagramBusinessAccount = instagram;
+            break;
+          }
+        }
+      }
+
+      if (!instagramBusinessAccount) {
+        throw new BadRequestException(
+          'Nenhuma página com Instagram Business encontrada. Configure o Instagram Business na sua página do Facebook primeiro.',
+        );
+      }
+    }
+
+    // Criar ou atualizar conexão
+    const sessionName = `social_${provider.toLowerCase()}_${selectedPage.id}_${Date.now()}`;
+    const metadata: SocialConnectionMetadata = {
+      pageId: selectedPage.id,
+      pageName: selectedPage.name,
+      pageCategory: selectedPage.category,
+      accessToken: selectedPage.access_token || longLivedToken.access_token,
+      tokenExpiresAt: this.metaOAuthService
+        .calculateExpirationDate(longLivedToken.expires_in)
+        .toISOString(),
+      permissions: tokenResponse.scope?.split(',') || [],
+      instagramBusinessId: instagramBusinessAccount?.id,
+      instagramUsername: instagramBusinessAccount?.username,
+    };
+
+    // Verificar se já existe conexão para esta página
+    const existing = await this.prisma.connection.findFirst({
+      where: {
+        tenantId,
+        provider: provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK,
+        metadata: {
+          path: ['pageId'],
+          equals: selectedPage.id,
+        },
+      },
+    });
+
+    let connection;
+    if (existing) {
+      // Atualizar conexão existente
+      connection = await this.prisma.connection.update({
+        where: { id: existing.id },
+        data: {
+          name: `${provider} - ${selectedPage.name}`,
+          metadata: metadata as any,
+          refreshToken: tokenResponse.refresh_token || existing.refreshToken,
+          status: ConnectionStatus.ACTIVE,
+          isActive: true,
+        },
+      });
+    } else {
+      // Criar nova conexão
+      connection = await this.prisma.connection.create({
+        data: {
+          tenantId,
+          name: `${provider} - ${selectedPage.name}`,
+          sessionName,
+          provider: provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK,
+          status: ConnectionStatus.ACTIVE,
+          metadata: metadata as any,
+          refreshToken: tokenResponse.refresh_token || null,
+          isActive: true,
+        },
+      });
+    }
+
+    // Enviar configuração para n8n
+    await this.n8nSocialConfigService.sendConnectionConfigToN8n(connection);
+
+    return {
+      success: true,
+      connection: {
+        id: connection.id,
+        name: connection.name,
+        provider: connection.provider,
+        status: connection.status,
+      },
+    };
+  }
+
+  /**
+   * Renova token de conexão social
+   */
+  async refreshSocialToken(connectionId: string, tenantId: string) {
+    const connection = await this.getConnectionOrThrow(connectionId, tenantId);
+
+    if (connection.provider === ConnectionProvider.WHATSAPP) {
+      throw new BadRequestException('Este método é apenas para conexões sociais');
+    }
+
+    if (!connection.refreshToken) {
+      throw new BadRequestException('Conexão não possui refresh token');
+    }
+
+    const tokenResponse = await this.metaOAuthService.refreshAccessToken(connection.refreshToken);
+
+    const metadata = (connection.metadata as SocialConnectionMetadata) || {};
+    metadata.accessToken = tokenResponse.access_token;
+    metadata.tokenExpiresAt = this.metaOAuthService
+      .calculateExpirationDate(tokenResponse.expires_in)
+      .toISOString();
+
+    const updated = await this.prisma.connection.update({
+      where: { id: connection.id },
+      data: {
+        metadata: metadata as any,
+      },
+    });
+
+    // Notificar n8n
+    await this.n8nSocialConfigService.updateN8nOnTokenRefresh(updated);
+
+    return {
+      success: true,
+      expiresAt: metadata.tokenExpiresAt,
+    };
+  }
+
+  /**
+   * Lista conexões sociais
+   */
+  async getSocialConnections(tenantId: string) {
+    const connections = await this.prisma.connection.findMany({
+      where: {
+        tenantId,
+        provider: {
+          in: [ConnectionProvider.INSTAGRAM, ConnectionProvider.FACEBOOK],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return connections.map((conn) => ({
+      id: conn.id,
+      name: conn.name,
+      provider: conn.provider,
+      status: conn.status,
+      isActive: conn.isActive,
+      metadata: conn.metadata,
+      createdAt: conn.createdAt,
+      updatedAt: conn.updatedAt,
+    }));
+  }
+
+  /**
+   * Cria conexão social (prepara para OAuth)
+   */
+  async createSocialConnection(dto: CreateSocialConnectionDto, tenantId: string) {
+    // Verificar se já existe conexão com mesmo nome
+    const existing = await this.prisma.connection.findFirst({
+      where: {
+        tenantId,
+        name: dto.name,
+        provider: dto.provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('Já existe uma conexão com este nome');
+    }
+
+    // Retornar URL de OAuth para iniciar fluxo
+    return this.startSocialOAuth(dto.provider, tenantId);
+  }
+
+  /**
+   * Atualiza conexão social
+   */
+  async updateSocialConnection(
+    connectionId: string,
+    dto: UpdateSocialConnectionDto,
+    tenantId: string,
+  ) {
+    const connection = await this.getConnectionOrThrow(connectionId, tenantId);
+
+    if (connection.provider === ConnectionProvider.WHATSAPP) {
+      throw new BadRequestException('Este método é apenas para conexões sociais');
+    }
+
+    const updateData: any = {};
+
+    if (dto.name !== undefined) {
+      updateData.name = dto.name;
+    }
+
+    if (dto.isActive !== undefined) {
+      updateData.isActive = dto.isActive;
+    }
+
+    if (dto.metadata !== undefined) {
+      const currentMetadata = (connection.metadata as SocialConnectionMetadata) || {};
+      updateData.metadata = { ...currentMetadata, ...dto.metadata } as any;
+    }
+
+    return this.prisma.connection.update({
+      where: { id: connection.id },
+      data: updateData,
+    });
+  }
+
+  /**
+   * Desconecta conexão social
+   */
+  async disconnectSocial(connectionId: string, tenantId: string) {
+    const connection = await this.getConnectionOrThrow(connectionId, tenantId);
+
+    if (connection.provider === ConnectionProvider.WHATSAPP) {
+      throw new BadRequestException('Este método é apenas para conexões sociais');
+    }
+
+    // Notificar n8n
+    await this.n8nSocialConfigService.notifyN8nOnDisconnect(connection.id, tenantId);
+
+    // Atualizar conexão
+    return this.prisma.connection.update({
+      where: { id: connection.id },
+      data: {
+        status: ConnectionStatus.STOPPED,
+        isActive: false,
+        metadata: null,
+        refreshToken: null,
+      },
+    });
   }
 }
 

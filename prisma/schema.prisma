@@ -279,14 +279,18 @@ enum MessageDirection {
 }
 
 model Connection {
-  id          String           @id @default(uuid())
-  tenantId    String
-  name        String
-  sessionName String           @unique
-  status      ConnectionStatus @default(PENDING)
-  webhookUrl  String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id           String             @id @default(uuid())
+  tenantId     String
+  name         String
+  sessionName  String             @unique
+  provider     ConnectionProvider @default(WHATSAPP)
+  status       ConnectionStatus   @default(PENDING)
+  webhookUrl   String?
+  metadata     Json? // Armazena dados específicos da Meta (pageId, instagramBusinessId, accessToken, etc.)
+  refreshToken String? // Token para renovação (Meta OAuth)
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   company           Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messages          Message[]
@@ -296,7 +300,15 @@ model Connection {
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, provider])
+  @@index([tenantId, provider, status])
   @@map("connections")
+}
+
+enum ConnectionProvider {
+  WHATSAPP
+  INSTAGRAM
+  FACEBOOK
 }
 
 enum ConnectionStatus {
@@ -619,10 +631,10 @@ model WorkflowInstance {
 // ============================================
 
 model SystemSettings {
-  id      Int      @id @default(1) // Singleton - sempre ID 1
-  crmName String   @default("Darkmode CRM")
-  slogan  String   @default("Soluções em atendimento")
-  version String   @default("1.0.0")
+  id        Int      @id @default(1) // Singleton - sempre ID 1
+  crmName   String   @default("Darkmode CRM")
+  slogan    String   @default("Soluções em atendimento")
+  version   String   @default("1.0.0")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

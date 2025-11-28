@@ -18,6 +18,8 @@ import {
 import { N8nService } from '@/shared/n8n/n8n.service';
 import { ConfigService } from '@nestjs/config';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
+import { SocialMessageSenderService } from './services/social-message-sender.service';
+import { ConnectionProvider } from '@prisma/client';
 
 @Injectable()
 export class MessagesService {
@@ -29,6 +31,7 @@ export class MessagesService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => AttendancesService))
     private readonly attendancesService: AttendancesService,
+    private readonly socialMessageSender: SocialMessageSenderService,
   ) {}
 
   async create(createMessageDto: CreateMessageDto, tenantId: string, userId?: string, userRole?: string) {
@@ -410,7 +413,36 @@ export class MessagesService {
 
   private async forwardMessageToN8n(message: any, connection: { id: string; sessionName: string } | null, replyTo?: string, action?: string, tempId?: string) {
     try {
-      if (!connection?.sessionName) {
+      if (!connection?.id) {
+        this.logger.warn(
+          `Não foi possível enviar mensagem via N8N: conexão não encontrada para conversation=${message.conversationId}`,
+        );
+        return;
+      }
+
+      // Buscar conexão completa para verificar provider
+      const fullConnection = await this.prisma.connection.findUnique({
+        where: { id: connection.id },
+        select: {
+          id: true,
+          provider: true,
+          tenantId: true,
+          sessionName: true,
+        },
+      });
+
+      if (!fullConnection) {
+        this.logger.warn(`Conexão ${connection.id} não encontrada`);
+        return;
+      }
+
+      // Se for conexão social, usar SocialMessageSenderService
+      if (fullConnection.provider === ConnectionProvider.INSTAGRAM || fullConnection.provider === ConnectionProvider.FACEBOOK) {
+        return this.forwardSocialMessage(message, fullConnection, replyTo, tempId);
+      }
+
+      // Para WhatsApp, usar lógica existente
+      if (!fullConnection.sessionName) {
         this.logger.warn(
           `Não foi possível enviar mensagem via N8N: sessão não encontrada para conversation=${message.conversationId}`,
         );
@@ -496,6 +528,93 @@ export class MessagesService {
     } catch (error) {
       this.logger.error(
         `Erro ao encaminhar mensagem ao N8N: ${error?.message || error}`,
+      );
+    }
+  }
+
+  /**
+   * Encaminha mensagem para conexão social (Instagram/Facebook)
+   */
+  private async forwardSocialMessage(
+    message: any,
+    connection: { id: string; tenantId: string; provider: ConnectionProvider },
+    replyTo?: string,
+    tempId?: string,
+  ) {
+    try {
+      const conversation = message.conversation ?? (await this.prisma.conversation.findUnique({
+        where: { id: message.conversationId },
+        include: {
+          lead: {
+            select: {
+              phone: true,
+              name: true,
+            },
+          },
+        },
+      }));
+
+      // Para redes sociais, o phone do lead contém o senderId (formato: social_123456)
+      const leadPhone = conversation?.lead?.phone;
+      if (!leadPhone) {
+        this.logger.warn(
+          `Não foi possível enviar mensagem social: senderId do lead não encontrado para conversation=${message.conversationId}`,
+        );
+        return;
+      }
+
+      // Extrair senderId do phone (formato: social_123456)
+      const senderId = leadPhone.replace(/^social_/, '');
+
+      // Mapear ContentType para tipo de mensagem social
+      let messageType: 'text' | 'image' | 'video' | 'audio' | 'file' = 'text';
+      switch (message.contentType) {
+        case ContentType.IMAGE:
+          messageType = 'image';
+          break;
+        case ContentType.VIDEO:
+          messageType = 'video';
+          break;
+        case ContentType.AUDIO:
+          messageType = 'audio';
+          break;
+        case ContentType.DOCUMENT:
+          messageType = 'file';
+          break;
+        default:
+          messageType = 'text';
+      }
+
+      // Buscar replyTo se necessário
+      let replyToId = replyTo;
+      if (!replyToId && message.replyMessageId) {
+        const originalMessage = await this.prisma.message.findUnique({
+          where: { id: message.replyMessageId },
+          select: { messageId: true },
+        });
+        if (originalMessage?.messageId) {
+          replyToId = originalMessage.messageId;
+        }
+      }
+
+      const sendDto = {
+        connectionId: connection.id,
+        recipientId: senderId,
+        messageType,
+        content: message.contentType === ContentType.TEXT ? message.contentText : undefined,
+        mediaUrl: this.buildAbsoluteMediaUrl(message.contentUrl),
+        tempId,
+        replyTo: replyToId,
+      };
+
+      await this.socialMessageSender.sendToN8n(sendDto, connection.id, connection.tenantId);
+      this.logger.log(
+        `Mensagem social encaminhada ao N8N. connectionId=${connection.id} recipientId=${senderId}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Erro ao encaminhar mensagem social ao N8N: ${error?.message || error}`,
+        error?.stack,
       );
     }
   }
