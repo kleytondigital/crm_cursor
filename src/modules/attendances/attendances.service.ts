@@ -747,7 +747,7 @@ export class AttendancesService {
       throw new NotFoundException('Atendimento disponível não encontrado');
     }
 
-    await this.ensureCanClaim(attendance, context);
+    await this.ensureCanClaim(attendance as any, context);
 
     // Determinar o departmentId a ser usado
     let departmentId: string | null = attendance.departmentId;
@@ -840,7 +840,7 @@ export class AttendancesService {
       updated.departmentId, // Usar o departmentId do atendimento atualizado
     );
 
-    this.emitAttendanceEvent('attendance:update', updated);
+    this.emitAttendanceEvent('attendance:update', updated as any);
     return this.serializeAttendance(updated);
   }
 
@@ -858,7 +858,7 @@ export class AttendancesService {
       throw new NotFoundException('Atendimento não encontrado');
     }
 
-    await this.ensureCanTransfer(attendance, context);
+    await this.ensureCanTransfer(attendance as any, context);
 
     if (!dto.targetUserId && !dto.targetDepartmentId) {
       throw new BadRequestException(
@@ -969,7 +969,7 @@ export class AttendancesService {
       throw new NotFoundException('Atendimento não encontrado');
     }
 
-    await this.ensureCanClose(attendance, context);
+    await this.ensureCanClose(attendance as any, context);
 
     // Fechar a conversa quando fechar o atendimento
     // A conversa será fechada e não aparecerá mais na lista de conversas
@@ -996,7 +996,7 @@ export class AttendancesService {
       select: this.defaultAttendanceSelect(),
     });
 
-    this.emitAttendanceEvent('attendance:update', updated);
+    this.emitAttendanceEvent('attendance:update', updated as any);
     return this.serializeAttendance(updated);
   }
 
@@ -1024,7 +1024,7 @@ export class AttendancesService {
       select: this.defaultAttendanceSelect(),
     });
 
-    this.emitAttendanceEvent('attendance:update', updated);
+    this.emitAttendanceEvent('attendance:update', updated as any);
     return this.serializeAttendance(updated);
   }
 
@@ -1087,7 +1087,7 @@ export class AttendancesService {
         });
       }
 
-      this.emitAttendanceEvent('attendance:new', created);
+      this.emitAttendanceEvent('attendance:new', created as any);
       return created;
     }
 
@@ -1154,7 +1154,7 @@ export class AttendancesService {
       });
     }
 
-    this.emitAttendanceEvent('attendance:update', updated);
+    this.emitAttendanceEvent('attendance:update', updated as any);
     return updated;
   }
 
@@ -1229,7 +1229,7 @@ export class AttendancesService {
       },
     });
 
-    this.emitAttendanceEvent('attendance:update', updated);
+    this.emitAttendanceEvent('attendance:update', updated as any);
     return updated;
   }
 

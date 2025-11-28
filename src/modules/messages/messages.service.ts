@@ -50,7 +50,6 @@ export class MessagesService {
         departmentId: true,
         assignedUserId: true,
         createdAt: true,
-        updatedAt: true,
         lead: {
           select: {
             id: true,
@@ -61,7 +60,6 @@ export class MessagesService {
             statusId: true,
             tenantId: true,
             createdAt: true,
-            updatedAt: true,
           },
         },
         assignedUser: {
@@ -190,7 +188,6 @@ export class MessagesService {
         connectionId: true,
         leadId: true,
         createdAt: true,
-        updatedAt: true,
         conversation: {
           select: {
             id: true,
@@ -200,7 +197,6 @@ export class MessagesService {
             departmentId: true,
             assignedUserId: true,
             createdAt: true,
-            updatedAt: true,
             lead: {
               select: {
                 id: true,
@@ -209,10 +205,8 @@ export class MessagesService {
                 tags: true,
                 profilePictureURL: true,
                 statusId: true,
-                stageId: true,
                 tenantId: true,
                 createdAt: true,
-                updatedAt: true,
               },
             },
             assignedUser: {

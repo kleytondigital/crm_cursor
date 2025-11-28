@@ -165,9 +165,11 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
       // Emitir a nova mensagem para todos os clientes do mesmo tenant
       // e também para clientes na sala da conversa específica
+      // Buscar conversa separadamente se necessário
+      const conversation = (message as any).conversation || null;
       const messagePayload = {
         message,
-        conversation: message.conversation,
+        conversation: conversation,
         sender: {
           id: user.sub,
           email: user.email,
