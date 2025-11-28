@@ -26,12 +26,13 @@ import {
   Tag,
   Calendar,
   BarChart3,
+  Zap,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
-type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | 'campanhas' | 'relatorios' | 'lead-status' | null
+type MenuSection = 'dashboard' | 'departments' | 'users' | 'automations' | 'connections' | 'campanhas' | 'disparo-massa' | 'relatorios' | 'lead-status' | null
 
 interface MenuItem {
   id: MenuSection
@@ -71,6 +72,11 @@ const menuItems: MenuItem[] = [
     id: 'campanhas',
     label: 'Campanhas',
     icon: <Calendar className="h-4 w-4" />,
+  },
+  {
+    id: 'disparo-massa',
+    label: 'Disparo em Massa',
+    icon: <Zap className="h-4 w-4" />,
   },
   {
     id: 'relatorios',
@@ -150,6 +156,10 @@ function GestorContent() {
   }, [searchQuery])
 
   const handleMenuClick = (itemId: MenuSection) => {
+    if (itemId === 'disparo-massa') {
+      router.push('/disparo-massa')
+      return
+    }
     if (itemId === 'departments' && menuItems.find((m) => m.id === 'departments')?.hasSubmenu) {
       setExpandedMenus((prev) => {
         const newSet = new Set(prev)

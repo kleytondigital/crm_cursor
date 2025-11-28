@@ -28,6 +28,7 @@ import { PipelineStagesModule } from './modules/pipeline-stages/pipeline-stages.
 import { ReportsModule } from './modules/reports/reports.module';
 import { LeadStatusModule } from './modules/lead-status/lead-status.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { BulkMessagingModule } from './modules/bulk-messaging/bulk-messaging.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { SystemSettingsModule } from './modules/system-settings/system-settings.
     ReportsModule,
     LeadStatusModule,
     SystemSettingsModule,
+    BulkMessagingModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

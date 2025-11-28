@@ -553,3 +553,91 @@ export const apiKeysAPI = {
       method: 'DELETE',
     }),
 }
+
+// ============================================
+// BULK MESSAGING API (Disparo em Massa)
+// ============================================
+export const bulkMessagingAPI = {
+  // Campanhas
+  list: (filters?: { status?: string; search?: string }) => {
+    const params = new URLSearchParams()
+    if (filters?.status) params.append('status', filters.status)
+    if (filters?.search) params.append('search', filters.search)
+    const query = params.toString()
+    return authFetch(`/bulk-messaging${query ? `?${query}` : ''}`)
+  },
+  getById: (id: string) => authFetch(`/bulk-messaging/${id}`),
+  create: (data: {
+    name: string
+    description?: string
+    contentType: string
+    content?: string
+    caption?: string
+    connectionId: string
+    delayBetweenMessages?: number
+    delayBetweenNumbers?: number
+  }) =>
+    authFetch('/bulk-messaging', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: any) =>
+    authFetch(`/bulk-messaging/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    authFetch(`/bulk-messaging/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Upload de arquivo Excel
+  uploadRecipients: async (id: string, file: File) => {
+    const token = localStorage.getItem('token')
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_URL}/bulk-messaging/${id}/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
+      throw new Error(error.message || `Erro ${response.status}`)
+    }
+
+    return response.json()
+  },
+
+  // Controle de campanha
+  start: (id: string) =>
+    authFetch(`/bulk-messaging/${id}/start`, {
+      method: 'POST',
+    }),
+  pause: (id: string) =>
+    authFetch(`/bulk-messaging/${id}/pause`, {
+      method: 'POST',
+    }),
+  resume: (id: string) =>
+    authFetch(`/bulk-messaging/${id}/resume`, {
+      method: 'POST',
+    }),
+  cancel: (id: string) =>
+    authFetch(`/bulk-messaging/${id}/cancel`, {
+      method: 'POST',
+    }),
+
+  // Destinatários e Logs
+  getRecipients: (id: string) => authFetch(`/bulk-messaging/${id}/recipients`),
+  getLogs: (id: string, filters?: { status?: string; search?: string }) => {
+    const params = new URLSearchParams()
+    if (filters?.status) params.append('status', filters.status)
+    if (filters?.search) params.append('search', filters.search)
+    const query = params.toString()
+    return authFetch(`/bulk-messaging/${id}/logs${query ? `?${query}` : ''}`)
+  },
+}
