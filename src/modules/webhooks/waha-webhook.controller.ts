@@ -856,11 +856,24 @@ export class WahaWebhookController {
     phone: string;
     name: string;
     profilePictureURL?: string | null;
-  }): Promise<Lead> {
+  }): Promise<any> {
     let lead = await this.prisma.lead.findFirst({
       where: {
         tenantId,
         phone,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        phone: true,
+        statusId: true,
+        stageId: true,
+        tags: true,
+        profilePictureURL: true,
+        origin: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -887,6 +900,19 @@ export class WahaWebhookController {
           profilePictureURL: profilePictureURL || null,
           statusId: defaultStage?.statusId || null, // Atribuir ao estágio de ordem 0
         },
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          phone: true,
+          statusId: true,
+          stageId: true,
+          tags: true,
+          profilePictureURL: true,
+          origin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     } else {
       const updateData: any = {};
@@ -906,6 +932,19 @@ export class WahaWebhookController {
         lead = await this.prisma.lead.update({
           where: { id: lead.id },
           data: updateData,
+          select: {
+            id: true,
+            tenantId: true,
+            name: true,
+            phone: true,
+            statusId: true,
+            stageId: true,
+            tags: true,
+            profilePictureURL: true,
+            origin: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         });
         this.logger.log(
           `Lead atualizado. leadId=${lead.id} name=${updateData.name || lead.name} profilePictureURL=${updateData.profilePictureURL ? 'atualizado' : 'mantido'}`,

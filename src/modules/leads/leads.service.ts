@@ -86,7 +86,6 @@ export class LeadsService {
           tenantId: true,
           name: true,
           phone: true,
-          document: true,
           statusId: true,
           stageId: true,
           tags: true,

@@ -74,7 +74,16 @@ export class ConversationsService {
 
       const conversations = await this.prisma.conversation.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
+          updatedAt: true,
           lead: {
             select: {
               id: true,
