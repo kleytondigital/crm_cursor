@@ -1,10 +1,9 @@
 'use client'
 
 import { useChat } from '@/contexts/ChatContext'
-import { format, isToday, isYesterday } from 'date-fns'
-import ptBR from 'date-fns/locale/pt-BR'
 import { Search, MessageCircle, Filter } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import ConversationListItem from './ConversationListItem'
 
 export default function ConversationsSidebar() {
   const { conversations, selectedConversation, selectConversation, loading } = useChat()
@@ -40,17 +39,6 @@ export default function ConversationsSidebar() {
       leadPhone.includes(normalizedSearch)
     )
   })
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    if (isToday(date)) {
-      return format(date, 'HH:mm')
-    }
-    if (isYesterday(date)) {
-      return 'Ontem'
-    }
-    return format(date, 'dd/MM/yyyy', { locale: ptBR })
-  }
 
   return (
     <div className="flex h-full w-full flex-col md:h-auto">
@@ -106,72 +94,20 @@ export default function ConversationsSidebar() {
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {filteredConversations.map((conversation) => {
-              const active = selectedConversation?.id === conversation.id
-              return (
-                <button
-                  key={conversation.id}
-                  onClick={() => selectConversation(conversation)}
-                  className={`flex w-full gap-3 px-5 py-4 transition ${
-                    active
-                      ? 'bg-brand-primary/10 shadow-inner-glow'
-                      : 'hover:bg-white/5'
-                  }`}
-                >
-                  {conversation.lead?.profilePictureURL && !imageErrors[conversation.lead.id] ? (
-                    <img
-                      src={conversation.lead.profilePictureURL}
-                      alt={conversation.lead?.name || conversation.lead?.phone || 'Contato'}
-                      className="h-12 w-12 flex-shrink-0 rounded-2xl object-cover"
-                      onError={() => {
-                        setImageErrors((prev) => ({ ...prev, [conversation.lead!.id]: true }))
-                      }}
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-primary/20 text-lg font-semibold text-brand-secondary">
-                      {(conversation.lead?.name || conversation.lead?.phone || '?')
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-                  )}
-                  <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-semibold text-white">
-                        {conversation.lead?.name || conversation.lead?.phone || 'Contato sem nome'}
-                      </p>
-                      {conversation.lastMessage && (
-                        <span className="flex-shrink-0 text-xs text-text-muted">
-                          {formatDate(conversation.lastMessage.createdAt)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-sm text-text-muted">
-                      {conversation.lastMessage
-                        ? conversation.lastMessage.contentText ||
-                          conversation.lastMessage.contentType.toLowerCase()
-                        : 'Sem mensagens recentes'}
-                    </p>
-                    {conversation.lead?.tags && conversation.lead.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {conversation.lead.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wide text-text-muted"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {conversation.unreadCount && conversation.unreadCount > 0 && (
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand-secondary/30 text-xs font-semibold text-brand-secondary">
-                      {conversation.unreadCount}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+            {filteredConversations.map((conversation) => (
+              <ConversationListItem
+                key={conversation.id}
+                conversation={conversation}
+                isActive={selectedConversation?.id === conversation.id}
+                onSelect={() => selectConversation(conversation)}
+                imageError={imageErrors[conversation.lead?.id || ''] || false}
+                onImageError={() => {
+                  if (conversation.lead?.id) {
+                    setImageErrors((prev) => ({ ...prev, [conversation.lead.id]: true }))
+                  }
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
