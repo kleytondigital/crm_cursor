@@ -31,6 +31,22 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
     }
   }, [conversation.leadId])
 
+  // Recarregar quando houver atualização de attendance
+  useEffect(() => {
+    const handleUpdate = () => {
+      if (conversation.leadId) {
+        loadData()
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('attendance:updated', handleUpdate)
+      return () => {
+        window.removeEventListener('attendance:updated', handleUpdate)
+      }
+    }
+  }, [conversation.leadId])
+
   useEffect(() => {
     if (!menuOpen) {
       return
@@ -79,7 +95,22 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
 
       if (attendanceResult.status === 'fulfilled') {
         const attendanceData = attendanceResult.value
-        setAttendance(attendanceData?.data || attendanceData || null)
+        let attendanceArray: any[] = []
+        
+        // Processar resposta - pode ser array, objeto único, ou dentro de .data
+        if (Array.isArray(attendanceData?.data)) {
+          attendanceArray = attendanceData.data
+        } else if (attendanceData?.data && !Array.isArray(attendanceData.data)) {
+          attendanceArray = [attendanceData.data]
+        } else if (Array.isArray(attendanceData)) {
+          attendanceArray = attendanceData
+        } else if (attendanceData) {
+          attendanceArray = [attendanceData]
+        }
+        
+        // Pegar o primeiro attendance ativo (não fechado) ou o primeiro disponível
+        const activeAttendance = attendanceArray.find((a: any) => a.status !== 'CLOSED') || attendanceArray[0] || null
+        setAttendance(activeAttendance)
       } else {
         console.warn('Erro ao carregar atendimento:', attendanceResult.reason)
         setAttendance(null)
@@ -150,7 +181,7 @@ export default function ChatActionsMenu({ conversation, onRefresh }: ChatActions
         setCloseDialogOpen(true)
         setMenuOpen(false)
       },
-      disabled: !attendance || attendance.status !== 'IN_PROGRESS',
+      disabled: !attendance || attendance.status === 'CLOSED',
       destructive: true,
     },
   ]

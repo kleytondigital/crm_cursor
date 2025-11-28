@@ -22,10 +22,10 @@ interface ChangePriorityDialogProps {
   onSuccess: () => void
 }
 
-const priorityLabels: Record<AttendancePriority, { label: string; color: string }> = {
-  LOW: { label: 'Baixa', color: 'text-blue-300' },
-  NORMAL: { label: 'Normal', color: 'text-gray-300' },
-  HIGH: { label: 'Alta', color: 'text-rose-300' },
+const priorityLabels: Record<AttendancePriority, { label: string; color: string; bgColor: string; borderColor: string }> = {
+  LOW: { label: 'Baixa', color: 'text-emerald-300', bgColor: 'bg-emerald-500/20', borderColor: 'border-emerald-500/30' },
+  NORMAL: { label: 'Normal', color: 'text-blue-300', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500/30' },
+  HIGH: { label: 'Alta', color: 'text-rose-300', bgColor: 'bg-rose-500/20', borderColor: 'border-rose-500/30' },
 }
 
 export default function ChangePriorityDialog({
@@ -98,12 +98,15 @@ export default function ChangePriorityDialog({
                   disabled={updating}
                   className={`rounded-lg border px-4 py-3 text-left transition ${
                     isSelected
-                      ? 'border-brand-secondary bg-brand-secondary/20 text-brand-secondary'
+                      ? `${meta.borderColor} ${meta.bgColor} ${meta.color}`
                       : 'border-white/10 bg-background-muted/50 text-text-muted hover:border-brand-secondary/40 hover:text-brand-secondary'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{meta.label}</span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-3 w-3 rounded-full ${meta.bgColor} ${meta.borderColor} border`} />
+                      <span className={`font-medium ${isSelected ? meta.color : ''}`}>{meta.label}</span>
+                    </div>
                     {isSelected && (
                       <span className={`text-sm ${meta.color}`}>Selecionado</span>
                     )}

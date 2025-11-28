@@ -99,21 +99,20 @@ export default function ConversationListItem({
               <span className="truncate max-w-[70px]">{attendance.department.name}</span>
             </Tag>
           )}
-          {attendance?.priority && attendance.priority !== 'NORMAL' && (
+          {attendance?.priority && (
             <Tag
-              variant="priority"
-              color={
+              variant={
                 attendance.priority === 'HIGH'
-                  ? '#EF4444'
+                  ? 'priorityHigh'
                   : attendance.priority === 'LOW'
-                  ? '#6B7280'
-                  : undefined
+                  ? 'priorityLow'
+                  : 'priorityNormal'
               }
-              title={`Prioridade: ${attendance.priority === 'HIGH' ? 'Alta' : 'Baixa'}`}
+              title={`Prioridade: ${attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}`}
             >
               <Flag className="h-2.5 w-2.5" />
               <span className="truncate">
-                {attendance.priority === 'HIGH' ? 'Alta' : 'Baixa'}
+                {attendance.priority === 'HIGH' ? 'Alta' : attendance.priority === 'LOW' ? 'Baixa' : 'Normal'}
               </span>
             </Tag>
           )}

@@ -4,7 +4,7 @@ import { ReactNode } from 'react'
 
 interface TagProps {
   children: ReactNode
-  variant?: 'default' | 'stage' | 'user' | 'department' | 'priority' | 'bot'
+  variant?: 'default' | 'stage' | 'user' | 'department' | 'priority' | 'priorityLow' | 'priorityNormal' | 'priorityHigh' | 'bot'
   color?: string
   className?: string
   title?: string
@@ -16,6 +16,9 @@ const variantStyles = {
   user: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
   department: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
   priority: 'bg-opacity-20 border text-white',
+  priorityLow: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  priorityNormal: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  priorityHigh: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
   bot: 'bg-brand-primary/20 text-brand-secondary border-brand-primary/30',
 }
 
@@ -31,10 +34,6 @@ export default function Tag({
   const variantStyle = variantStyles[variant]
   
   const style = color && variant === 'stage' ? {
-    backgroundColor: `${color}20`,
-    borderColor: color,
-    color: color,
-  } : color && variant === 'priority' ? {
     backgroundColor: `${color}20`,
     borderColor: color,
     color: color,
