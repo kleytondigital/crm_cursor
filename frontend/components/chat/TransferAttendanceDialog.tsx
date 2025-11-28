@@ -47,28 +47,66 @@ export default function TransferAttendanceDialog({
     try {
       setLoading(true)
       setError(null)
+      
       const [usersResponse, departmentsResponse] = await Promise.all([
-        usersAPI.getAll(),
-        departmentsAPI.list(),
+        usersAPI.getAll().catch((err) => {
+          console.error('[TransferAttendanceDialog] Erro ao carregar usuários:', err)
+          return []
+        }),
+        departmentsAPI.list().catch((err) => {
+          console.error('[TransferAttendanceDialog] Erro ao carregar departamentos:', err)
+          return []
+        }),
       ])
       
-      // Extrair dados dos usuários
-      const usersData = usersResponse?.data || usersResponse || []
-      const usersArray = Array.isArray(usersData) ? usersData : []
+      // Extrair dados dos usuários - APIs retornam arrays diretamente
+      let usersArray: Array<{ id: string; name: string; email: string }> = []
+      if (Array.isArray(usersResponse)) {
+        usersArray = usersResponse
+          .filter((user: any) => user.isActive !== false) // Filtrar apenas usuários ativos
+          .map((user: any) => ({
+            id: user.id,
+            name: user.name || user.email || 'Sem nome',
+            email: user.email || '',
+          }))
+      } else if (usersResponse?.data && Array.isArray(usersResponse.data)) {
+        usersArray = usersResponse.data
+          .filter((user: any) => user.isActive !== false)
+          .map((user: any) => ({
+            id: user.id,
+            name: user.name || user.email || 'Sem nome',
+            email: user.email || '',
+          }))
+      }
       setUsers(usersArray)
       
       // Extrair dados dos departamentos
-      const departmentsData = departmentsResponse?.data || departmentsResponse || []
-      const departmentsArray = Array.isArray(departmentsData) ? departmentsData : []
+      let departmentsArray: Array<{ id: string; name: string }> = []
+      if (Array.isArray(departmentsResponse)) {
+        departmentsArray = departmentsResponse.map((dept: any) => ({
+          id: dept.id,
+          name: dept.name || 'Sem nome',
+        }))
+      } else if (departmentsResponse?.data && Array.isArray(departmentsResponse.data)) {
+        departmentsArray = departmentsResponse.data.map((dept: any) => ({
+          id: dept.id,
+          name: dept.name || 'Sem nome',
+        }))
+      }
       setDepartments(departmentsArray)
       
       // Log para debug
-      if (departmentsArray.length === 0) {
-        console.warn('[TransferAttendanceDialog] Nenhum departamento encontrado', departmentsResponse)
+      console.log('[TransferAttendanceDialog] Dados carregados:', {
+        users: usersArray.length,
+        departments: departmentsArray.length,
+      })
+      
+      if (usersArray.length === 0 && departmentsArray.length === 0) {
+        setError('Nenhum usuário ou departamento disponível')
       }
     } catch (err: any) {
       console.error('[TransferAttendanceDialog] Erro ao carregar dados:', err)
-      setError(err.response?.data?.message || 'Erro ao carregar dados')
+      setError(err.response?.data?.message || err.message || 'Erro ao carregar dados')
     } finally {
       setLoading(false)
     }

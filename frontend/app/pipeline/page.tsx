@@ -29,6 +29,9 @@ interface SortableStageProps {
 }
 
 function SortableStage({ stage, onEdit, onDelete }: SortableStageProps) {
+  // Bloquear arrastar estágio 0 (isDefault ou order === 0)
+  const isDefaultStage = stage.isDefault || stage.order === 0
+  
   const {
     attributes,
     listeners,
@@ -36,7 +39,10 @@ function SortableStage({ stage, onEdit, onDelete }: SortableStageProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: stage.id })
+  } = useSortable({ 
+    id: stage.id,
+    disabled: isDefaultStage, // Desabilitar drag para estágio padrão
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -51,14 +57,20 @@ function SortableStage({ stage, onEdit, onDelete }: SortableStageProps) {
       className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md"
     >
       {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing"
-        title="Arrastar para reordenar"
-      >
-        <GripVertical className="h-5 w-5" />
-      </button>
+      {!isDefaultStage ? (
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+      ) : (
+        <div className="text-gray-300 cursor-not-allowed" title="Estágio inicial não pode ser movido">
+          <GripVertical className="h-5 w-5" />
+        </div>
+      )}
 
       {/* Cor e Nome */}
       <div className="flex flex-1 items-center gap-3">
@@ -155,20 +167,51 @@ export default function PipelinePage() {
     const oldIndex = stages.findIndex((s) => s.id === active.id)
     const newIndex = stages.findIndex((s) => s.id === over.id)
 
+    const sourceStage = stages[oldIndex]
+    const destinationStage = stages[newIndex]
+
+    // Bloquear arrastar estágio 0 (isDefault ou order === 0)
+    if (sourceStage.isDefault || sourceStage.order === 0) {
+      setError('Não é possível mover o estágio inicial')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    // Bloquear arrastar para a posição do estágio 0
+    if (destinationStage.isDefault || destinationStage.order === 0) {
+      setError('Não é possível mover estágios para antes do estágio inicial')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
     const newStages = arrayMove(stages, oldIndex, newIndex)
+
+    // Garantir que o estágio 0 sempre fique na primeira posição
+    const defaultStage = newStages.find((s) => s.isDefault || s.order === 0)
+    if (defaultStage) {
+      const defaultIndex = newStages.indexOf(defaultStage)
+      if (defaultIndex !== 0) {
+        // Mover estágio padrão de volta para o início
+        newStages.splice(defaultIndex, 1)
+        newStages.unshift(defaultStage)
+      }
+    }
 
     // Atualizar ordem localmente (otimista)
     setStages(newStages)
 
     try {
-      // Enviar nova ordem para o backend
+      // Enviar nova ordem para o backend (mantendo estágio 0 como order 0)
       const reorderData = newStages.map((stage, index) => ({
         id: stage.id,
-        order: index,
+        order: stage.isDefault || stage.order === 0 ? 0 : index,
       }))
       await pipelineStagesAPI.reorder(reorderData)
+      setError('') // Limpar erro se houver
     } catch (err: any) {
       console.error('Erro ao reordenar estágios:', err)
+      setError('Erro ao reordenar estágios')
+      setTimeout(() => setError(null), 3000)
       // Reverter ordem em caso de erro
       loadStages()
     }
