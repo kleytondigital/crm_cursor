@@ -32,7 +32,7 @@ interface NavItem {
 
 const navigationItems: NavItem[] = [
   { href: '/', label: 'Chats', icon: MessageCircle },
-  { href: '/connections', label: 'Conexões', icon: Share2, adminOnly: true },
+  // { href: '/connections', label: 'Conexões', icon: Share2, adminOnly: true },
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
