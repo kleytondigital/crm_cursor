@@ -13,6 +13,7 @@ import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { UpdateCompanyAutomationsDto } from './dto/update-company-automations.dto';
+import { UpdateCompanyTranscriptionDto } from './dto/update-company-transcription.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
 import { Public } from '@/shared/decorators/public.decorator';
@@ -90,6 +91,19 @@ export class CompaniesController {
     return this.companiesService
       .getAutomationsAccessForUser(user)
       .then((automationsEnabled) => ({ automationsEnabled }));
+  }
+
+  @Patch(':id/transcription')
+  updateTranscriptionSetting(
+    @Param('id') id: string,
+    @Body() dto: UpdateCompanyTranscriptionDto,
+    @CurrentUser() user: any,
+  ) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Apenas super administradores podem alterar a configuração de transcrição');
+    }
+
+    return this.companiesService.updateTranscriptionSetting(id, dto);
   }
 
   @Delete(':id')

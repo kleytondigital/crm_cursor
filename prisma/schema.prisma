@@ -22,6 +22,7 @@ model Company {
   document           String?  @unique
   isActive           Boolean  @default(true)
   automationsEnabled Boolean  @default(false) // Controle de acesso às automações
+  autoTranscribeAudio Boolean @default(true)  // Transcrição automática de áudios recebidos
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { AttendancesService } from '../attendances/attendances.service';
 import { MessagesService } from '../messages/messages.service';
+import { MessagesGateway } from '../messages/messages.gateway';
 import { UpdateLeadNameDto } from './dto/update-lead-name.dto';
 import { UpdateLeadTagsDto } from './dto/update-lead-tags.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
@@ -18,14 +20,21 @@ import { UpdateAttendancePriorityDto } from './dto/update-attendance-priority.dt
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateMessageTranscriptionDto } from './dto/update-message-transcription.dto';
 import { BotLockDto } from './dto/bot-lock.dto';
+import { N8nService } from '@/shared/n8n/n8n.service';
+import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class N8nWebhooksService {
+  private readonly logger = new Logger(N8nWebhooksService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly attendancesService: AttendancesService,
     private readonly messagesService: MessagesService,
+    private readonly messagesGateway: MessagesGateway,
+    private readonly n8nService: N8nService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ============= LEADS =============
@@ -331,6 +340,52 @@ export class N8nWebhooksService {
 
     const message = await this.prisma.message.findFirst({
       where,
+      select: {
+        id: true,
+        tenantId: true,
+        conversationId: true,
+        contentText: true,
+        contentType: true,
+        contentUrl: true,
+        transcriptionText: true,
+        senderType: true,
+        direction: true,
+        messageId: true,
+        tempId: true,
+        replyMessageId: true,
+        timestamp: true,
+        createdAt: true,
+        conversation: {
+          select: {
+            id: true,
+            tenantId: true,
+            leadId: true,
+            status: true,
+            departmentId: true,
+            assignedUserId: true,
+            createdAt: true,
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                tags: true,
+                profilePictureURL: true,
+                statusId: true,
+                tenantId: true,
+                createdAt: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!message) {
@@ -339,10 +394,226 @@ export class N8nWebhooksService {
       );
     }
 
-    return this.prisma.message.update({
+    // Atualizar transcrição
+    const updatedMessage = await this.prisma.message.update({
       where: { id: message.id },
       data: { transcriptionText: dto.transcriptionText },
+      select: {
+        id: true,
+        tenantId: true,
+        conversationId: true,
+        contentText: true,
+        contentType: true,
+        contentUrl: true,
+        transcriptionText: true,
+        senderType: true,
+        direction: true,
+        messageId: true,
+        tempId: true,
+        replyMessageId: true,
+        timestamp: true,
+        createdAt: true,
+        conversation: {
+          select: {
+            id: true,
+            tenantId: true,
+            leadId: true,
+            status: true,
+            departmentId: true,
+            assignedUserId: true,
+            createdAt: true,
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                tags: true,
+                profilePictureURL: true,
+                statusId: true,
+                tenantId: true,
+                createdAt: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
+
+    // Emitir atualização via WebSocket para atualizar o frontend
+    try {
+      const actualTenantId = updatedMessage.tenantId;
+      const conversation = updatedMessage.conversation;
+      
+      this.messagesGateway.emitNewMessage(
+        actualTenantId,
+        conversation,
+        updatedMessage,
+      );
+      
+      this.logger.log(
+        `Transcrição atualizada e emitida via WebSocket. messageId=${messageId} tenantId=${actualTenantId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Erro ao emitir atualização de transcrição via WebSocket: ${error?.message || error}`,
+        error?.stack,
+      );
+      // Não bloquear o retorno se falhar o WebSocket
+    }
+
+    return updatedMessage;
+  }
+
+  /**
+   * Envia áudio para transcrição manualmente
+   */
+  async transcribeAudio(
+    messageId: string,
+    tenantId: string | null,
+  ) {
+    // Buscar mensagem
+    const where: any = { id: messageId };
+    if (tenantId !== null) {
+      where.tenantId = tenantId;
+    }
+
+    const message = await this.prisma.message.findFirst({
+      where,
+      select: {
+        id: true,
+        tenantId: true,
+        contentType: true,
+        contentUrl: true,
+        transcriptionText: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException(
+        `Mensagem não encontrada. messageId=${messageId} tenantId=${tenantId || 'global'}`,
+      );
+    }
+
+    // Verificar se é uma mensagem de áudio
+    if (message.contentType !== 'AUDIO') {
+      throw new BadRequestException(
+        'Apenas mensagens de áudio podem ser transcritas',
+      );
+    }
+
+    // Verificar se tem URL de áudio
+    if (!message.contentUrl) {
+      throw new BadRequestException(
+        'Mensagem de áudio não possui URL de conteúdo',
+      );
+    }
+
+    // Construir URL absoluta do áudio
+    let audioUrl = message.contentUrl;
+    if (!audioUrl.startsWith('http://') && !audioUrl.startsWith('https://')) {
+      const mediaBase = this.configService.get<string>('MEDIA_BASE_URL');
+      const appBase = this.configService.get<string>('APP_URL');
+      const publicBase = this.configService.get<string>('PUBLIC_BACKEND_URL');
+      const baseUrl = mediaBase || appBase || publicBase || 'http://localhost:3000';
+      audioUrl = `${baseUrl.replace(/\/$/, '')}${audioUrl.startsWith('/') ? '' : '/'}${audioUrl}`;
+    }
+
+    // Enviar para transcrição no n8n
+    const webhookUrl =
+      this.configService.get<string>('N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION') ??
+      this.configService.get<string>('N8N_AUDIO_TRANSCRIPTION_WEBHOOK_URL');
+
+    if (!webhookUrl) {
+      throw new BadRequestException(
+        'Webhook de transcrição não configurado. Configure N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION',
+      );
+    }
+
+    const payload = {
+      messageId: message.id,
+      audioUrl,
+      tenantId: message.tenantId,
+    };
+
+    try {
+      await this.n8nService.postToUrl(webhookUrl, payload);
+      this.logger.log(
+        `Áudio enviado para transcrição manual. messageId=${message.id} audioUrl=${audioUrl}`,
+      );
+      return {
+        success: true,
+        message: 'Áudio enviado para transcrição com sucesso',
+        messageId: message.id,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Erro ao enviar áudio para transcrição: ${error?.message || error}`,
+      );
+      throw new BadRequestException(
+        `Erro ao enviar áudio para transcrição: ${error?.message || 'Erro desconhecido'}`,
+      );
+    }
+  }
+
+  /**
+   * Refaz a transcrição de um áudio (limpa transcrição anterior e solicita nova)
+   */
+  async retryTranscription(
+    messageId: string,
+    tenantId: string | null,
+  ) {
+    // Buscar mensagem
+    const where: any = { id: messageId };
+    if (tenantId !== null) {
+      where.tenantId = tenantId;
+    }
+
+    const message = await this.prisma.message.findFirst({
+      where,
+      select: {
+        id: true,
+        tenantId: true,
+        contentType: true,
+        contentUrl: true,
+        transcriptionText: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException(
+        `Mensagem não encontrada. messageId=${messageId} tenantId=${tenantId || 'global'}`,
+      );
+    }
+
+    // Verificar se é uma mensagem de áudio
+    if (message.contentType !== 'AUDIO') {
+      throw new BadRequestException(
+        'Apenas mensagens de áudio podem ter transcrição refeita',
+      );
+    }
+
+    // Verificar se tem URL de áudio
+    if (!message.contentUrl) {
+      throw new BadRequestException(
+        'Mensagem de áudio não possui URL de conteúdo',
+      );
+    }
+
+    // Limpar transcrição anterior
+    await this.prisma.message.update({
+      where: { id: message.id },
+      data: { transcriptionText: null },
+    });
+
+    // Enviar para transcrição novamente
+    return this.transcribeAudio(messageId, tenantId);
   }
 
   // ============= HELPERS =============

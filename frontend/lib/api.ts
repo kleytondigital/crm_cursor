@@ -276,6 +276,14 @@ export const messagesAPI = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  transcribe: (messageId: string) =>
+    authFetch(`/webhooks/n8n/messages/${messageId}/transcribe`, {
+      method: 'POST',
+    }),
+  retryTranscription: (messageId: string) =>
+    authFetch(`/webhooks/n8n/messages/${messageId}/transcription/retry`, {
+      method: 'POST',
+    }),
 }
 
 // ============================================
@@ -358,6 +366,11 @@ export const companiesAPI = {
     authFetch(`/companies/${id}/automations`, {
       method: 'PATCH',
       body: JSON.stringify({ automationsEnabled }),
+    }),
+  updateTranscriptionSetting: (id: string, autoTranscribeAudio: boolean) =>
+    authFetch(`/companies/${id}/transcription`, {
+      method: 'PATCH',
+      body: JSON.stringify({ autoTranscribeAudio }),
     }),
   verifyAutomationsPassword: (password: string) =>
     authFetch('/companies/automations/verify-password', {

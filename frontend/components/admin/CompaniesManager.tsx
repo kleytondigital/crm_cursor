@@ -35,6 +35,7 @@ interface Company {
   document?: string | null
   isActive: boolean
   automationsEnabled?: boolean
+  autoTranscribeAudio?: boolean
   createdAt: string
   updatedAt: string
   _count?: {
@@ -67,6 +68,7 @@ export default function CompaniesManager() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [automationsUpdatingId, setAutomationsUpdatingId] = useState<string | null>(null)
+  const [transcriptionUpdatingId, setTranscriptionUpdatingId] = useState<string | null>(null)
 
   useEffect(() => {
     loadCompanies()
@@ -326,32 +328,63 @@ export default function CompaniesManager() {
                 )}
               </div>
 
-              <div className="mt-4 rounded-2xl border border-white/5 bg-background-subtle/60 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-text-muted">Automações</p>
-                    <p
-                      className={`text-sm font-semibold ${
-                        company.automationsEnabled ? 'text-emerald-400' : 'text-text-muted'
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl border border-white/5 bg-background-subtle/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-text-muted">Automações</p>
+                      <p
+                        className={`text-sm font-semibold ${
+                          company.automationsEnabled ? 'text-emerald-400' : 'text-text-muted'
+                        }`}
+                      >
+                        {company.automationsEnabled ? 'Permitido' : 'Bloqueado'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleAutomations(company, !company.automationsEnabled)}
+                      className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        company.automationsEnabled
+                          ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                          : 'bg-white/10 text-text-muted hover:bg-white/20'
                       }`}
+                      disabled={automationsUpdatingId === company.id}
                     >
-                      {company.automationsEnabled ? 'Permitido' : 'Bloqueado'}
-                    </p>
+                      {automationsUpdatingId === company.id && (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      )}
+                      {company.automationsEnabled ? 'Desativar' : 'Ativar'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleToggleAutomations(company, !company.automationsEnabled)}
-                    className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      company.automationsEnabled
-                        ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-                        : 'bg-white/10 text-text-muted hover:bg-white/20'
-                    }`}
-                    disabled={automationsUpdatingId === company.id}
-                  >
-                    {automationsUpdatingId === company.id && (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    )}
-                    {company.automationsEnabled ? 'Desativar' : 'Ativar'}
-                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-white/5 bg-background-subtle/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-text-muted">Transcrição Automática</p>
+                      <p
+                        className={`text-sm font-semibold ${
+                          company.autoTranscribeAudio !== false ? 'text-emerald-400' : 'text-text-muted'
+                        }`}
+                      >
+                        {company.autoTranscribeAudio !== false ? 'Ativada' : 'Desativada'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleTranscription(company, company.autoTranscribeAudio === false)}
+                      className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        company.autoTranscribeAudio !== false
+                          ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                          : 'bg-white/10 text-text-muted hover:bg-white/20'
+                      }`}
+                      disabled={transcriptionUpdatingId === company.id}
+                    >
+                      {transcriptionUpdatingId === company.id && (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      )}
+                      {company.autoTranscribeAudio !== false ? 'Desativar' : 'Ativar'}
+                    </button>
+                  </div>
                 </div>
               </div>
 

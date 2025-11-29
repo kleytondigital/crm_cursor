@@ -9,6 +9,7 @@ import { PrismaService } from '@/shared/prisma/prisma.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { UpdateCompanyAutomationsDto } from './dto/update-company-automations.dto';
+import { UpdateCompanyTranscriptionDto } from './dto/update-company-transcription.dto';
 
 @Injectable()
 export class CompaniesService {
@@ -273,6 +274,22 @@ export class CompaniesService {
     }
 
     return this.isAutomationsEnabled(user.companyId);
+  }
+
+  async updateTranscriptionSetting(id: string, dto: UpdateCompanyTranscriptionDto) {
+    await this.findOne(id);
+
+    return this.prisma.company.update({
+      where: { id },
+      data: {
+        autoTranscribeAudio: dto.autoTranscribeAudio,
+      },
+      select: {
+        id: true,
+        name: true,
+        autoTranscribeAudio: true,
+      },
+    });
   }
 }
 

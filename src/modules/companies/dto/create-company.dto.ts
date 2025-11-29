@@ -24,5 +24,9 @@ export class CreateCompanyDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  autoTranscribeAudio?: boolean;
 }
 

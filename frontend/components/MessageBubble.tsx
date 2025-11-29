@@ -3,9 +3,10 @@
 import { Message, Conversation } from '@/types'
 import { format } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
-import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply, MoreVertical, Edit2, Trash2, Clock, AlertCircle, Check } from 'lucide-react'
+import { Image, File, Volume2, Video, Download, CheckCheck, MapPin, ExternalLink, Reply, MoreVertical, Edit2, Trash2, Clock, AlertCircle, Check, Mic, RefreshCw, Loader2 } from 'lucide-react'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import AudioPlayer from './AudioPlayer'
+import { messagesAPI } from '@/lib/api'
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '')
 
@@ -31,6 +32,8 @@ export default function MessageBubble({
   const isUser = message.senderType === 'USER'
   const [imageError, setImageError] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const [retryingTranscription, setRetryingTranscription] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   
   // Verificar se a mensagem foi editada ou excluída
@@ -79,6 +82,34 @@ export default function MessageBubble({
   const formatTime = (dateString: string | undefined) => {
     if (!dateString) return ''
     return format(new Date(dateString), 'HH:mm', { locale: ptBR })
+  }
+
+  const handleTranscribe = async () => {
+    if (transcribing) return
+    try {
+      setTranscribing(true)
+      await messagesAPI.transcribe(message.id)
+      // A transcrição será atualizada via WebSocket
+    } catch (error) {
+      console.error('Erro ao transcrever áudio:', error)
+      alert('Erro ao transcrever áudio. Tente novamente.')
+    } finally {
+      setTranscribing(false)
+    }
+  }
+
+  const handleRetryTranscription = async () => {
+    if (retryingTranscription) return
+    try {
+      setRetryingTranscription(true)
+      await messagesAPI.retryTranscription(message.id)
+      // A transcrição será atualizada via WebSocket
+    } catch (error) {
+      console.error('Erro ao refazer transcrição:', error)
+      alert('Erro ao refazer transcrição. Tente novamente.')
+    } finally {
+      setRetryingTranscription(false)
+    }
   }
 
   const resolveUrl = useMemo(() => {
@@ -209,16 +240,53 @@ export default function MessageBubble({
                   ? 'bg-blue-500/20 text-blue-100 border border-blue-400/30'
                   : 'bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700'
               }`}>
-                <p className="whitespace-pre-wrap break-words">
-                  {message.transcriptionText}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="whitespace-pre-wrap break-words flex-1">
+                    {message.transcriptionText}
+                  </p>
+                  {!isUser && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRetryTranscription()
+                      }}
+                      disabled={retryingTranscription}
+                      className="flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                      title="Refazer transcrição"
+                    >
+                      {retryingTranscription ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-gray-500 dark:text-gray-400" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
-            {/* Mostrar indicador "Transcrevendo..." se não tiver transcrição mas for áudio recebido */}
-            {!message.transcriptionText && !isUser && (
-              <div className="text-xs text-text-muted italic px-3 py-1 flex items-center gap-1">
-                <Clock className="h-3 w-3 animate-pulse" />
-                <span>Transcrevendo áudio...</span>
+            {/* Ações de transcrição para áudios sem transcrição */}
+            {!message.transcriptionText && message.contentType === 'AUDIO' && !isUser && (
+              <div className="flex items-center gap-2 px-3 py-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleTranscribe()
+                  }}
+                  disabled={transcribing}
+                  className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {transcribing ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Transcrevendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-3 w-3" />
+                      <span>Transcrever áudio</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </div>

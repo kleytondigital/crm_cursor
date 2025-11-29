@@ -977,32 +977,47 @@ export class WahaWebhookController {
     }
 
     // Enviar áudio para transcrição no n8n se for mensagem de áudio recebida
+    // Verificar se a transcrição automática está habilitada para a empresa
     if (!fromMe && contentType === ContentType.AUDIO) {
-      this.logger.log(
-        `[AUDIO TRANSCRIPTION] Mensagem de áudio detectada. messageId=${message.id} contentUrl=${contentUrl} absoluteContentUrl=${absoluteContentUrl}`,
-      );
+      // Verificar configuração da empresa
+      const company = await this.prisma.company.findUnique({
+        where: { id: connection.tenantId },
+        select: { autoTranscribeAudio: true },
+      });
+
+      const isAutoTranscribeEnabled = company?.autoTranscribeAudio !== false; // Default: true
       
-      if (contentUrl || absoluteContentUrl) {
-        const finalAudioUrl = absoluteContentUrl || contentUrl;
-        try {
-          await this.sendAudioForTranscription({
-            messageId: message.id, // ID interno do banco (UUID)
-            audioUrl: finalAudioUrl!,
-            tenantId: connection.tenantId,
-          });
-          this.logger.log(
-            `[AUDIO TRANSCRIPTION] Áudio enviado para transcrição com sucesso. messageId=${message.id}`,
+      if (isAutoTranscribeEnabled) {
+        this.logger.log(
+          `[AUDIO TRANSCRIPTION] Mensagem de áudio detectada. messageId=${message.id} contentUrl=${contentUrl} absoluteContentUrl=${absoluteContentUrl}`,
+        );
+        
+        if (contentUrl || absoluteContentUrl) {
+          const finalAudioUrl = absoluteContentUrl || contentUrl;
+          try {
+            await this.sendAudioForTranscription({
+              messageId: message.id, // ID interno do banco (UUID)
+              audioUrl: finalAudioUrl!,
+              tenantId: connection.tenantId,
+            });
+            this.logger.log(
+              `[AUDIO TRANSCRIPTION] Áudio enviado para transcrição com sucesso. messageId=${message.id}`,
+            );
+          } catch (error) {
+            this.logger.error(
+              `[AUDIO TRANSCRIPTION] Erro ao enviar áudio para transcrição no n8n: ${error?.message || error}`,
+              error?.stack,
+            );
+            // Não bloquear o processamento se falhar a transcrição
+          }
+        } else {
+          this.logger.warn(
+            `[AUDIO TRANSCRIPTION] Mensagem de áudio sem URL. messageId=${message.id} contentUrl=${contentUrl}`,
           );
-        } catch (error) {
-          this.logger.error(
-            `[AUDIO TRANSCRIPTION] Erro ao enviar áudio para transcrição no n8n: ${error?.message || error}`,
-            error?.stack,
-          );
-          // Não bloquear o processamento se falhar a transcrição
         }
       } else {
-        this.logger.warn(
-          `[AUDIO TRANSCRIPTION] Mensagem de áudio sem URL. messageId=${message.id} contentUrl=${contentUrl}`,
+        this.logger.debug(
+          `[AUDIO TRANSCRIPTION] Transcrição automática desabilitada para a empresa. messageId=${message.id} tenantId=${connection.tenantId}`,
         );
       }
     }

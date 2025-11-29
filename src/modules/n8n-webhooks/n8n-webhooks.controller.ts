@@ -156,6 +156,22 @@ export class N8nWebhooksController {
     );
   }
 
+  @Post('messages/:messageId/transcribe')
+  transcribeAudio(
+    @Param('messageId') messageId: string,
+    @ApiKeyTenant() tenantId: string | null,
+  ) {
+    return this.n8nWebhooksService.transcribeAudio(messageId, tenantId);
+  }
+
+  @Post('messages/:messageId/transcription/retry')
+  retryTranscription(
+    @Param('messageId') messageId: string,
+    @ApiKeyTenant() tenantId: string | null,
+  ) {
+    return this.n8nWebhooksService.retryTranscription(messageId, tenantId);
+  }
+
   // ============= BOT LOCK =============
 
   @Post('bot-lock')
