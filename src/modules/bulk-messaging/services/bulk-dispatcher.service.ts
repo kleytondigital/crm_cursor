@@ -20,6 +20,17 @@ export class BulkDispatcherService {
   private readonly logger = new Logger(BulkDispatcherService.name);
   private readonly activeDispatchers = new Map<string, NodeJS.Timeout>();
 
+  // Mensagens de saudação randômicas
+  private readonly greetingMessages = [
+    'Olá, tudo bem?',
+    'Olá, pode falar?',
+    'Olá, preciso falar com você',
+    'Oi, tudo bem?',
+    'Oi, pode falar?',
+    'Olá!',
+    'Oi!',
+  ];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly n8nService: N8nService,
@@ -66,6 +77,7 @@ export class BulkDispatcherService {
         status: BulkMessagingCampaignStatus.RUNNING,
         startedAt: new Date(),
         pausedAt: null,
+        lastProcessedIndex: 0, // Resetar índice ao iniciar
       },
     });
 
@@ -117,6 +129,43 @@ export class BulkDispatcherService {
   }
 
   /**
+   * Retoma o disparo de uma campanha pausada
+   */
+  async resumeCampaign(campaignId: string): Promise<void> {
+    const campaign = await this.prisma.bulkMessagingCampaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign) {
+      throw new NotFoundException('Campanha não encontrada');
+    }
+
+    if (campaign.status !== BulkMessagingCampaignStatus.PAUSED) {
+      throw new BadRequestException(
+        `Campanha não está pausada. Status atual: ${campaign.status}`,
+      );
+    }
+
+    // Atualizar status para RUNNING
+    await this.prisma.bulkMessagingCampaign.update({
+      where: { id: campaignId },
+      data: {
+        status: BulkMessagingCampaignStatus.RUNNING,
+        pausedAt: null,
+      },
+    });
+
+    // Retomar processamento
+    this.processCampaign(campaignId).catch((error) => {
+      this.logger.error(
+        `Erro ao retomar campanha ${campaignId}: ${error.message}`,
+        error.stack,
+      );
+      this.handleCampaignError(campaignId, error.message);
+    });
+  }
+
+  /**
    * Cancela o disparo de uma campanha
    */
   async cancelCampaign(campaignId: string): Promise<void> {
@@ -159,6 +208,7 @@ export class BulkDispatcherService {
    * Processa a campanha de forma assíncrona
    */
   private async processCampaign(campaignId: string): Promise<void> {
+    // Verificar se a campanha ainda está rodando (pode ter sido pausada/cancelada)
     const campaign = await this.prisma.bulkMessagingCampaign.findUnique({
       where: { id: campaignId },
       include: {
@@ -167,11 +217,14 @@ export class BulkDispatcherService {
     });
 
     if (!campaign || campaign.status !== BulkMessagingCampaignStatus.RUNNING) {
+      this.logger.log(
+        `Campanha ${campaignId} não está mais em execução. Status: ${campaign?.status || 'não encontrada'}`,
+      );
       return;
     }
 
-    // Buscar próximos destinatários pendentes
-    const recipients = await this.prisma.bulkMessagingRecipient.findMany({
+    // Buscar PRIMEIRO destinatário pendente (sem usar skip para evitar problemas)
+    const recipient = await this.prisma.bulkMessagingRecipient.findFirst({
       where: {
         campaignId,
         status: BulkMessagingRecipientStatus.PENDING,
@@ -179,22 +232,17 @@ export class BulkDispatcherService {
       orderBy: {
         createdAt: 'asc',
       },
-      take: 1, // Processar um por vez
-      skip: campaign.lastProcessedIndex,
     });
 
-    if (recipients.length === 0) {
+    if (!recipient) {
       // Nenhum destinatário pendente, finalizar campanha
       await this.completeCampaign(campaignId);
       return;
     }
 
-    const recipient = recipients[0];
-    const currentIndex = campaign.lastProcessedIndex;
-
     try {
-      // Enviar mensagem
-      await this.sendMessage(campaign, recipient);
+      // Enviar sequência de mensagens para este destinatário
+      await this.sendMessageSequence(campaign, recipient);
 
       // Atualizar destinatário como enviado
       await this.prisma.bulkMessagingRecipient.update({
@@ -205,28 +253,19 @@ export class BulkDispatcherService {
         },
       });
 
-      // Criar log de sucesso
-      await this.createLog(
-        campaignId,
-        recipient.id,
-        recipient.number,
-        recipient.name,
-        BulkMessagingLogStatus.SUCCESS,
-        'Mensagem enviada com sucesso',
-      );
-
       // Atualizar contadores
       await this.prisma.bulkMessagingCampaign.update({
         where: { id: campaignId },
         data: {
           sentCount: { increment: 1 },
           pendingCount: { decrement: 1 },
-          lastProcessedIndex: currentIndex + 1,
         },
       });
 
+      const totalProcessed =
+        campaign.totalRecipients - campaign.pendingCount + 1;
       this.logger.log(
-        `Campanha ${campaignId}: Mensagem enviada para ${recipient.number} (${currentIndex + 1}/${campaign.totalRecipients})`,
+        `Campanha ${campaignId}: Mensagem enviada para ${recipient.number} (${totalProcessed}/${campaign.totalRecipients})`,
       );
     } catch (error: any) {
       // Atualizar destinatário como falhou
@@ -254,7 +293,6 @@ export class BulkDispatcherService {
         data: {
           failedCount: { increment: 1 },
           pendingCount: { decrement: 1 },
-          lastProcessedIndex: currentIndex + 1,
         },
       });
 
@@ -263,7 +301,7 @@ export class BulkDispatcherService {
       );
     }
 
-    // Agendar próximo processamento com delay
+    // Agendar próximo processamento com delay entre números
     const delay = campaign.delayBetweenNumbers;
     const timeout = setTimeout(() => {
       this.activeDispatchers.delete(campaignId);
@@ -280,10 +318,14 @@ export class BulkDispatcherService {
   }
 
   /**
-   * Envia mensagem para um destinatário
+   * Envia sequência de mensagens para um destinatário
+   * Suporta:
+   * - Mensagem de saudação randômica (se habilitada)
+   * - Sequência de mensagens (texto, imagem, vídeo, documento)
+   * - Delays configuráveis entre mensagens
    */
-  private async sendMessage(campaign: any, recipient: any): Promise<void> {
-    const { connection, contentType, content, caption } = campaign;
+  private async sendMessageSequence(campaign: any, recipient: any): Promise<void> {
+    const { connection } = campaign;
 
     // Verificar se a conexão é WhatsApp (único suportado por enquanto)
     if (connection.provider !== ConnectionProvider.WHATSAPP) {
@@ -297,28 +339,120 @@ export class BulkDispatcherService {
       ? recipient.number
       : `${recipient.number}@c.us`;
 
-    // Preparar payload para N8N
+    // 1. Enviar saudação randômica se habilitada
+    if (campaign.useRandomGreeting) {
+      const greeting = this.getRandomGreeting(campaign.randomGreetings);
+      await this.sendSingleMessage(
+        connection,
+        phoneNumber,
+        ScheduledContentType.TEXT,
+        greeting,
+        null,
+      );
+
+      // Delay após saudação
+      if (campaign.delayBetweenMessages > 0) {
+        await this.sleep(campaign.delayBetweenMessages);
+      }
+    }
+
+    // 2. Enviar sequência de mensagens se definida
+    if (campaign.messageSequence && Array.isArray(campaign.messageSequence) && campaign.messageSequence.length > 0) {
+      for (const messageItem of campaign.messageSequence) {
+        // Delay antes desta mensagem (se especificado)
+        if (messageItem.delay && messageItem.delay > 0) {
+          await this.sleep(messageItem.delay);
+        }
+
+        // Enviar mensagem da sequência
+        await this.sendSingleMessage(
+          connection,
+          phoneNumber,
+          messageItem.type,
+          messageItem.content || null,
+          messageItem.caption || null,
+        );
+
+        // Delay após mensagem (delay padrão da campanha)
+        if (campaign.delayBetweenMessages > 0) {
+          await this.sleep(campaign.delayBetweenMessages);
+        }
+      }
+    } else {
+      // 3. Se não houver sequência, enviar mensagem principal tradicional
+      await this.sendSingleMessage(
+        connection,
+        phoneNumber,
+        campaign.contentType,
+        campaign.content,
+        campaign.caption,
+      );
+    }
+  }
+
+  /**
+   * Sleep utility para delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Retorna uma mensagem de saudação aleatória
+   * Usa lista customizada se fornecida, senão usa padrão
+   */
+  private getRandomGreeting(customGreetings?: string[]): string {
+    const greetings = customGreetings && customGreetings.length > 0
+      ? customGreetings
+      : this.greetingMessages;
+
+    const randomIndex = Math.floor(Math.random() * greetings.length);
+    return greetings[randomIndex];
+  }
+
+  /**
+   * Envia uma única mensagem usando o mesmo formato do chat
+   */
+  private async sendSingleMessage(
+    connection: any,
+    phoneNumber: string,
+    contentType: ScheduledContentType,
+    content: string | null,
+    caption: string | null,
+    campaignId?: string,
+    recipientId?: string,
+  ): Promise<void> {
+    // Mapear ScheduledContentType para o formato do webhook
+    const type = this.mapContentTypeToWebhook(contentType);
+
+    // Preparar payload no mesmo formato do chat
     const payload: any = {
       session: connection.sessionName,
       phone: phoneNumber,
-      message: content || '',
+      type,
     };
 
-    // Adicionar mídia se necessário
-    if (contentType !== ScheduledContentType.TEXT) {
-      if (contentType === ScheduledContentType.IMAGE) {
-        payload.type = 'image';
-        if (caption) payload.caption = caption;
-      } else if (contentType === ScheduledContentType.AUDIO) {
-        payload.type = 'audio';
-      } else if (contentType === ScheduledContentType.DOCUMENT) {
-        payload.type = 'document';
-        if (caption) payload.caption = caption;
+    // Adicionar texto se for mensagem de texto
+    if (contentType === ScheduledContentType.TEXT) {
+      payload.text = content || '';
+    } else {
+      // Para mídia, adicionar URL
+      if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
+        payload.url = content;
+      } else {
+        // Construir URL absoluta
+        payload.url = this.buildAbsoluteMediaUrl(content);
       }
 
-      // Se content é uma URL de mídia
-      if (content && content.startsWith('http')) {
-        payload.mediaUrl = content;
+      // Adicionar mimetype e filename
+      payload.mimetype = this.resolveMimeType(contentType, content);
+      payload.filename = this.extractFilename(content) || caption || undefined;
+
+      // Para imagem e documento, adicionar caption se houver
+      if (caption && (contentType === ScheduledContentType.IMAGE || contentType === ScheduledContentType.DOCUMENT)) {
+        // O caption pode ser enviado como texto após a mídia, ou via outro campo
+        // Dependendo de como o n8n espera receber
+        payload.caption = caption;
       }
     }
 
@@ -335,7 +469,120 @@ export class BulkDispatcherService {
 
     // Enviar via N8N
     await this.n8nService.postToUrl(webhookUrl, payload);
+
+    this.logger.log(
+      `Mensagem enviada via bulk. session=${connection.sessionName} phone=${phoneNumber} type=${type}`,
+    );
   }
+
+  /**
+   * Mapeia ScheduledContentType para formato do webhook (igual ao chat)
+   */
+  private mapContentTypeToWebhook(contentType: ScheduledContentType): string {
+    switch (contentType) {
+      case ScheduledContentType.IMAGE:
+        return 'imagem';
+      case ScheduledContentType.AUDIO:
+        return 'audio';
+      case ScheduledContentType.VIDEO:
+        return 'video';
+      case ScheduledContentType.DOCUMENT:
+        return 'documento';
+      default:
+        return 'text';
+    }
+  }
+
+  /**
+   * Constrói URL absoluta de mídia (igual ao chat)
+   */
+  private buildAbsoluteMediaUrl(url?: string | null): string | null {
+    if (!url) {
+      return null;
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    const mediaBase = this.configService.get<string>('MEDIA_BASE_URL');
+    const appBase = this.configService.get<string>('APP_URL');
+    const publicBase = this.configService.get<string>('PUBLIC_BACKEND_URL');
+    const frontendBase = this.configService.get<string>('NEXT_PUBLIC_API_URL');
+
+    const baseUrl =
+      (mediaBase && mediaBase.trim().length > 0 ? mediaBase : null) ??
+      (appBase && appBase.trim().length > 0 ? appBase : null) ??
+      (publicBase && publicBase.trim().length > 0 ? publicBase : null) ??
+      (frontendBase && frontendBase.trim().length > 0 ? frontendBase : null) ??
+      'http://localhost:3000';
+
+    return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+
+  /**
+   * Resolve tipo MIME (igual ao chat)
+   */
+  private resolveMimeType(
+    contentType: ScheduledContentType,
+    url?: string | null,
+  ): string | undefined {
+    const extension = url ? this.extractExtension(url) : null;
+
+    switch (contentType) {
+      case ScheduledContentType.IMAGE:
+        if (extension === 'png') return 'image/png';
+        if (extension === 'gif') return 'image/gif';
+        if (extension === 'webp') return 'image/webp';
+        return 'image/jpeg';
+      case ScheduledContentType.AUDIO:
+        if (extension === 'ogg') return 'audio/ogg; codecs=opus';
+        if (extension === 'mp3') return 'audio/mpeg';
+        if (extension === 'aac') return 'audio/aac';
+        return 'audio/ogg';
+      case ScheduledContentType.VIDEO:
+        if (extension === 'mov') return 'video/quicktime';
+        return 'video/mp4';
+      case ScheduledContentType.DOCUMENT:
+        if (extension === 'pdf') return 'application/pdf';
+        if (extension === 'doc' || extension === 'docx') {
+          return 'application/msword';
+        }
+        if (extension === 'xls' || extension === 'xlsx') {
+          return 'application/vnd.ms-excel';
+        }
+        if (extension === 'ppt' || extension === 'pptx') {
+          return 'application/vnd.ms-powerpoint';
+        }
+        if (extension === 'txt') return 'text/plain';
+        return 'application/octet-stream';
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * Extrai extensão do arquivo (igual ao chat)
+   */
+  private extractExtension(url: string): string | null {
+    const sanitizedUrl = url.split('?')[0];
+    const parts = sanitizedUrl.split('.');
+    if (parts.length <= 1) {
+      return null;
+    }
+    return parts[parts.length - 1].toLowerCase();
+  }
+
+  /**
+   * Extrai nome do arquivo (igual ao chat)
+   */
+  private extractFilename(url?: string | null): string | undefined {
+    if (!url) {
+      return undefined;
+    }
+    const sanitizedUrl = url.split('?')[0];
+    const parts = sanitizedUrl.split('/');
+    return parts[parts.length - 1] || undefined;
+  }
+
 
   /**
    * Cria log de envio
@@ -356,7 +603,8 @@ export class BulkDispatcherService {
         name,
         status,
         message,
-        errorMessage: status === BulkMessagingLogStatus.FAILED ? message : null,
+        errorMessage:
+          status === BulkMessagingLogStatus.FAILED ? message : null,
       },
     });
   }
@@ -395,4 +643,3 @@ export class BulkDispatcherService {
     this.logger.error(`Campanha ${campaignId} marcada como erro: ${errorMessage}`);
   }
 }
-

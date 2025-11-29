@@ -57,6 +57,9 @@ export class BulkMessagingService {
         contentType: dto.contentType,
         content: dto.content,
         caption: dto.caption,
+        messageSequence: dto.messageSequence ? (dto.messageSequence as any) : null,
+        useRandomGreeting: dto.useRandomGreeting ?? false,
+        randomGreetings: dto.randomGreetings ?? [],
         delayBetweenMessages: dto.delayBetweenMessages ?? 2000,
         delayBetweenNumbers: dto.delayBetweenNumbers ?? 5000,
         status: BulkMessagingCampaignStatus.DRAFT,
@@ -276,9 +279,20 @@ export class BulkMessagingService {
       }
     }
 
+    // Preparar dados para atualização
+    const updateData: any = { ...dto };
+    
+    // Processar campos especiais
+    if (dto.messageSequence !== undefined) {
+      updateData.messageSequence = dto.messageSequence ? (dto.messageSequence as any) : null;
+    }
+    if (dto.randomGreetings !== undefined) {
+      updateData.randomGreetings = dto.randomGreetings || [];
+    }
+
     const updated = await this.prisma.bulkMessagingCampaign.update({
       where: { id },
-      data: dto,
+      data: updateData,
       include: {
         createdBy: {
           select: {
@@ -489,7 +503,7 @@ export class BulkMessagingService {
       );
     }
 
-    await this.dispatcher.startCampaign(id);
+    await this.dispatcher.resumeCampaign(id);
     return { success: true, message: 'Campanha retomada com sucesso' };
   }
 }

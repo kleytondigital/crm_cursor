@@ -479,6 +479,9 @@ model BulkMessagingCampaign {
   contentType         ScheduledContentType         @default(TEXT)
   content             String?
   caption             String?
+  messageSequence     Json?                       // Sequência de mensagens: [{type, content, caption, delay}]
+  useRandomGreeting   Boolean                     @default(false) // Usar saudação randômica antes das mensagens
+  randomGreetings     String[]                    @default([]) // Lista de saudações randômicas customizadas
   connectionId        String
   totalRecipients     Int                         @default(0)
   sentCount           Int                         @default(0)
