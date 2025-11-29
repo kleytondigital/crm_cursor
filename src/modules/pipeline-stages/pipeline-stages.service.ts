@@ -70,20 +70,19 @@ export class PipelineStagesService {
       order = (maxOrder?.order ?? -1) + 1;
     }
 
+    // Preparar dados para criação - APENAS campos que existem no banco
+    // Não incluir: description, isDefault (podem não existir)
+    const createData: any = {
+      name: dto.name,
+      statusId: dto.statusId,
+      color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
+      order,
+      isActive: dto.isActive !== undefined ? dto.isActive : true,
+      tenantId,
+    };
+
     try {
       this.logger.log(`[create] Criando estágio: name=${dto.name}, statusId=${dto.statusId}, order=${order}, tenantId=${tenantId}`);
-      
-      // Preparar dados para criação - APENAS campos que existem no banco
-      // Não incluir: description, isDefault (podem não existir)
-      const createData: any = {
-        name: dto.name,
-        statusId: dto.statusId,
-        color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
-        order,
-        isActive: dto.isActive !== undefined ? dto.isActive : true,
-        tenantId,
-      };
-      
       this.logger.log(`[create] Dados preparados:`, JSON.stringify(createData));
       
       const created = await this.prisma.pipelineStage.create({
