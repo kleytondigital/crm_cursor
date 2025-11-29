@@ -45,11 +45,18 @@ export class PipelineStagesService {
     }
 
     // Verificar se já existe estágio com mesmo nome e statusId para este tenant
+    // Usar select explícito para evitar buscar campos que não existem (description, isDefault)
     const existing = await this.prisma.pipelineStage.findFirst({
       where: {
         tenantId,
         name: dto.name,
         statusId: dto.statusId,
+      },
+      select: {
+        id: true,
+        name: true,
+        statusId: true,
+        tenantId: true,
       },
     });
 
@@ -287,12 +294,19 @@ export class PipelineStagesService {
 
     // Se mudou nome ou statusId, verificar se não existe outro com mesmo nome/statusId
     if (dto.name || dto.statusId) {
+      // Usar select explícito para evitar buscar campos que não existem (description, isDefault)
       const existing = await this.prisma.pipelineStage.findFirst({
         where: {
           tenantId,
           name: dto.name ?? stage.name,
           statusId: dto.statusId ?? stage.statusId,
           id: { not: id },
+        },
+        select: {
+          id: true,
+          name: true,
+          statusId: true,
+          tenantId: true,
         },
       });
 
