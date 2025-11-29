@@ -212,6 +212,19 @@ export default function CompaniesManager() {
     }
   }
 
+  const handleToggleTranscription = async (company: Company, enabled: boolean) => {
+    try {
+      setTranscriptionUpdatingId(company.id)
+      await companiesAPI.updateTranscriptionSetting(company.id, enabled)
+      await loadCompanies()
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao atualizar configuração de transcrição')
+      console.error('Erro ao atualizar transcrição:', err)
+    } finally {
+      setTranscriptionUpdatingId(null)
+    }
+  }
+
   const filteredCompanies = companies.filter((company) => {
     const search = searchTerm.toLowerCase()
     return (
