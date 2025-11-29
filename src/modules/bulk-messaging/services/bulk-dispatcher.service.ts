@@ -19,6 +19,8 @@ import {
 export class BulkDispatcherService {
   private readonly logger = new Logger(BulkDispatcherService.name);
   private readonly activeDispatchers = new Map<string, NodeJS.Timeout>();
+  private readonly cancelledCampaigns = new Set<string>(); // Flag para campanhas canceladas
+  private readonly pausedCampaigns = new Set<string>(); // Flag para campanhas pausadas
 
   // Mensagens de saudação randômicas
   private readonly greetingMessages = [
@@ -70,6 +72,10 @@ export class BulkDispatcherService {
       throw new BadRequestException('Nenhum destinatário pendente encontrado');
     }
 
+    // Remover flags de pausada/cancelada
+    this.pausedCampaigns.delete(campaignId);
+    this.cancelledCampaigns.delete(campaignId);
+
     // Atualizar status para RUNNING
     await this.prisma.bulkMessagingCampaign.update({
       where: { id: campaignId },
@@ -116,6 +122,10 @@ export class BulkDispatcherService {
       this.activeDispatchers.delete(campaignId);
     }
 
+    // Marcar como pausada (para interromper envio imediatamente)
+    this.pausedCampaigns.add(campaignId);
+    this.cancelledCampaigns.delete(campaignId); // Remover de canceladas se estava lá
+
     // Atualizar status
     await this.prisma.bulkMessagingCampaign.update({
       where: { id: campaignId },
@@ -145,6 +155,9 @@ export class BulkDispatcherService {
         `Campanha não está pausada. Status atual: ${campaign.status}`,
       );
     }
+
+    // Remover flag de pausada
+    this.pausedCampaigns.delete(campaignId);
 
     // Atualizar status para RUNNING
     await this.prisma.bulkMessagingCampaign.update({
@@ -192,6 +205,10 @@ export class BulkDispatcherService {
       clearTimeout(timeout);
       this.activeDispatchers.delete(campaignId);
     }
+
+    // Marcar como cancelada (para interromper envio imediatamente)
+    this.cancelledCampaigns.add(campaignId);
+    this.pausedCampaigns.delete(campaignId); // Remover de pausadas se estava lá
 
     // Atualizar status
     await this.prisma.bulkMessagingCampaign.update({
@@ -268,7 +285,20 @@ export class BulkDispatcherService {
         `Campanha ${campaignId}: Mensagem enviada para ${recipient.number} (${totalProcessed}/${campaign.totalRecipients})`,
       );
     } catch (error: any) {
-      // Atualizar destinatário como falhou
+      // Verificar se foi pausa/cancelamento (não é erro fatal)
+      const isPausedOrCancelled =
+        error.message?.includes('Campanha foi pausada') ||
+        error.message?.includes('Campanha foi cancelada');
+
+      if (isPausedOrCancelled) {
+        // Não atualizar destinatário, apenas logar e interromper
+        this.logger.log(
+          `Campanha ${campaignId}: Interrompida durante envio para ${recipient.number} - ${error.message}`,
+        );
+        return; // Interromper processamento
+      }
+
+      // Atualizar destinatário como falhou (erro real)
       await this.prisma.bulkMessagingRecipient.update({
         where: { id: recipient.id },
         data: {
@@ -323,9 +353,21 @@ export class BulkDispatcherService {
    * - Mensagem de saudação randômica (se habilitada)
    * - Sequência de mensagens (texto, imagem, vídeo, documento)
    * - Delays configuráveis entre mensagens
+   * - Verificação de pausa/cancelamento durante o envio
    */
   private async sendMessageSequence(campaign: any, recipient: any): Promise<void> {
     const { connection } = campaign;
+    const campaignId = campaign.id;
+
+    // Verificar se a campanha foi cancelada antes de começar
+    if (this.cancelledCampaigns.has(campaignId)) {
+      throw new BadRequestException('Campanha foi cancelada');
+    }
+
+    // Verificar se a campanha foi pausada antes de começar
+    if (this.pausedCampaigns.has(campaignId)) {
+      throw new BadRequestException('Campanha foi pausada');
+    }
 
     // Verificar se a conexão é WhatsApp (único suportado por enquanto)
     if (connection.provider !== ConnectionProvider.WHATSAPP) {
@@ -341,6 +383,14 @@ export class BulkDispatcherService {
 
     // 1. Enviar saudação randômica se habilitada
     if (campaign.useRandomGreeting) {
+      // Verificar pausa/cancelamento antes de enviar saudação
+      if (this.cancelledCampaigns.has(campaignId)) {
+        throw new BadRequestException('Campanha foi cancelada');
+      }
+      if (this.pausedCampaigns.has(campaignId)) {
+        throw new BadRequestException('Campanha foi pausada');
+      }
+
       const greeting = this.getRandomGreeting(campaign.randomGreetings);
       await this.sendSingleMessage(
         connection,
@@ -350,36 +400,62 @@ export class BulkDispatcherService {
         null,
       );
 
-      // Delay após saudação
+      // Delay após saudação (com verificação durante o delay)
       if (campaign.delayBetweenMessages > 0) {
-        await this.sleep(campaign.delayBetweenMessages);
+        await this.sleepWithCheck(campaignId, campaign.delayBetweenMessages);
       }
     }
 
     // 2. Enviar sequência de mensagens se definida
     if (campaign.messageSequence && Array.isArray(campaign.messageSequence) && campaign.messageSequence.length > 0) {
       for (const messageItem of campaign.messageSequence) {
+        // Verificar pausa/cancelamento antes de cada mensagem
+        if (this.cancelledCampaigns.has(campaignId)) {
+          throw new BadRequestException('Campanha foi cancelada');
+        }
+        if (this.pausedCampaigns.has(campaignId)) {
+          throw new BadRequestException('Campanha foi pausada');
+        }
+
         // Delay antes desta mensagem (se especificado)
         if (messageItem.delay && messageItem.delay > 0) {
-          await this.sleep(messageItem.delay);
+          await this.sleepWithCheck(campaignId, messageItem.delay);
+        }
+
+        // Verificar novamente após delay
+        if (this.cancelledCampaigns.has(campaignId)) {
+          throw new BadRequestException('Campanha foi cancelada');
+        }
+        if (this.pausedCampaigns.has(campaignId)) {
+          throw new BadRequestException('Campanha foi pausada');
         }
 
         // Enviar mensagem da sequência
+        // O campo pode ser 'type' ou 'contentType' dependendo de como foi salvo
+        const itemContentType = (messageItem.type || messageItem.contentType) as ScheduledContentType;
         await this.sendSingleMessage(
           connection,
           phoneNumber,
-          messageItem.type,
+          itemContentType,
           messageItem.content || null,
           messageItem.caption || null,
         );
 
-        // Delay após mensagem (delay padrão da campanha)
+        // Delay após mensagem (delay padrão da campanha, com verificação)
         if (campaign.delayBetweenMessages > 0) {
-          await this.sleep(campaign.delayBetweenMessages);
+          await this.sleepWithCheck(campaignId, campaign.delayBetweenMessages);
         }
       }
     } else {
       // 3. Se não houver sequência, enviar mensagem principal tradicional
+      // Verificar pausa/cancelamento antes de enviar
+      if (this.cancelledCampaigns.has(campaignId)) {
+        throw new BadRequestException('Campanha foi cancelada');
+      }
+      if (this.pausedCampaigns.has(campaignId)) {
+        throw new BadRequestException('Campanha foi pausada');
+      }
+
       await this.sendSingleMessage(
         connection,
         phoneNumber,
@@ -387,6 +463,29 @@ export class BulkDispatcherService {
         campaign.content,
         campaign.caption,
       );
+    }
+  }
+
+  /**
+   * Sleep com verificação de pausa/cancelamento
+   * Interrompe o delay se a campanha for pausada ou cancelada
+   */
+  private async sleepWithCheck(campaignId: string, ms: number): Promise<void> {
+    const interval = 100; // Verificar a cada 100ms
+    let elapsed = 0;
+
+    while (elapsed < ms) {
+      // Verificar se foi cancelada ou pausada
+      if (this.cancelledCampaigns.has(campaignId)) {
+        throw new BadRequestException('Campanha foi cancelada');
+      }
+      if (this.pausedCampaigns.has(campaignId)) {
+        throw new BadRequestException('Campanha foi pausada');
+      }
+
+      const sleepTime = Math.min(interval, ms - elapsed);
+      await this.sleep(sleepTime);
+      elapsed += sleepTime;
     }
   }
 
@@ -617,6 +716,8 @@ export class BulkDispatcherService {
     });
 
     this.activeDispatchers.delete(campaignId);
+    this.pausedCampaigns.delete(campaignId);
+    this.cancelledCampaigns.delete(campaignId);
     this.logger.log(`Campanha ${campaignId} finalizada`);
   }
 
@@ -635,6 +736,8 @@ export class BulkDispatcherService {
     });
 
     this.activeDispatchers.delete(campaignId);
+    this.pausedCampaigns.delete(campaignId);
+    this.cancelledCampaigns.delete(campaignId);
     this.logger.error(`Campanha ${campaignId} marcada como erro: ${errorMessage}`);
   }
 }
