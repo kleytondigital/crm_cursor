@@ -46,11 +46,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const isLoadingMessagesRef = useRef(false)
   // Ref para manter o valor atual de selectedConversation no closure do WebSocket
   const selectedConversationRef = useRef<Conversation | null>(null)
+  // Ref para manter o valor atual de messages no closure do WebSocket
+  const messagesRef = useRef<Message[]>([])
 
-  // Atualizar a ref quando selectedConversation mudar
+  // Atualizar as refs quando os valores mudarem
   useEffect(() => {
     selectedConversationRef.current = selectedConversation
   }, [selectedConversation])
+  
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   // Conectar ao WebSocket quando o componente monta
   // IMPORTANTE: Não incluir selectedConversation como dependência para evitar reconexões desnecessárias
@@ -68,23 +74,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       console.log('[ChatContext] Nova mensagem recebida via WebSocket (message:new):', data)
       const { message, conversation } = data
       
-      // Verificar se esta mensagem já foi processada (evitar duplicação)
-      if (processedMessageIdsRef.current.has(message.id)) {
-        console.log('[ChatContext] Mensagem já foi processada anteriormente, ignorando:', message.id)
+      // Usar ref para obter o valor atual de selectedConversation
+      const currentSelectedConversation = selectedConversationRef.current
+      
+      // Verificar ANTES de bloquear se esta é uma atualização de mensagem existente
+      // Se for uma atualização (mensagem já existe no estado), devemos permitir
+      // mesmo que já tenha sido processada antes
+      let isMessageUpdate = false
+      if (currentSelectedConversation && message.conversationId === currentSelectedConversation.id) {
+        // Usar uma função de estado para verificar sem causar re-render
+        const checkIsUpdate = () => {
+          const currentMessages = messagesRef.current || []
+          return currentMessages.some((item) => item.id === message.id)
+        }
+        isMessageUpdate = checkIsUpdate()
+      }
+      
+      // Se for uma mensagem NOVA já processada, ignorar para evitar duplicação
+      // Mas se for uma ATUALIZAÇÃO, sempre permitir (mesmo que já processada)
+      if (!isMessageUpdate && processedMessageIdsRef.current.has(message.id)) {
+        console.log('[ChatContext] Mensagem nova já foi processada anteriormente, ignorando:', message.id)
         return
       }
       
-      // Marcar como processada IMEDIATAMENTE para evitar race conditions
-      processedMessageIdsRef.current.add(message.id)
-      
-      // Usar ref para obter o valor atual de selectedConversation
-      const currentSelectedConversation = selectedConversationRef.current
+      // Se for uma atualização de mensagem existente, não marcar como processada novamente
+      // Se for uma mensagem nova, marcar como processada
+      if (!isMessageUpdate) {
+        processedMessageIdsRef.current.add(message.id)
+      } else {
+        console.log('[ChatContext] Atualização de mensagem existente detectada, permitindo atualização:', message.id)
+      }
 
       // Mostrar notificação se:
       // 1. A mensagem não é do usuário atual (senderType === 'LEAD')
       // 2. A conversa não está selecionada ou não está visível
       // 3. Há permissão para notificações
+      // 4. Não for apenas uma atualização (nova mensagem)
       if (
+        !isMessageUpdate &&
         message.senderType === 'LEAD' &&
         (!currentSelectedConversation || currentSelectedConversation.id !== message.conversationId) &&
         hasNotificationPermission() &&
@@ -109,9 +136,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         )
       }
       
-      // Sempre adicionar mensagem se for da conversa selecionada
+      // Sempre adicionar/atualizar mensagem se for da conversa selecionada
       if (currentSelectedConversation && message.conversationId === currentSelectedConversation.id) {
-        console.log('[ChatContext] Adicionando mensagem à conversa selecionada:', message.id, 'Conversa:', currentSelectedConversation.id)
+        if (isMessageUpdate) {
+          console.log('[ChatContext] Atualizando mensagem existente com novos dados:', message.id, {
+            hasTranscription: !!message.transcriptionText,
+          })
+        } else {
+          console.log('[ChatContext] Adicionando mensagem à conversa selecionada:', message.id, 'Conversa:', currentSelectedConversation.id)
+        }
         setMessages((prev) => {
           // Verificar se a mensagem já existe pelo ID interno
           const existingIndex = prev.findIndex((item) => item.id === message.id)
