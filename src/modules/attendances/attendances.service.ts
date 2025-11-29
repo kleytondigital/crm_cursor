@@ -1100,6 +1100,16 @@ export class AttendancesService {
             departmentId: receptionistDepartment.id, // Sincronizar departmentId
             status: 'ACTIVE', // Garantir que está ativa
           },
+          select: {
+            id: true,
+            tenantId: true,
+            leadId: true,
+            assignedUserId: true,
+            departmentId: true,
+            status: true,
+            isBotAttending: true,
+            createdAt: true,
+          },
         });
       }
 
@@ -1177,6 +1187,16 @@ export class AttendancesService {
       await this.prisma.conversation.update({
         where: { id: existingConversation.id },
         data: conversationUpdateData,
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
+        },
       });
     }
 
@@ -1857,6 +1877,16 @@ export class AttendancesService {
       conversation = await this.prisma.conversation.update({
         where: { id: conversation.id },
         data: conversationData,
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
+        },
       });
     } else {
       // Se não existe, criar nova conversa atribuída ao usuário e departamento
@@ -1865,6 +1895,16 @@ export class AttendancesService {
           tenantId,
           leadId,
           ...conversationData,
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
         },
       });
     }
@@ -1912,6 +1952,16 @@ export class AttendancesService {
       await this.prisma.conversation.update({
         where: { id: conversation.id },
         data: updateData,
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
+        },
       });
     }
     // Se não existe conversa, não precisa criar (será criada quando alguém assumir)
@@ -1946,6 +1996,16 @@ export class AttendancesService {
         data: {
           status: 'CLOSED',
           // Manter o assignedUserId para histórico
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          leadId: true,
+          assignedUserId: true,
+          departmentId: true,
+          status: true,
+          isBotAttending: true,
+          createdAt: true,
         },
       });
     }
