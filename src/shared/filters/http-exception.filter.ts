@@ -19,6 +19,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    // Log detalhado para erros não tratados
+    if (!(exception instanceof HttpException)) {
+      console.error('[HttpExceptionFilter] Erro não tratado:', {
+        error: exception,
+        message: (exception as any)?.message,
+        stack: (exception as any)?.stack,
+        code: (exception as any)?.code,
+        meta: (exception as any)?.meta,
+        path: request.url,
+        method: request.method,
+      });
+    }
+
     const exceptionResponse =
       exception instanceof HttpException
         ? exception.getResponse()
