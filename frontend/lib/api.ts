@@ -277,11 +277,11 @@ export const messagesAPI = {
       body: JSON.stringify(data),
     }),
   transcribe: (messageId: string) =>
-    authFetch(`/webhooks/n8n/messages/${messageId}/transcribe`, {
+    authFetch(`/messages/${messageId}/transcribe`, {
       method: 'POST',
     }),
   retryTranscription: (messageId: string) =>
-    authFetch(`/webhooks/n8n/messages/${messageId}/transcription/retry`, {
+    authFetch(`/messages/${messageId}/transcription/retry`, {
       method: 'POST',
     }),
 }

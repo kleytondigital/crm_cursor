@@ -114,11 +114,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         console.log('[ChatContext] Adicionando mensagem à conversa selecionada:', message.id, 'Conversa:', currentSelectedConversation.id)
         setMessages((prev) => {
           // Verificar se a mensagem já existe pelo ID interno
-          const existsById = prev.some((item) => item.id === message.id)
-          if (existsById) {
-            console.log('[ChatContext] Mensagem já existe pelo ID (handleNewMessage), ignorando:', message.id)
-            // Mensagem já existe, não adicionar novamente
-            return prev
+          const existingIndex = prev.findIndex((item) => item.id === message.id)
+          if (existingIndex !== -1) {
+            // Mensagem já existe - atualizar com novos dados (ex: transcrição)
+            console.log('[ChatContext] Mensagem já existe pelo ID, atualizando com novos dados:', message.id, {
+              hasTranscription: !!message.transcriptionText,
+              oldTranscription: !!prev[existingIndex].transcriptionText,
+            })
+            const updated = [...prev]
+            updated[existingIndex] = {
+              ...prev[existingIndex],
+              ...message, // Atualizar com os novos dados (incluindo transcrição)
+            }
+            return updated
           }
           
           // Verificar também pelo messageId se a mensagem já existe com outro ID
