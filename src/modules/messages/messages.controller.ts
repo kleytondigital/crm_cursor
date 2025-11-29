@@ -19,7 +19,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 // import type { File as MulterFile } from 'multer';
 import { randomUUID } from 'crypto';
 import { MinioService } from '@/shared/minio/minio.service';
-import { N8nWebhooksService } from '@/modules/n8n-webhooks/n8n-webhooks.service';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
@@ -27,7 +26,6 @@ export class MessagesController {
   constructor(
     private readonly messagesService: MessagesService,
     private readonly minioService: MinioService,
-    private readonly n8nWebhooksService: N8nWebhooksService,
   ) {}
 
   @Get('conversation/:conversationId')
@@ -147,7 +145,7 @@ export class MessagesController {
     @Param('messageId') messageId: string,
     @CurrentUser() user: any,
   ) {
-    return this.n8nWebhooksService.transcribeAudio(messageId, user.companyId);
+    return this.messagesService.transcribeAudio(messageId, user.companyId);
   }
 
   @Post(':messageId/transcription/retry')
@@ -155,7 +153,7 @@ export class MessagesController {
     @Param('messageId') messageId: string,
     @CurrentUser() user: any,
   ) {
-    return this.n8nWebhooksService.retryTranscription(messageId, user.companyId);
+    return this.messagesService.retryTranscription(messageId, user.companyId);
   }
 }
 

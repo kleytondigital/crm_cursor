@@ -922,5 +922,142 @@ export class MessagesService {
       contentUrl: this.buildAbsoluteMediaUrl(deletedMessage.contentUrl),
     };
   }
+
+  // ============= TRANSCRIÇÃO =============
+
+  /**
+   * Envia áudio para transcrição manualmente
+   */
+  async transcribeAudio(messageId: string, tenantId: string) {
+    // Buscar mensagem
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        tenantId: tenantId,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        contentType: true,
+        contentUrl: true,
+        transcriptionText: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException(
+        `Mensagem não encontrada. messageId=${messageId} tenantId=${tenantId}`,
+      );
+    }
+
+    // Verificar se é uma mensagem de áudio
+    if (message.contentType !== 'AUDIO') {
+      throw new BadRequestException(
+        'Apenas mensagens de áudio podem ser transcritas',
+      );
+    }
+
+    // Verificar se tem URL de áudio
+    if (!message.contentUrl) {
+      throw new BadRequestException(
+        'Mensagem de áudio não possui URL de conteúdo',
+      );
+    }
+
+    // Construir URL absoluta do áudio
+    let audioUrl = message.contentUrl;
+    if (!audioUrl.startsWith('http://') && !audioUrl.startsWith('https://')) {
+      const mediaBase = this.configService.get<string>('MEDIA_BASE_URL');
+      const appBase = this.configService.get<string>('APP_URL');
+      const publicBase = this.configService.get<string>('PUBLIC_BACKEND_URL');
+      const baseUrl = mediaBase || appBase || publicBase || 'http://localhost:3000';
+      audioUrl = `${baseUrl.replace(/\/$/, '')}${audioUrl.startsWith('/') ? '' : '/'}${audioUrl}`;
+    }
+
+    // Enviar para transcrição no n8n
+    const webhookUrl =
+      this.configService.get<string>('N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION') ??
+      this.configService.get<string>('N8N_AUDIO_TRANSCRIPTION_WEBHOOK_URL');
+
+    if (!webhookUrl) {
+      throw new BadRequestException(
+        'Webhook de transcrição não configurado. Configure N8N_WEBHOOK_URL_AUDIO_TRANSCRIPTION',
+      );
+    }
+
+    const payload = {
+      messageId: message.id,
+      audioUrl,
+      tenantId: message.tenantId,
+    };
+
+    try {
+      await this.n8nService.postToUrl(webhookUrl, payload);
+      this.logger.log(
+        `Áudio enviado para transcrição manual. messageId=${message.id} audioUrl=${audioUrl}`,
+      );
+      return {
+        success: true,
+        message: 'Áudio enviado para transcrição com sucesso',
+        messageId: message.id,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Erro ao enviar áudio para transcrição: ${error?.message || error}`,
+      );
+      throw new BadRequestException(
+        `Erro ao enviar áudio para transcrição: ${error?.message || 'Erro desconhecido'}`,
+      );
+    }
+  }
+
+  /**
+   * Refaz a transcrição de um áudio (limpa transcrição anterior e solicita nova)
+   */
+  async retryTranscription(messageId: string, tenantId: string) {
+    // Buscar mensagem
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        tenantId: tenantId,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        contentType: true,
+        contentUrl: true,
+        transcriptionText: true,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException(
+        `Mensagem não encontrada. messageId=${messageId} tenantId=${tenantId}`,
+      );
+    }
+
+    // Verificar se é uma mensagem de áudio
+    if (message.contentType !== 'AUDIO') {
+      throw new BadRequestException(
+        'Apenas mensagens de áudio podem ter transcrição refeita',
+      );
+    }
+
+    // Verificar se tem URL de áudio
+    if (!message.contentUrl) {
+      throw new BadRequestException(
+        'Mensagem de áudio não possui URL de conteúdo',
+      );
+    }
+
+    // Limpar transcrição anterior
+    await this.prisma.message.update({
+      where: { id: message.id },
+      data: { transcriptionText: null },
+    });
+
+    // Enviar para transcrição novamente
+    return this.transcribeAudio(messageId, tenantId);
+  }
 }
 
