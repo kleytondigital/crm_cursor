@@ -233,47 +233,51 @@ export default function MessageBubble({
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
               </div>
             )}
-            {/* Exibir transcrição se disponível */}
+            {/* Exibir transcrição automaticamente quando disponível */}
             {message.transcriptionText && (
-              <div className={`text-xs leading-relaxed rounded-lg px-3 py-2 ${
+              <div className={`mt-2 text-sm leading-relaxed rounded-lg px-3 py-2.5 ${
                 isUser
-                  ? 'bg-blue-500/20 text-blue-100 border border-blue-400/30'
-                  : 'bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700'
+                  ? 'bg-blue-500/30 text-white border border-blue-400/50'
+                  : 'bg-white/10 dark:bg-gray-800/70 text-gray-100 dark:text-gray-200 border border-white/20 dark:border-gray-700'
               }`}>
                 <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-pre-wrap break-words flex-1">
-                    {message.transcriptionText}
-                  </p>
-                  {!isUser && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRetryTranscription()
-                      }}
-                      disabled={retryingTranscription}
-                      className="flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
-                      title="Refazer transcrição"
-                    >
-                      {retryingTranscription ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-gray-500 dark:text-gray-400" />
-                      ) : (
-                        <RefreshCw className="h-3 w-3 text-gray-500 dark:text-gray-400" />
-                      )}
-                    </button>
-                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Mic className="h-3 w-3 opacity-70" />
+                      <span className="text-xs font-medium opacity-80">Transcrição:</span>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words">
+                      {message.transcriptionText}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRetryTranscription()
+                    }}
+                    disabled={retryingTranscription}
+                    className="flex-shrink-0 p-1.5 hover:bg-black/20 rounded transition-colors disabled:opacity-50"
+                    title="Refazer transcrição"
+                  >
+                    {retryingTranscription ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5 opacity-70" />
+                    )}
+                  </button>
                 </div>
               </div>
             )}
-            {/* Ações de transcrição para áudios sem transcrição */}
-            {!message.transcriptionText && message.contentType === 'AUDIO' && !isUser && (
-              <div className="flex items-center gap-2 px-3 py-1">
+            {/* Ações de transcrição para áudios sem transcrição (tanto enviados quanto recebidos) */}
+            {!message.transcriptionText && message.contentType === 'AUDIO' && (
+              <div className="flex items-center gap-2 px-3 py-1.5 mt-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     handleTranscribe()
                   }}
                   disabled={transcribing}
-                  className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {transcribing ? (
                     <>
