@@ -484,8 +484,6 @@ export class BulkDispatcherService {
         return 'imagem';
       case ScheduledContentType.AUDIO:
         return 'audio';
-      case ScheduledContentType.VIDEO:
-        return 'video';
       case ScheduledContentType.DOCUMENT:
         return 'documento';
       default:
@@ -538,9 +536,6 @@ export class BulkDispatcherService {
         if (extension === 'mp3') return 'audio/mpeg';
         if (extension === 'aac') return 'audio/aac';
         return 'audio/ogg';
-      case ScheduledContentType.VIDEO:
-        if (extension === 'mov') return 'video/quicktime';
-        return 'video/mp4';
       case ScheduledContentType.DOCUMENT:
         if (extension === 'pdf') return 'application/pdf';
         if (extension === 'doc' || extension === 'docx') {
