@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
@@ -72,15 +73,18 @@ export class PipelineStagesService {
     try {
       this.logger.log(`[create] Criando estágio: name=${dto.name}, statusId=${dto.statusId}, order=${order}, tenantId=${tenantId}`);
       
-      // Preparar dados para criação (sem isDefault se não existir no banco)
+      // Preparar dados para criação - APENAS campos que existem no banco
+      // Não incluir: description, isDefault (podem não existir)
       const createData: any = {
         name: dto.name,
         statusId: dto.statusId,
         color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
         order,
-        isActive: dto.isActive ?? true,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
         tenantId,
       };
+      
+      this.logger.log(`[create] Dados preparados:`, JSON.stringify(createData));
       
       const created = await this.prisma.pipelineStage.create({
         data: createData,
@@ -115,10 +119,12 @@ export class PipelineStagesService {
         stack: error.stack,
         dto,
         tenantId,
+        createData,
       });
       
       // Se o erro for de constraint violada, retornar mensagem mais amigável
       if (error.code === 'P2002') {
+        const target = error.meta?.target || 'campo';
         throw new BadRequestException(
           `Já existe um estágio com essas características para este tenant`,
         );
@@ -126,13 +132,28 @@ export class PipelineStagesService {
       
       // Se o erro for de coluna não encontrada, retornar mensagem específica
       if (error.code === 'P2022') {
-        this.logger.error(`[create] Coluna não encontrada no banco:`, error.meta);
-        throw new BadRequestException(
-          `Erro ao criar estágio: campo não encontrado no banco de dados. Verifique se as migrações foram aplicadas.`,
+        const columnName = error.meta?.column || 'campo desconhecido';
+        this.logger.error(`[create] Coluna não encontrada no banco: ${columnName}`, error.meta);
+        throw new InternalServerErrorException(
+          `Erro ao criar estágio: coluna "${columnName}" não encontrada no banco de dados. Verifique se as migrações foram aplicadas corretamente.`,
         );
       }
       
-      throw new BadRequestException(
+      // Se o erro for de tipo de dados incorreto
+      if (error.code === 'P2003') {
+        throw new BadRequestException(
+          `Erro ao criar estágio: referência inválida. Verifique se o statusId existe.`,
+        );
+      }
+      
+      // Outros erros - retornar mensagem mais detalhada
+      this.logger.error(`[create] Erro inesperado:`, {
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+      });
+      
+      throw new InternalServerErrorException(
         `Erro ao criar estágio: ${error.message || 'Erro desconhecido'}`,
       );
     }
