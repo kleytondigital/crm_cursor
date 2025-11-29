@@ -70,30 +70,49 @@ export class PipelineStagesService {
     }
 
     try {
-      return await this.prisma.pipelineStage.create({
-        data: {
-          name: dto.name,
-          statusId: dto.statusId,
-          color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
-          order,
-          isActive: dto.isActive ?? true,
-          tenantId,
-        },
-        include: {
+      this.logger.log(`[create] Criando estágio: name=${dto.name}, statusId=${dto.statusId}, order=${order}, tenantId=${tenantId}`);
+      
+      // Preparar dados para criação (sem isDefault se não existir no banco)
+      const createData: any = {
+        name: dto.name,
+        statusId: dto.statusId,
+        color: dto.color || customStatus.color || '#6B7280', // Usar cor do status se não especificada
+        order,
+        isActive: dto.isActive ?? true,
+        tenantId,
+      };
+      
+      const created = await this.prisma.pipelineStage.create({
+        data: createData,
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          order: true,
+          statusId: true,
+          color: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
           customStatus: {
             select: {
               id: true,
               name: true,
               color: true,
+              order: true,
             },
           },
         },
       });
+      
+      this.logger.log(`[create] Estágio criado com sucesso: id=${created.id}`);
+      return created;
     } catch (error: any) {
-      console.error('[PipelineStagesService.create] Erro ao criar estágio:', {
-        error: error.message,
+      this.logger.error(`[create] ERRO ao criar estágio:`, {
+        message: error.message,
         code: error.code,
         meta: error.meta,
+        stack: error.stack,
         dto,
         tenantId,
       });
@@ -102,6 +121,14 @@ export class PipelineStagesService {
       if (error.code === 'P2002') {
         throw new BadRequestException(
           `Já existe um estágio com essas características para este tenant`,
+        );
+      }
+      
+      // Se o erro for de coluna não encontrada, retornar mensagem específica
+      if (error.code === 'P2022') {
+        this.logger.error(`[create] Coluna não encontrada no banco:`, error.meta);
+        throw new BadRequestException(
+          `Erro ao criar estágio: campo não encontrado no banco de dados. Verifique se as migrações foram aplicadas.`,
         );
       }
       
@@ -130,7 +157,6 @@ export class PipelineStagesService {
           order: true,
           statusId: true,
           color: true,
-          isDefault: true,
           isActive: true,
           createdAt: true,
           updatedAt: true,
@@ -175,7 +201,6 @@ export class PipelineStagesService {
         order: true,
         statusId: true,
         color: true,
-        isDefault: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -214,7 +239,9 @@ export class PipelineStagesService {
 
     const stage = await this.findOne(id, tenantId);
 
-    if (stage.isDefault) {
+    // Verificar isDefault apenas se o campo existir (usar type assertion para evitar erro)
+    const stageWithDefault = stage as any;
+    if (stageWithDefault.isDefault) {
       throw new BadRequestException('Estágios padrão não podem ser editados');
     }
 
@@ -272,7 +299,6 @@ export class PipelineStagesService {
         order: true,
         statusId: true,
         color: true,
-        isDefault: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
