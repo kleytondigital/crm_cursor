@@ -1,4 +1,4 @@
-import { Body, Controller, Logger, Post, Headers, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Logger, Post, Get, Query, Headers, BadRequestException } from '@nestjs/common';
 import { Public } from '@/shared/decorators/public.decorator';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { MessagesGateway } from '@/modules/messages/messages.gateway';
@@ -654,6 +654,95 @@ export class SocialWebhookController {
     }
 
     return 'bin';
+  }
+
+  /**
+   * Endpoint público para n8n consultar conexão por identificadores
+   * Permite ao n8n buscar tenantId e connectionId baseado em pageId ou instagramBusinessId
+   */
+  @Public()
+  @Get('connection/lookup')
+  async lookupConnection(
+    @Query('provider') provider: string,
+    @Query('pageId') pageId?: string,
+    @Query('instagramBusinessId') instagramBusinessId?: string,
+  ) {
+    try {
+
+      if (!provider || (provider !== 'INSTAGRAM' && provider !== 'FACEBOOK')) {
+        throw new BadRequestException('Query parameter "provider" deve ser INSTAGRAM ou FACEBOOK');
+      }
+
+      if (!pageId && !instagramBusinessId) {
+        throw new BadRequestException('Query parameter "pageId" ou "instagramBusinessId" deve ser fornecido');
+      }
+
+      // Buscar conexões do provider especificado
+      const providerEnum = provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK;
+
+      const connections = await this.prisma.connection.findMany({
+        where: {
+          provider: providerEnum,
+          isActive: true,
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          provider: true,
+          name: true,
+          metadata: true,
+        },
+      });
+
+      // Filtrar por identificadores
+      let foundConnection = null;
+
+      for (const conn of connections) {
+        const metadata = (conn.metadata as any) || {};
+
+        // Para Instagram, priorizar instagramBusinessId
+        if (provider === 'INSTAGRAM' && instagramBusinessId) {
+          if (metadata.instagramBusinessId === instagramBusinessId) {
+            foundConnection = conn;
+            break;
+          }
+        }
+
+        // Buscar por pageId (funciona para ambos)
+        if (pageId && metadata.pageId === pageId) {
+          foundConnection = conn;
+          break;
+        }
+      }
+
+      if (!foundConnection) {
+        this.logger.warn(
+          `Conexão não encontrada. provider=${provider} pageId=${pageId} instagramBusinessId=${instagramBusinessId}`,
+        );
+        return {
+          found: false,
+          message: 'Conexão não encontrada',
+        };
+      }
+
+      // Retornar apenas informações necessárias (sem tokens sensíveis)
+      const metadata = (foundConnection.metadata as any) || {};
+      return {
+        found: true,
+        tenantId: foundConnection.tenantId,
+        connectionId: foundConnection.id,
+        provider: foundConnection.provider,
+        name: foundConnection.name,
+        pageId: metadata.pageId,
+        instagramBusinessId: metadata.instagramBusinessId,
+        pageName: metadata.pageName,
+        instagramUsername: metadata.instagramUsername,
+      };
+    } catch (error: any) {
+      this.logger.error(`Erro ao buscar conexão: ${error?.message || error}`, error?.stack);
+      throw new BadRequestException(error?.message || 'Erro ao buscar conexão');
+    }
   }
 
   /**

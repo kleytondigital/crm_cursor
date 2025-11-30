@@ -188,12 +188,43 @@ POST https://backcrm.aoseudispor.com.br/webhooks/social
 
 ## Como Obter os UUIDs Necessários
 
-### tenantId
+### Opção 1: Endpoint de Lookup (Recomendado)
+
+O CRM fornece um endpoint público para buscar `tenantId` e `connectionId` baseado nos identificadores do Instagram/Facebook:
+
+**Endpoint:** `GET /webhooks/social/connection/lookup`
+
+**Query Parameters:**
+- `provider` (obrigatório): `INSTAGRAM` ou `FACEBOOK`
+- `pageId` (opcional): ID da página Facebook ou Instagram
+- `instagramBusinessId` (opcional): ID da conta Instagram Business
+
+**Exemplo:**
+```bash
+GET https://backcrm.aoseudispor.com.br/webhooks/social/connection/lookup?provider=INSTAGRAM&pageId=123456789&instagramBusinessId=17841405309211844
+```
+
+**Resposta:**
+```json
+{
+  "found": true,
+  "tenantId": "660e8400-e29b-41d4-a716-446655440001",
+  "connectionId": "550e8400-e29b-41d4-a716-446655440000",
+  "provider": "INSTAGRAM",
+  "name": "Instagram - Minha Página",
+  "pageId": "123456789",
+  "instagramBusinessId": "17841405309211844"
+}
+```
+
+### Opção 2: Métodos Alternativos
+
+#### tenantId
 O `tenantId` é o ID da empresa no CRM. Você pode obter:
 - Via API: `GET /api/companies/me` (retorna o `id` da empresa do usuário autenticado)
 - No banco de dados: tabela `companies`, campo `id`
 
-### connectionId
+#### connectionId
 O `connectionId` é o ID da conexão Instagram criada na página de Conexões. Você pode obter:
 - Via API: `GET /api/connections/social` (retorna todas as conexões sociais)
 - No banco de dados: tabela `connections`, campo `id` onde `provider = 'INSTAGRAM'`
@@ -226,6 +257,9 @@ O `connectionId` é o ID da conexão Instagram criada na página de Conexões. V
 ```
 
 ### Transformação para Enviar ao CRM:
+
+#### Método 1: Buscar tenantId/connectionId Dinamicamente (Recomendado)
+
 ```javascript
 // No n8n, use um node "Code" ou "Function" para transformar:
 
@@ -233,14 +267,74 @@ const entry = $input.item.json.entry[0];
 const messaging = entry.messaging[0];
 const message = messaging.message;
 
-// Extrair dados (ajuste conforme sua configuração)
-const tenantId = $env.TENANT_ID; // ou buscar dinamicamente
-const connectionId = $env.INSTAGRAM_CONNECTION_ID; // ou buscar dinamicamente
+// Determinar provider
+const provider = $json.object === 'instagram' ? 'INSTAGRAM' : 'FACEBOOK';
+
+// Extrair identificadores do webhook da Meta
+const recipientId = messaging.recipient?.id || entry.id;
+const senderId = messaging.sender?.id;
+
+// Buscar conexão no CRM usando o endpoint de lookup
+const lookupUrl = `https://backcrm.aoseudispor.com.br/webhooks/social/connection/lookup?provider=${provider}&pageId=${recipientId}`;
+if (provider === 'INSTAGRAM' && recipientId) {
+  lookupUrl += `&instagramBusinessId=${recipientId}`;
+}
+
+const lookupResponse = await $http.get(lookupUrl);
+
+if (!lookupResponse.found) {
+  throw new Error(`Conexão não encontrada para provider=${provider} pageId=${recipientId}`);
+}
+
+const { tenantId, connectionId } = lookupResponse;
 
 return {
   tenantId: tenantId,
   connectionId: connectionId,
-  provider: "INSTAGRAM",
+  provider: provider,
+  message: {
+    id: message.mid || message.id,
+    from: {
+      id: senderId,
+      name: messaging.sender?.name || null,
+      picture: messaging.sender?.profile_picture || null
+    },
+    text: message.text || null,
+    type: message.attachments && message.attachments.length > 0 
+      ? message.attachments[0].type 
+      : "text",
+    mediaUrl: message.attachments && message.attachments.length > 0
+      ? message.attachments[0].payload.url
+      : null,
+    mediaMimeType: message.attachments && message.attachments.length > 0
+      ? message.attachments[0].payload.mime_type
+      : null,
+    timestamp: messaging.timestamp 
+      ? new Date(messaging.timestamp).toISOString()
+      : new Date().toISOString(),
+    isFromMe: false
+  }
+};
+```
+
+#### Método 2: Usar Variáveis de Ambiente (Alternativo)
+
+```javascript
+// No n8n, use um node "Code" ou "Function" para transformar:
+
+const entry = $input.item.json.entry[0];
+const messaging = entry.messaging[0];
+const message = messaging.message;
+
+// Extrair dados (usar variáveis de ambiente pré-configuradas)
+const tenantId = $env.TENANT_ID;
+const connectionId = $env.INSTAGRAM_CONNECTION_ID;
+const provider = "INSTAGRAM";
+
+return {
+  tenantId: tenantId,
+  connectionId: connectionId,
+  provider: provider,
   message: {
     id: message.mid || message.id,
     from: {
