@@ -420,7 +420,7 @@ export class SocialWebhookController {
     senderId: string;
     name: string;
     profilePictureURL?: string | null;
-  }): Promise<Lead> {
+  }): Promise<any> {
     // Para redes sociais, usar senderId como identificador único
     // Armazenar em um campo customizado ou usar phone como fallback
     // Por enquanto, vamos usar senderId como phone (formato: instagram_123456 ou facebook_123456)
@@ -548,7 +548,7 @@ export class SocialWebhookController {
 
   private async createMessage(
     normalized: any,
-    lead: Lead,
+    lead: any,
     conversation: any,
     connection: any,
   ) {
