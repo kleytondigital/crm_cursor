@@ -785,21 +785,46 @@ export class ConnectionsService {
       instagramUsername: instagramBusinessAccount?.username,
     };
 
-    // Verificar se já existe conexão para esta página
-    const existing = await this.prisma.connection.findFirst({
+    // Verificar se já existe conexão para esta página OU Instagram Business Account
+    // Para Instagram: verifica por instagramBusinessId (mais específico)
+    // Para Facebook: verifica por pageId
+    const providerType = provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK;
+    
+    // Buscar conexão existente
+    const allExistingConnections = await this.prisma.connection.findMany({
       where: {
         tenantId,
-        provider: provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK,
-        metadata: {
-          path: ['pageId'],
-          equals: selectedPage.id,
-        },
+        provider: providerType,
       },
     });
+
+    // Para Instagram, priorizar busca por instagramBusinessId
+    let existing = null;
+    if (provider === 'INSTAGRAM' && instagramBusinessAccount?.id) {
+      existing = allExistingConnections.find((conn) => {
+        const connMetadata = conn.metadata as SocialConnectionMetadata | null;
+        return connMetadata?.instagramBusinessId === instagramBusinessAccount.id;
+      }) || null;
+    }
+
+    // Se não encontrou por instagramBusinessId, buscar por pageId
+    if (!existing) {
+      existing = allExistingConnections.find((conn) => {
+        const connMetadata = conn.metadata as SocialConnectionMetadata | null;
+        return connMetadata?.pageId === selectedPage.id;
+      }) || null;
+    }
+
+    // Se ainda não encontrou, usar a primeira conexão do mesmo provider (se existir apenas uma)
+    if (!existing && allExistingConnections.length === 1) {
+      existing = allExistingConnections[0];
+      this.logger.log(`Reutilizando conexão existente única para ${provider}: ${existing.id}`);
+    }
 
     let connection;
     if (existing) {
       // Atualizar conexão existente
+      this.logger.log(`Atualizando conexão existente ${existing.id} para ${provider} - ${selectedPage.name}`);
       connection = await this.prisma.connection.update({
         where: { id: existing.id },
         data: {
@@ -810,14 +835,48 @@ export class ConnectionsService {
           isActive: true,
         },
       });
+
+      // Se existem outras conexões do mesmo provider para o mesmo tenant, desativá-las
+      // (mantém apenas a conexão atualizada ativa)
+      const otherConnections = allExistingConnections.filter((conn) => conn.id !== existing!.id);
+      if (otherConnections.length > 0) {
+        this.logger.log(`Desativando ${otherConnections.length} conexão(ões) duplicada(s) do ${provider}`);
+        await this.prisma.connection.updateMany({
+          where: {
+            id: {
+              in: otherConnections.map((conn) => conn.id),
+            },
+          },
+          data: {
+            status: ConnectionStatus.STOPPED,
+            isActive: false,
+          },
+        });
+      }
     } else {
       // Criar nova conexão
+      this.logger.log(`Criando nova conexão para ${provider} - ${selectedPage.name}`);
+      
+      // Antes de criar, desativar qualquer outra conexão ativa do mesmo provider
+      // para garantir apenas uma conexão ativa por provider/tenant
+      await this.prisma.connection.updateMany({
+        where: {
+          tenantId,
+          provider: providerType,
+          isActive: true,
+        },
+        data: {
+          status: ConnectionStatus.STOPPED,
+          isActive: false,
+        },
+      });
+
       connection = await this.prisma.connection.create({
         data: {
           tenantId,
           name: `${provider} - ${selectedPage.name}`,
           sessionName,
-          provider: provider === 'INSTAGRAM' ? ConnectionProvider.INSTAGRAM : ConnectionProvider.FACEBOOK,
+          provider: providerType,
           status: ConnectionStatus.ACTIVE,
           metadata: metadata as any,
           refreshToken: tokenResponse.refresh_token || null,
