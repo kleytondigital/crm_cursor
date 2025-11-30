@@ -754,7 +754,7 @@ export default function ConnectionsPage() {
             </p>
           </div>
         ) : data && data.length > 0 ? (
-          <div className="grid gap-4 md:gap-5 lg:gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {data.map((connection) => {
               const runtimeStatusKey =
                 connection.statusInfo?.status?.toUpperCase() || connection.status;
@@ -766,6 +766,8 @@ export default function ConnectionsPage() {
               const hasSessionWebhooks = sessionWebhooks.length > 0;
               const isSocialConnection = connection.type === 'INSTAGRAM' || connection.type === 'FACEBOOK';
               const isWhatsApp = connection.type === 'WHATSAPP';
+              const isWAHA = isWhatsApp && connection.sessionName; // Conexões WAHA têm sessionName
+              const isWhatsAppOfficial = isWhatsApp && !connection.sessionName; // WhatsApp oficial via Meta (futuro)
 
               // Determinar ícone baseado no tipo de conexão
               const getProviderIcon = () => {
@@ -773,54 +775,56 @@ export default function ConnectionsPage() {
                   return '/instagram.png';
                 } else if (connection.type === 'FACEBOOK') {
                   return '/facebook.png';
-                } else if (connection.type === 'WHATSAPP') {
-                  return '/whatsapp.png';
+                } else if (isWAHA) {
+                  return '/waha.png'; // Conexões WAHA
+                } else if (isWhatsAppOfficial) {
+                  return '/whatsapp.png'; // WhatsApp oficial via Meta
                 }
                 return null;
               };
 
               return (
-                <Card key={connection.id} className="flex h-full flex-col border-2 border-white/10 hover:border-brand-secondary/40 transition-all hover:shadow-xl hover:shadow-brand-secondary/20 hover:scale-[1.02] bg-gradient-to-br from-background-card via-background-card/95 to-background-soft/80 rounded-2xl overflow-hidden">
-                  <CardHeader className="border-b border-white/5 p-4 md:p-5 bg-gradient-to-r from-white/5 to-white/[0.02]">
-                    <CardTitle className="flex items-start justify-between gap-3 text-white">
-                      <div className="min-w-0 flex-1 flex items-center gap-3">
+                <Card key={connection.id} className="flex h-full flex-col border border-white/10 hover:border-brand-secondary/30 transition-all hover:shadow-lg hover:shadow-brand-secondary/10 bg-gradient-to-br from-background-card to-background-soft/60 rounded-xl overflow-hidden">
+                  <CardHeader className="border-b border-white/5 p-3 bg-gradient-to-r from-white/5 to-white/[0.02]">
+                    <CardTitle className="flex items-start justify-between gap-2 text-white">
+                      <div className="min-w-0 flex-1 flex items-center gap-2">
                         {getProviderIcon() && (
-                          <div className="flex-shrink-0 w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-white/10 to-white/5 border-2 border-white/20 shadow-lg flex items-center justify-center p-2">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-white/10 to-white/5 border border-white/20 flex items-center justify-center p-1">
                             <Image
                               src={getProviderIcon()!}
                               alt={connection.type}
-                              width={28}
-                              height={28}
-                              className="object-contain drop-shadow-sm"
+                              width={18}
+                              height={18}
+                              className="object-contain"
                             />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-base md:text-lg font-bold truncate">{connection.name}</p>
+                          <p className="text-sm font-semibold truncate">{connection.name}</p>
                           {isSocialConnection && (
-                            <p className="text-xs text-text-muted mt-0.5">
+                            <p className="text-[10px] text-text-muted mt-0.5">
                               {connection.type === 'INSTAGRAM' ? 'Instagram Direct' : 'Facebook Messenger'}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-                        <Badge variant={status.tone} className="text-[10px] md:text-xs px-2 md:px-2.5 py-1 md:py-1">{status.label}</Badge>
-                        {isWhatsApp && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <Badge variant={status.tone} className="text-[9px] px-1.5 py-0.5">{status.label}</Badge>
+                        {isWAHA && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 md:h-9 md:w-9 text-text-muted hover:text-white"
+                            className="h-6 w-6 text-text-muted hover:text-white"
                             onClick={() => setAutomationsDialog({ open: true, connection })}
                             title="Gerenciar Automações"
                           >
-                            <Bot className="h-4 w-4 md:h-4.5 md:w-4.5" />
+                            <Bot className="h-3.5 w-3.5" />
                           </Button>
                         )}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 md:h-9 md:w-9 text-text-muted hover:text-white"
+                          className="h-6 w-6 text-text-muted hover:text-white"
                           onClick={() => {
                             if (isSocialConnection) {
                               setSocialSettingsDialog({ open: true, connection });
@@ -831,7 +835,7 @@ export default function ConnectionsPage() {
                           title={isSocialConnection ? "Configurações e Permissões" : "Configurações avançadas"}
                           disabled={webhooksLoading && webhooksDialog.connection?.id === connection.id}
                         >
-                          <Settings className="h-4 w-4 md:h-4.5 md:w-4.5" />
+                          <Settings className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </CardTitle>
@@ -839,31 +843,31 @@ export default function ConnectionsPage() {
                       ID: {connection.sessionName}
                     </CardDescription> */}
                   </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-3 md:gap-4 text-xs md:text-sm text-text-muted p-4 md:p-5">
+                  <CardContent className="flex flex-1 flex-col gap-2 text-xs text-text-muted p-3">
                     {connection.sessionName && (
-                      <div className="rounded-lg border border-white/5 bg-background-soft/50 px-2.5 md:px-3 py-1.5 md:py-2">
-                        <p className="text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted">
-                          {connection.type === 'WHATSAPP' ? 'Sessão' : 'ID'}
+                      <div className="rounded-lg border border-white/5 bg-background-soft/50 px-2 py-1.5">
+                        <p className="text-[9px] uppercase tracking-wide text-text-muted">
+                          Sessão
                         </p>
-                        <p className="mt-0.5 md:mt-1 text-[11px] md:text-xs text-text-primary break-words truncate">
+                        <p className="mt-0.5 text-[10px] text-text-primary break-words truncate">
                           {connection.sessionName}
                         </p>
                       </div>
                     )}
                     {connection.metadata && isSocialConnection && (
-                      <div className="rounded-xl border border-white/10 bg-gradient-to-br from-background-soft/70 to-background-soft/40 px-3 md:px-4 py-2.5 md:py-3">
-                        <p className="text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted font-semibold">
+                      <div className="rounded-lg border border-white/10 bg-background-soft/60 px-2.5 py-2">
+                        <p className="text-[9px] uppercase tracking-wide text-text-muted font-semibold">
                           Conta Conectada
                         </p>
-                        <p className="mt-1 md:mt-1.5 text-sm md:text-base text-white font-medium break-words">
+                        <p className="mt-1 text-xs text-white font-medium break-words truncate">
                           {connection.metadata?.pageName || connection.metadata?.instagramUsername || connection.name}
                         </p>
                       </div>
                     )}
 
-                    {isConnected && (
-                      <div className="flex items-center gap-2 md:gap-2 rounded-lg border border-white/5 bg-white/5 px-2.5 md:px-3 py-2 md:py-2">
-                        <div className="flex h-7 w-7 md:h-8 md:w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-secondary/20 text-brand-secondary text-[11px] md:text-xs">
+                    {isConnected && isWAHA && (
+                      <div className="flex items-center gap-2 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
+                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-secondary/20 text-brand-secondary text-[10px]">
                           {connection.statusInfo?.picture ? (
                             <img
                               src={connection.statusInfo.picture}
@@ -875,73 +879,73 @@ export default function ConnectionsPage() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[11px] md:text-xs font-semibold text-white">
+                          <p className="truncate text-[10px] font-semibold text-white">
                             {connection.statusInfo?.pushName || 'Dispositivo autenticado'}
                           </p>
-                          <p className="truncate text-[10px] md:text-[11px] text-text-muted">
+                          <p className="truncate text-[9px] text-text-muted">
                             {connection.statusInfo?.waId || 'Número indisponível'}
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Webhooks apenas para WhatsApp */}
-                    {isWhatsApp && (
-                      <div className="rounded-xl border border-white/10 bg-gradient-to-br from-background-soft/70 to-background-soft/40 px-3 md:px-4 py-2.5 md:py-3">
+                    {/* Webhooks apenas para WAHA */}
+                    {isWAHA && (
+                      <div className="rounded-lg border border-white/10 bg-background-soft/60 px-2.5 py-2">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10px] md:text-[11px] uppercase tracking-wide text-text-muted font-semibold">
+                          <p className="text-[9px] uppercase tracking-wide text-text-muted font-semibold">
                             Webhooks
                           </p>
                           <Badge
                             variant={hasSessionWebhooks ? 'default' : 'destructive'}
-                            className="text-[10px] md:text-[11px] px-2 md:px-2.5 py-0.5 md:py-1"
+                            className="text-[9px] px-1.5 py-0.5"
                           >
                             {hasSessionWebhooks ? 'Configurado' : 'Não configurado'}
                           </Badge>
                         </div>
                         {hasSessionWebhooks ? (
-                          <div className="mt-2 space-y-1.5">
-                            {sessionWebhooks.slice(0, 2).map((hook, index) => (
+                          <div className="mt-1.5 space-y-1">
+                            {sessionWebhooks.slice(0, 1).map((hook, index) => (
                               <div
                                 key={`${hook.url}-${index}`}
-                                className="rounded-lg border border-white/5 bg-black/20 px-2.5 md:px-3 py-2"
+                                className="rounded border border-white/5 bg-black/20 px-2 py-1.5"
                               >
-                                <p className="text-xs md:text-sm text-text-primary break-words line-clamp-2 font-medium">
+                                <p className="text-[10px] text-text-primary break-words line-clamp-2">
                                   {hook.url || 'URL não informada'}
                                 </p>
-                                <p className="mt-1 text-[10px] md:text-[11px] text-text-muted break-words line-clamp-2">
-                                  {hook.events.length > 0
-                                    ? hook.events.slice(0, 2).join(', ') + (hook.events.length > 2 ? '...' : '')
-                                    : 'Sem eventos'}
-                                </p>
+                                {hook.events.length > 0 && (
+                                  <p className="mt-0.5 text-[9px] text-text-muted break-words line-clamp-1">
+                                    {hook.events.slice(0, 2).join(', ') + (hook.events.length > 2 ? '...' : '')}
+                                  </p>
+                                )}
                               </div>
                             ))}
-                            {sessionWebhooks.length > 2 && (
-                              <p className="text-xs text-text-muted">
-                                +{sessionWebhooks.length - 2} webhooks adicionais
+                            {sessionWebhooks.length > 1 && (
+                              <p className="text-[9px] text-text-muted">
+                                +{sessionWebhooks.length - 1} webhooks adicionais
                               </p>
                             )}
                           </div>
                         ) : (
-                          <p className="mt-2 text-xs md:text-sm text-text-muted">
+                          <p className="mt-1.5 text-[10px] text-text-muted">
                             Nenhum webhook configurado.
                           </p>
                         )}
                       </div>
                     )}
 
-                    {isConnected && (
+                    {isConnected && isWAHA && (
                       <>
-                        <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs">
-                          <div className="rounded-xl md:rounded-2xl border border-white/5 bg-white/5 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-3">
-                            <p className="text-[10px] md:text-xs text-text-muted">Criada em</p>
-                            <p className="mt-0.5 md:mt-1 text-xs md:text-sm text-white break-words">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
+                            <p className="text-[9px] text-text-muted">Criada em</p>
+                            <p className="mt-0.5 text-[10px] text-white break-words">
                               {new Date(connection.createdAt).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
-                          <div className="rounded-xl md:rounded-2xl border border-white/5 bg-white/5 px-2 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-3">
-                            <p className="text-[10px] md:text-xs text-text-muted">Atualizada</p>
-                            <p className="mt-0.5 md:mt-1 text-xs md:text-sm text-white break-words">
+                          <div className="rounded-lg border border-white/5 bg-white/5 px-2 py-1.5">
+                            <p className="text-[9px] text-text-muted">Atualizada</p>
+                            <p className="mt-0.5 text-[10px] text-white break-words">
                               {new Date(connection.updatedAt).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
@@ -949,60 +953,60 @@ export default function ConnectionsPage() {
                       </>
                     )}
                   </CardContent>
-                  <CardFooter className="flex flex-wrap items-center gap-2 md:gap-3 p-4 md:p-5 pt-4 border-t border-white/5 bg-gradient-to-r from-white/[0.03] to-transparent">
-                    {!isConnected && (
-                      <Button
-                        size="sm"
-                        className="gap-1.5 md:gap-1.5 text-[11px] md:text-xs px-2 md:px-2.5 py-1.5 md:py-1.5"
-                        onClick={() => openConnectDialog(connection)}
-                        disabled={actionMutation.isLoading || qrMutation.isLoading}
-                      >
-                        <Play className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                        <span className="hidden sm:inline">Conectar</span>
-                        <span className="sm:hidden">Conectar</span>
-                      </Button>
-                    )}
-                    {isConnected && (
+                  <CardFooter className="flex flex-wrap items-center gap-2 p-3 pt-2 border-t border-white/5 bg-gradient-to-r from-white/[0.03] to-transparent">
+                    {/* Botões apenas para conexões WAHA */}
+                    {isWAHA && (
                       <>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="gap-1.5 md:gap-1.5 text-[11px] md:text-xs px-2 md:px-2.5 py-1.5 md:py-1.5"
-                          onClick={() => handleAction(connection.id, 'disconnect')}
-                          disabled={actionMutation.isLoading}
-                        >
-                          <Power className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                          <span className="hidden sm:inline">Desconectar</span>
-                          <span className="sm:hidden">Descon.</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2 text-text-muted"
-                          onClick={() => handleAction(connection.id, 'reload')}
-                          disabled={actionMutation.isLoading}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                          <span className="hidden sm:inline">Recarregar</span>
-                          <span className="sm:hidden">Atualizar</span>
-                        </Button>
+                        {!isConnected && (
+                          <Button
+                            size="sm"
+                            className="gap-1 text-[10px] px-2 py-1 h-7"
+                            onClick={() => openConnectDialog(connection)}
+                            disabled={actionMutation.isLoading || qrMutation.isLoading}
+                          >
+                            <Play className="h-3 w-3" />
+                            <span>Conectar</span>
+                          </Button>
+                        )}
+                        {isConnected && (
+                          <>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="gap-1 text-[10px] px-2 py-1 h-7"
+                              onClick={() => handleAction(connection.id, 'disconnect')}
+                              disabled={actionMutation.isLoading}
+                            >
+                              <Power className="h-3 w-3" />
+                              <span>Desconectar</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 text-[10px] px-2 py-1 h-7 text-text-muted"
+                              onClick={() => handleAction(connection.id, 'reload')}
+                              disabled={actionMutation.isLoading}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              <span>Recarregar</span>
+                            </Button>
+                          </>
+                        )}
+                        {!isConnected && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="ml-auto gap-1 text-[10px] px-2 py-1 h-7"
+                            onClick={() => handleAction(connection.id, 'delete')}
+                            disabled={actionMutation.isLoading}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            <span>Remover</span>
+                          </Button>
+                        )}
                       </>
                     )}
-
-
-                    {!isConnected && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="ml-auto gap-1.5 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
-                        onClick={() => handleAction(connection.id, 'delete')}
-                        disabled={actionMutation.isLoading}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                        <span className="hidden sm:inline">Remover</span>
-                        <span className="sm:hidden">Remover</span>
-                      </Button>
-                    )}
+                    {/* Conexões sociais só mostram status, sem botões */}
                   </CardFooter>
                 </Card>
               );
