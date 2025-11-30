@@ -100,7 +100,7 @@ export default function ConversationsSidebar() {
         <div className="absolute inset-0 bg-hero-grid opacity-70" />
         <div className="relative z-10 space-y-1">
           {/* <p className="text-xs uppercase tracking-[0.3em] text-text-muted">Painel LiveOps</p> */}
-          <h2 className="text-xl md:text-2xl font-bold text-white">Conversas</h2>
+          <h2 className="text-xs md:text-2xl font-bold text-white">Conversas</h2>
           <p className="hidden md:block text-sm text-text-muted">
             Acompanhe atendimentos em tempo real e priorize leads quentes.
           </p>
@@ -109,7 +109,44 @@ export default function ConversationsSidebar() {
 
       {/* Abas de Plataforma */}
       <div className="border-b border-white/5 bg-background-subtle/70 px-3 pt-3 md:px-4 md:pt-4">
-        <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide">
+        <div 
+          className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide"
+          onWheel={(e) => {
+            // Scroll horizontal com a roda do mouse
+            e.currentTarget.scrollLeft += e.deltaY
+            e.preventDefault()
+          }}
+          style={{ 
+            scrollBehavior: 'smooth',
+            cursor: 'grab'
+          }}
+          onMouseDown={(e) => {
+            // Habilitar arraste (drag) para scroll horizontal
+            const container = e.currentTarget
+            const startX = e.pageX - container.offsetLeft
+            const scrollLeft = container.scrollLeft
+            let isDown = true
+
+            const handleMouseMove = (e: MouseEvent) => {
+              if (!isDown) return
+              e.preventDefault()
+              const x = e.pageX - container.offsetLeft
+              const walk = (x - startX) * 2 // Velocidade do scroll
+              container.scrollLeft = scrollLeft - walk
+            }
+
+            const handleMouseUp = () => {
+              isDown = false
+              container.style.cursor = 'grab'
+              document.removeEventListener('mousemove', handleMouseMove)
+              document.removeEventListener('mouseup', handleMouseUp)
+            }
+
+            container.style.cursor = 'grabbing'
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+          }}
+        >
           <button
             onClick={() => setActiveTab('ALL')}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
