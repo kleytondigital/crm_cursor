@@ -186,11 +186,17 @@ export class MetaOAuthService {
 
   /**
    * Converte short-lived token para long-lived token (60 dias)
+   * IMPORTANTE: Deve usar as credenciais do mesmo app que gerou o token
    */
-  async getLongLivedToken(shortLivedToken: string): Promise<MetaLongLivedTokenResponse> {
-    if (!this.oauthAppSecret) {
+  async getLongLivedToken(shortLivedToken: string, useGraphApp: boolean = false): Promise<MetaLongLivedTokenResponse> {
+    // Determinar qual app usar baseado no parâmetro
+    const appId = useGraphApp ? this.graphAppId : this.oauthAppId;
+    const appSecret = useGraphApp ? this.graphAppSecret : this.oauthAppSecret;
+
+    if (!appId || !appSecret) {
+      const appType = useGraphApp ? 'Graph API' : 'OAuth';
       throw new InternalServerErrorException(
-        'META_OAUTH_APP_SECRET ou META_APP_SECRET não configurado',
+        `Credenciais Meta ${appType} não configuradas para converter token`,
       );
     }
 
@@ -200,14 +206,14 @@ export class MetaOAuthService {
         {
           params: {
             grant_type: 'fb_exchange_token',
-            client_id: this.oauthAppId, // Usar OAuth App ID
-            client_secret: this.oauthAppSecret, // Usar OAuth App Secret
+            client_id: appId, // Usar credenciais do app correto
+            client_secret: appSecret, // Usar credenciais do app correto
             fb_exchange_token: shortLivedToken,
           },
         },
       );
 
-      this.logger.log('Long-lived token obtido com sucesso');
+      this.logger.log(`Long-lived token obtido com sucesso usando ${useGraphApp ? 'Graph' : 'OAuth'} App`);
       return response.data;
     } catch (error: unknown) {
       if (this.isAxiosError(error)) {

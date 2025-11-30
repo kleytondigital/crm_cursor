@@ -721,8 +721,10 @@ export class ConnectionsService {
     }
 
     // Converter para long-lived token
+    // IMPORTANTE: Usar credenciais do mesmo app que gerou o token
     const longLivedToken = await this.metaOAuthService.getLongLivedToken(
       tokenResponse.access_token,
+      isGraphStep, // Se for segunda etapa, usar Graph App credentials
     );
 
     // Buscar páginas do usuário
