@@ -431,6 +431,18 @@ export class SocialWebhookController {
         tenantId,
         phone,
       },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        phone: true,
+        statusId: true,
+        tags: true,
+        profilePictureURL: true,
+        origin: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     if (!lead) {
@@ -457,6 +469,18 @@ export class SocialWebhookController {
           profilePictureURL: profilePictureURL || null,
           origin: 'Social Media',
         },
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          phone: true,
+          statusId: true,
+          tags: true,
+          profilePictureURL: true,
+          origin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     } else {
       const updateData: any = {};
@@ -473,6 +497,18 @@ export class SocialWebhookController {
         lead = await this.prisma.lead.update({
           where: { id: lead.id },
           data: updateData,
+          select: {
+            id: true,
+            tenantId: true,
+            name: true,
+            phone: true,
+            statusId: true,
+            tags: true,
+            profilePictureURL: true,
+            origin: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         });
       }
     }
