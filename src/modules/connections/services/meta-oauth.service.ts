@@ -432,10 +432,27 @@ export class MetaOAuthService {
   /**
    * Calcula data de expiração baseado em expires_in (segundos)
    */
-  calculateExpirationDate(expiresIn: number): Date {
-    const expirationDate = new Date();
-    expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
-    return expirationDate;
+  calculateExpirationDate(expiresIn: number | undefined | null): Date | null {
+    if (!expiresIn || typeof expiresIn !== 'number' || isNaN(expiresIn) || expiresIn <= 0) {
+      this.logger.warn(`expires_in inválido: ${expiresIn}. Retornando null.`);
+      return null;
+    }
+    
+    try {
+      const expirationDate = new Date();
+      expirationDate.setSeconds(expirationDate.getSeconds() + expiresIn);
+      
+      // Validar se a data criada é válida
+      if (isNaN(expirationDate.getTime())) {
+        this.logger.warn(`Data de expiração inválida calculada. expires_in: ${expiresIn}`);
+        return null;
+      }
+      
+      return expirationDate;
+    } catch (error) {
+      this.logger.error(`Erro ao calcular data de expiração: ${error}`);
+      return null;
+    }
   }
 
   private isAxiosError(error: any): error is AxiosError {

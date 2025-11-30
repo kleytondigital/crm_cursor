@@ -764,14 +764,22 @@ export class ConnectionsService {
 
     // Criar ou atualizar conexão
     const sessionName = `social_${provider.toLowerCase()}_${selectedPage.id}_${Date.now()}`;
+    
+    // Calcular data de expiração com validação
+    let tokenExpiresAt: string | undefined;
+    const expirationDate = this.metaOAuthService.calculateExpirationDate(longLivedToken.expires_in);
+    if (expirationDate) {
+      tokenExpiresAt = expirationDate.toISOString();
+    } else {
+      this.logger.warn(`Não foi possível calcular data de expiração. expires_in: ${longLivedToken.expires_in}. Token será salvo sem data de expiração.`);
+    }
+    
     const metadata: SocialConnectionMetadata = {
       pageId: selectedPage.id,
       pageName: selectedPage.name,
       pageCategory: selectedPage.category,
       accessToken: selectedPage.access_token || longLivedToken.access_token,
-      tokenExpiresAt: this.metaOAuthService
-        .calculateExpirationDate(longLivedToken.expires_in)
-        .toISOString(),
+      tokenExpiresAt,
       permissions: tokenResponse.scope?.split(',') || [],
       instagramBusinessId: instagramBusinessAccount?.id,
       instagramUsername: instagramBusinessAccount?.username,
@@ -850,9 +858,15 @@ export class ConnectionsService {
 
     const metadata = (connection.metadata as SocialConnectionMetadata) || {};
     metadata.accessToken = tokenResponse.access_token;
-    metadata.tokenExpiresAt = this.metaOAuthService
-      .calculateExpirationDate(tokenResponse.expires_in)
-      .toISOString();
+    
+    // Calcular data de expiração com validação
+    const expirationDate = this.metaOAuthService.calculateExpirationDate(tokenResponse.expires_in);
+    if (expirationDate) {
+      metadata.tokenExpiresAt = expirationDate.toISOString();
+    } else {
+      this.logger.warn(`Não foi possível calcular data de expiração. expires_in: ${tokenResponse.expires_in}. Token será salvo sem data de expiração.`);
+      metadata.tokenExpiresAt = undefined;
+    }
 
     const updated = await this.prisma.connection.update({
       where: { id: connection.id },
