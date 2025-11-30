@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { connectionsAPI } from '@/lib/api'
-import Image from 'next/image'
 
 interface CreateConnectionDialogProps {
   open: boolean
@@ -217,10 +216,8 @@ export default function CreateConnectionDialog({
               placeholder={
                 connectionType === 'WHATSAPP'
                   ? 'Ex: WhatsApp Principal'
-                  : connectionType === 'INSTAGRAM'
-                  ? 'Ex: Instagram Principal'
-                  : connectionType === 'FACEBOOK'
-                  ? 'Ex: Facebook Principal'
+                  : connectionType === 'META_API'
+                  ? 'Ex: Meta API - Instagram e Ads'
                   : 'Ex: Minha Conexão'
               }
               disabled={loading}
@@ -232,7 +229,15 @@ export default function CreateConnectionDialog({
           <Button variant="secondary" onClick={handleClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleCreate} disabled={loading || !connectionType || !name.trim()}>
+          <Button
+            onClick={handleCreate}
+            disabled={
+              loading ||
+              !connectionType ||
+              !name.trim() ||
+              (connectionType === 'META_API' && selectedServices.length === 0)
+            }
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {connectionType === 'WHATSAPP' ? 'Criar' : 'Conectar'}
           </Button>
