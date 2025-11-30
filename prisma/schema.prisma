@@ -14,34 +14,36 @@ datasource db {
 // Execute: npm run prisma:seed
 
 model Company {
-  id                 String   @id @default(uuid())
-  name               String
-  slug               String   @unique
-  email              String?  @unique
-  phone              String?
-  document           String?  @unique
-  isActive           Boolean  @default(true)
-  automationsEnabled Boolean  @default(false) // Controle de acesso às automações
-  autoTranscribeAudio Boolean @default(true)  // Transcrição automática de áudios recebidos
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  name                String
+  slug                String   @unique
+  email               String?  @unique
+  phone               String?
+  document            String?  @unique
+  isActive            Boolean  @default(true)
+  automationsEnabled  Boolean  @default(false) // Controle de acesso às automações
+  autoTranscribeAudio Boolean  @default(true) // Transcrição automática de áudios recebidos
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  users              User[]
-  leads              Lead[]
-  conversations      Conversation[]
-  messages           Message[]
-  connections        Connection[]
-  departments        Department[]
-  attendances        Attendance[]
-  scheduledMessages  ScheduledMessage[]
-  campaigns                Campaign[]
-  bulkMessagingCampaigns   BulkMessagingCampaign[]
-  apiKeys                  ApiKey[]
-  aiAgents           AIAgent[]
-  workflowTemplates  WorkflowTemplate[]
-  workflowInstances  WorkflowInstance[]
-  pipelineStages     PipelineStage[]
-  customLeadStatuses CustomLeadStatus[]
+  users                  User[]
+  leads                  Lead[]
+  conversations          Conversation[]
+  messages               Message[]
+  connections            Connection[]
+  departments            Department[]
+  attendances            Attendance[]
+  scheduledMessages      ScheduledMessage[]
+  campaigns              Campaign[]
+  bulkMessagingCampaigns BulkMessagingCampaign[]
+  apiKeys                ApiKey[]
+  aiAgents               AIAgent[]
+  workflowTemplates      WorkflowTemplate[]
+  workflowInstances      WorkflowInstance[]
+  pipelineStages         PipelineStage[]
+  customLeadStatuses     CustomLeadStatus[]
+  adAccounts             AdAccount[]
+  adReports              AdReport[]
 
   @@map("companies")
 }
@@ -59,14 +61,14 @@ model User {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  assignedConversations  Conversation[]
-  departmentMemberships  DepartmentUser[]
-  attendancesAssigned    Attendance[]       @relation("AttendanceAssignedUser")
-  attendancesTransferred Attendance[]       @relation("AttendanceTransferredBy")
-  attendancesClosed      Attendance[]       @relation("AttendanceClosedBy")
-  attendanceLogs         AttendanceLog[]
-  scheduledMessages      ScheduledMessage[]
-  createdCampaigns       Campaign[]
+  assignedConversations         Conversation[]
+  departmentMemberships         DepartmentUser[]
+  attendancesAssigned           Attendance[]            @relation("AttendanceAssignedUser")
+  attendancesTransferred        Attendance[]            @relation("AttendanceTransferredBy")
+  attendancesClosed             Attendance[]            @relation("AttendanceClosedBy")
+  attendanceLogs                AttendanceLog[]
+  scheduledMessages             ScheduledMessage[]
+  createdCampaigns              Campaign[]
   createdBulkMessagingCampaigns BulkMessagingCampaign[]
 
   @@map("users")
@@ -80,25 +82,25 @@ enum UserRole {
 }
 
 model Lead {
-  id               String   @id @default(uuid())
-  tenantId         String
-  name             String
-  phone            String
-  email            String?
-  document         String?
-  statusId         String?
-  stageId          String?
-  tags             String[]
+  id                String   @id @default(uuid())
+  tenantId          String
+  name              String
+  phone             String
+  email             String?
+  document          String?
+  statusId          String?
+  stageId           String?
+  tags              String[]
   profilePictureURL String?
-  origin           String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  origin            String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  company          Company              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customStatus     CustomLeadStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull)
-  conversations    Conversation[]
-  messages         Message[]
-  attendances      Attendance[]
+  company           Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customStatus      CustomLeadStatus?  @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  conversations     Conversation[]
+  messages          Message[]
+  attendances       Attendance[]
   scheduledMessages ScheduledMessage[]
 
   @@index([tenantId])
@@ -108,22 +110,22 @@ model Lead {
 }
 
 model Conversation {
-  id            String             @id @default(uuid())
-  tenantId      String
-  leadId        String
+  id             String             @id @default(uuid())
+  tenantId       String
+  leadId         String
   assignedUserId String?
-  departmentId  String?
-  status        ConversationStatus @default(ACTIVE)
-  isBotAttending Boolean           @default(false)
-  lastMessageAt DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  departmentId   String?
+  status         ConversationStatus @default(ACTIVE)
+  isBotAttending Boolean            @default(false)
+  lastMessageAt  DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  company       Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  lead          Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  assignedUser User?              @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  department   Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  messages      Message[]
+  company      Company     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead         Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedUser User?       @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  messages     Message[]
 
   @@index([tenantId])
   @@index([leadId])
@@ -140,9 +142,9 @@ enum ConversationStatus {
 }
 
 model Message {
-  id              String          @id @default(uuid())
-  conversationId  String?
-  leadId           String?
+  id                String           @id @default(uuid())
+  conversationId    String?
+  leadId            String?
   connectionId      String?
   senderType        SenderType       @default(LEAD)
   contentType       ContentType      @default(TEXT)
@@ -169,6 +171,11 @@ model Message {
   deletedBy    String? // ID do usuário que excluiu
   originalText String? // Texto original antes da primeira edição
 
+  // Campos para correlação com Meta Ads
+  adId       String? // ID do anúncio Meta
+  campaignId String? // ID da campanha Meta
+  adsetId    String? // ID do conjunto de anúncios Meta
+
   company      Company              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   conversation Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   lead         Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -183,6 +190,8 @@ model Message {
   @@index([senderType])
   @@index([tenantId, createdAt])
   @@index([deletedAt])
+  @@index([adId])
+  @@index([campaignId])
   @@map("messages")
 }
 
@@ -235,12 +244,13 @@ model Connection {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  company           Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  messages          Message[]
-  attendances       Attendance[]
-  scheduledMessages ScheduledMessage[]
-  campaigns         Campaign[]
+  company                Company                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages               Message[]
+  attendances            Attendance[]
+  scheduledMessages      ScheduledMessage[]
+  campaigns              Campaign[]
   bulkMessagingCampaigns BulkMessagingCampaign[]
+  adAccounts             AdAccount[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -270,26 +280,26 @@ model Department {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company         Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  memberships     DepartmentUser[]
-  conversations   Conversation[]
-  attendances     Attendance[]
+  company           Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships       DepartmentUser[]
+  conversations     Conversation[]
+  attendances       Attendance[]
   scheduledMessages ScheduledMessage[]
-  aiAgents        AIAgent[]
+  aiAgents          AIAgent[]
 
   @@index([tenantId])
   @@map("departments")
 }
 
 model DepartmentUser {
-  id           String            @id @default(uuid())
+  id           String             @id @default(uuid())
   departmentId String
   userId       String
   role         DepartmentUserRole @default(AGENT)
-  createdAt    DateTime          @default(now())
+  createdAt    DateTime           @default(now())
 
   department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([departmentId, userId])
   @@index([departmentId])
@@ -298,33 +308,33 @@ model DepartmentUser {
 }
 
 model Attendance {
-  id            String            @id @default(uuid())
-  tenantId      String
-  leadId        String
-  connectionId  String?
-  departmentId  String?
+  id             String             @id @default(uuid())
+  tenantId       String
+  leadId         String
+  connectionId   String?
+  departmentId   String?
   assignedUserId String?
-  status        AttendanceStatus  @default(OPEN)
-  priority      AttendancePriority @default(NORMAL)
-  isUrgent      Boolean           @default(false)
-  lastMessage   String?
-  lastMessageAt DateTime?
-  startedAt     DateTime?
-  endedAt       DateTime?
-  closedAt      DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  status         AttendanceStatus   @default(OPEN)
+  priority       AttendancePriority @default(NORMAL)
+  isUrgent       Boolean            @default(false)
+  lastMessage    String?
+  lastMessageAt  DateTime?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  company         Company            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  lead            Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  connection     Connection?        @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  department     Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  assignedUser   User?              @relation("AttendanceAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  transferredBy  User?              @relation("AttendanceTransferredBy", fields: [transferredById], references: [id], onDelete: SetNull)
-  closedBy       User?              @relation("AttendanceClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  company         Company         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead            Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  connection      Connection?     @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  department      Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedUser    User?           @relation("AttendanceAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  transferredBy   User?           @relation("AttendanceTransferredBy", fields: [transferredById], references: [id], onDelete: SetNull)
+  closedBy        User?           @relation("AttendanceClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
   transferredById String?
-  closedById     String?
-  logs           AttendanceLog[]
+  closedById      String?
+  logs            AttendanceLog[]
 
   @@index([tenantId])
   @@index([leadId])
@@ -337,9 +347,9 @@ model Attendance {
 }
 
 model AttendanceLog {
-  id           String            @id @default(uuid())
-  attendanceId String
-  action       AttendanceLogAction
+  id            String              @id @default(uuid())
+  attendanceId  String
+  action        AttendanceLogAction
   performedById String?
   notes         String?
   createdAt     DateTime            @default(now())
@@ -472,37 +482,37 @@ enum CampaignStatus {
 // ============================================
 
 model BulkMessagingCampaign {
-  id                  String                      @id @default(uuid())
-  tenantId            String
-  name                String
-  description         String?
-  contentType         ScheduledContentType         @default(TEXT)
-  content             String?
-  caption             String?
-  messageSequence     Json?                       // Sequência de mensagens: [{type, content, caption, delay}]
-  useRandomGreeting   Boolean                     @default(false) // Usar saudação randômica antes das mensagens
-  randomGreetings     String[]                    @default([]) // Lista de saudações randômicas customizadas
-  connectionId        String
-  totalRecipients     Int                         @default(0)
-  sentCount           Int                         @default(0)
-  failedCount         Int                         @default(0)
-  pendingCount        Int                         @default(0)
-  status              BulkMessagingCampaignStatus  @default(DRAFT)
-  delayBetweenMessages Int                       @default(2000) // Delay em ms entre mensagens para o mesmo número
-  delayBetweenNumbers Int                        @default(5000) // Delay em ms entre números diferentes
-  startedAt           DateTime?
-  completedAt         DateTime?
-  pausedAt            DateTime?
-  lastProcessedIndex   Int                        @default(0) // Índice do último destinatário processado (para resumir)
-  createdById         String
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
+  id                   String                      @id @default(uuid())
+  tenantId             String
+  name                 String
+  description          String?
+  contentType          ScheduledContentType        @default(TEXT)
+  content              String?
+  caption              String?
+  messageSequence      Json? // Sequência de mensagens: [{type, content, caption, delay}]
+  useRandomGreeting    Boolean                     @default(false) // Usar saudação randômica antes das mensagens
+  randomGreetings      String[]                    @default([]) // Lista de saudações randômicas customizadas
+  connectionId         String
+  totalRecipients      Int                         @default(0)
+  sentCount            Int                         @default(0)
+  failedCount          Int                         @default(0)
+  pendingCount         Int                         @default(0)
+  status               BulkMessagingCampaignStatus @default(DRAFT)
+  delayBetweenMessages Int                         @default(2000) // Delay em ms entre mensagens para o mesmo número
+  delayBetweenNumbers  Int                         @default(5000) // Delay em ms entre números diferentes
+  startedAt            DateTime?
+  completedAt          DateTime?
+  pausedAt             DateTime?
+  lastProcessedIndex   Int                         @default(0) // Índice do último destinatário processado (para resumir)
+  createdById          String
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
 
-  tenant      Company                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy   User                    @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  connection  Connection              @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  recipients  BulkMessagingRecipient[]
-  logs        BulkMessagingLog[]
+  tenant     Company                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy  User                     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  connection Connection               @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  recipients BulkMessagingRecipient[]
+  logs       BulkMessagingLog[]
 
   @@index([tenantId])
   @@index([createdById])
@@ -512,18 +522,18 @@ model BulkMessagingCampaign {
 }
 
 model BulkMessagingRecipient {
-  id          String                  @id @default(uuid())
-  campaignId  String
-  number      String                  // Número do WhatsApp (formato: 5511999999999)
-  name        String?                 // Nome do contato
-  status      BulkMessagingRecipientStatus @default(PENDING)
-  sentAt      DateTime?
+  id           String                       @id @default(uuid())
+  campaignId   String
+  number       String // Número do WhatsApp (formato: 5511999999999)
+  name         String? // Nome do contato
+  status       BulkMessagingRecipientStatus @default(PENDING)
+  sentAt       DateTime?
   errorMessage String?
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
 
-  campaign    BulkMessagingCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  logs        BulkMessagingLog[]      @relation("RecipientLogs")
+  campaign BulkMessagingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  logs     BulkMessagingLog[]    @relation("RecipientLogs")
 
   @@index([campaignId])
   @@index([status])
@@ -532,18 +542,18 @@ model BulkMessagingRecipient {
 }
 
 model BulkMessagingLog {
-  id          String                  @id @default(uuid())
-  campaignId  String
-  recipientId String?
-  number      String
-  name        String?
-  status      BulkMessagingLogStatus
-  message     String?
+  id           String                 @id @default(uuid())
+  campaignId   String
+  recipientId  String?
+  number       String
+  name         String?
+  status       BulkMessagingLogStatus
+  message      String?
   errorMessage String?
-  createdAt   DateTime                @default(now())
+  createdAt    DateTime               @default(now())
 
-  campaign    BulkMessagingCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  recipient   BulkMessagingRecipient? @relation("RecipientLogs", fields: [recipientId], references: [id], onDelete: SetNull)
+  campaign  BulkMessagingCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipient BulkMessagingRecipient? @relation("RecipientLogs", fields: [recipientId], references: [id], onDelete: SetNull)
 
   @@index([campaignId])
   @@index([recipientId])
@@ -711,7 +721,7 @@ model PipelineStage {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company Company         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company      Company          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customStatus CustomLeadStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
 
   @@index([tenantId])
@@ -731,11 +741,108 @@ model CustomLeadStatus {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company Company        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company Company         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   stages  PipelineStage[]
   leads   Lead[]
 
   @@index([tenantId])
   @@index([tenantId, order])
   @@map("custom_lead_statuses")
+}
+
+// ============================================
+// META ADS REPORTS
+// ============================================
+
+model AdAccount {
+  id            String   @id @default(uuid())
+  tenantId      String
+  adAccountId   String // ID da conta Meta (ex: "act_123456789")
+  name          String
+  currency      String? // Moeda da conta (ex: "BRL")
+  accountStatus String? // Status da conta Meta
+  businessId    String? // ID do Business associado
+  connectionId  String // FK para Connection (usa o token desta conexão)
+  isActive      Boolean  @default(true)
+  metadata      Json? // Dados extras da conta (JSONB)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company    Company    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  reports    AdReport[]
+
+  @@unique([tenantId, adAccountId])
+  @@index([tenantId])
+  @@index([connectionId])
+  @@index([tenantId, isActive])
+  @@map("ad_accounts")
+}
+
+model AdReport {
+  id         String   @id @default(uuid())
+  tenantId   String
+  accountId  String // FK para AdAccount
+  campaignId String? // Opcional para filtros
+  adsetId    String? // Opcional para filtros
+  adId       String? // Opcional para filtros
+  dateStart  DateTime
+  dateEnd    DateTime
+  metrics    Json // Métricas agregadas: { spend, impressions, clicks, cpc, cpm, ctr, cpa, messages, conversions, etc. }
+  createdAt  DateTime @default(now())
+
+  company   Company             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  adAccount AdAccount           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  timeline  AdReportTimeline[]
+  breakdown AdReportBreakdown[]
+
+  @@index([tenantId, accountId])
+  @@index([dateStart, dateEnd])
+  @@index([campaignId])
+  @@index([adsetId])
+  @@index([adId])
+  @@map("ad_reports")
+}
+
+model AdReportTimeline {
+  id          String   @id @default(uuid())
+  reportId    String
+  date        DateTime
+  spend       Float    @default(0)
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  clicks      Int      @default(0)
+  messages    Int      @default(0)
+  conversions Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  report AdReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, date])
+  @@index([reportId, date])
+  @@index([date])
+  @@map("ad_reports_timeline")
+}
+
+model AdReportBreakdown {
+  id           String   @id @default(uuid())
+  reportId     String
+  adId         String
+  adName       String
+  creativeName String?
+  spend        Float    @default(0)
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  messages     Int      @default(0)
+  cpc          Float? // Cost per click
+  cpm          Float? // Cost per mille
+  ctr          Float? // Click-through rate
+  cpa          Float? // Cost per acquisition
+  createdAt    DateTime @default(now())
+
+  report AdReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([adId])
+  @@map("ad_reports_breakdown")
 }

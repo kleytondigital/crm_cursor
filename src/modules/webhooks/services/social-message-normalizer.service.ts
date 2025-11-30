@@ -21,6 +21,10 @@ export interface NormalizedSocialMessage {
   provider: ConnectionProvider;
   connectionId: string;
   tenantId: string;
+  // Campos para correlação com Meta Ads
+  adId?: string;
+  campaignId?: string;
+  adsetId?: string;
 }
 
 @Injectable()
@@ -110,6 +114,11 @@ export class SocialMessageNormalizerService {
         timestamp = new Date();
       }
 
+      // Extrair informações de Meta Ads (quando disponível)
+      const adId = message.ad_id || message.adId || undefined;
+      const campaignId = message.campaign_id || message.campaignId || undefined;
+      const adsetId = message.adset_id || message.adsetId || undefined;
+
       return {
         messageId,
         senderId,
@@ -125,6 +134,9 @@ export class SocialMessageNormalizerService {
         provider,
         connectionId: connection.id,
         tenantId: connection.tenantId,
+        adId,
+        campaignId,
+        adsetId,
       };
     } catch (error: any) {
       this.logger.error(

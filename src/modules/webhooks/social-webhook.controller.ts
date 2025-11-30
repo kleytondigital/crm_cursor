@@ -565,6 +565,10 @@ export class SocialWebhookController {
         direction: normalized.direction,
         sender: normalized.senderId,
         timestamp: normalized.timestamp,
+        // Campos para correlação com Meta Ads
+        adId: normalized.adId || null,
+        campaignId: normalized.campaignId || null,
+        adsetId: normalized.adsetId || null,
       },
     });
   }

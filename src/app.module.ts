@@ -29,6 +29,8 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { LeadStatusModule } from './modules/lead-status/lead-status.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { BulkMessagingModule } from './modules/bulk-messaging/bulk-messaging.module';
+import { AdAccountsModule } from './modules/ad-accounts/ad-accounts.module';
+import { AdReportsModule } from './modules/ad-reports/ad-reports.module';
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { BulkMessagingModule } from './modules/bulk-messaging/bulk-messaging.mod
     LeadStatusModule,
     SystemSettingsModule,
     BulkMessagingModule,
+    AdAccountsModule,
+    AdReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, TenantMiddleware],

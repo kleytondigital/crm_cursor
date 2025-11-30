@@ -116,6 +116,7 @@ export class MetaOAuthService {
           'instagram_basic',
           'instagram_manage_messages',
           'pages_read_engagement',
+          'ads_read', // Permissão para ler métricas de anúncios
         ];
 
     // State contém tenantId e provider para recuperar no callback
@@ -405,13 +406,14 @@ export class MetaOAuthService {
       throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
     }
 
-    // Escopos necessários para páginas e Instagram (solicitados via Graph App)
+    // Escopos necessários para páginas, Instagram e Meta Ads (solicitados via Graph App)
     const scopes = [
       'pages_show_list',
       'pages_messaging',
       'instagram_basic',
       'instagram_manage_messages',
       'pages_read_engagement',
+      'ads_read', // Permissão para ler métricas de anúncios
     ].join(',');
 
     // State contém tenantId e provider para recuperar no callback
