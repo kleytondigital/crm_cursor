@@ -121,17 +121,40 @@ export class ConversationsService {
 
       this.logger.log(`[findAll] Retornando ${conversations.length} conversas`);
 
-      // Mapear para incluir última mensagem
-      const result = conversations.map((conv) => {
-        const { messages, ...rest } = conv;
-        return {
-          ...rest,
-          lastMessage: messages[0] || null,
-        };
-      });
+      // Buscar informações de provider para cada conversa através das mensagens
+      const conversationsWithProvider = await Promise.all(
+        conversations.map(async (conv) => {
+          const { messages, ...rest } = conv;
+          
+          // Buscar última mensagem com connectionId para obter provider
+          const lastMessageWithConnection = await this.prisma.message.findFirst({
+            where: {
+              conversationId: conv.id,
+              connectionId: { not: null },
+            },
+            select: {
+              connectionId: true,
+              connection: {
+                select: {
+                  provider: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          });
 
-      this.logger.log(`[findAll] Sucesso - retornando ${result.length} conversas`);
-      return result;
+          return {
+            ...rest,
+            lastMessage: messages[0] || null,
+            provider: lastMessageWithConnection?.connection?.provider || null,
+          };
+        }),
+      );
+
+      this.logger.log(`[findAll] Sucesso - retornando ${conversationsWithProvider.length} conversas`);
+      return conversationsWithProvider;
     } catch (error: any) {
       this.logger.error(`[findAll] ERRO ao buscar conversas:`, {
         message: error.message,
@@ -176,7 +199,28 @@ export class ConversationsService {
       throw new NotFoundException('Conversa não encontrada');
     }
 
-    return conversation;
+    // Buscar provider através da conexão das mensagens
+    const messageWithConnection = await this.prisma.message.findFirst({
+      where: {
+        conversationId: id,
+        connectionId: { not: null },
+      },
+      select: {
+        connection: {
+          select: {
+            provider: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      ...conversation,
+      provider: messageWithConnection?.connection?.provider || null,
+    };
   }
 
   async reopenConversation(id: string, tenantId: string, userId: string) {

@@ -1,0 +1,352 @@
+{
+  "name": "Social - Enviar Mensagens (Instagram/Facebook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/send-social-message",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "send-social-message"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ `https://seu-crm.com/api/connections/social/${$json.connectionId}` }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.CRM_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-connection",
+      "name": "Buscar Conexão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair token e preparar dados\nconst connection = $input.item.json;\nconst metadata = connection.metadata || {};\nconst originalPayload = $('Webhook').item.json;\n\nreturn {\n  ...originalPayload,\n  accessToken: metadata.accessToken,\n  pageId: metadata.pageId,\n  instagramBusinessId: metadata.instagramBusinessId\n};"
+      },
+      "id": "extract-token",
+      "name": "Extrair Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.messageType }}",
+                    "operation": "equals",
+                    "value2": "text"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.messageType }}",
+                    "operation": "equals",
+                    "value2": "image"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.messageType }}",
+                    "operation": "equals",
+                    "value2": "video"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.messageType }}",
+                    "operation": "equals",
+                    "value2": "audio"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.messageType }}",
+                    "operation": "equals",
+                    "value2": "file"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "file"
+            }
+          ]
+        },
+        "fallbackOutput": "default",
+        "options": {}
+      },
+      "id": "switch-type",
+      "name": "Switch: Tipo de Mensagem",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ `https://graph.facebook.com/v18.0/${$json.pageId || $json.instagramBusinessId}/messages` }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $json.accessToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $json.recipientId }}\"\n  },\n  \"message\": {\n    \"text\": \"{{ $json.content }}\"\n  },\n  \"messaging_type\": \"RESPONSE\"\n}",
+        "options": {}
+      },
+      "id": "send-text",
+      "name": "Enviar Texto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ `https://graph.facebook.com/v18.0/${$json.pageId || $json.instagramBusinessId}/messages` }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $json.accessToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $json.recipientId }}\"\n  },\n  \"message\": {\n    \"attachment\": {\n      \"type\": \"image\",\n      \"payload\": {\n        \"url\": \"{{ $json.mediaUrl }}\",\n        \"is_reusable\": true\n      }\n    }\n  },\n  \"messaging_type\": \"RESPONSE\"\n}",
+        "options": {}
+      },
+      "id": "send-image",
+      "name": "Enviar Imagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gerar assinatura HMAC para confirmação\nconst crypto = require('crypto');\n\nconst secret = $env.WEBHOOK_SOCIAL_SECRET || 'your-secret';\nconst payload = {\n  tenantId: $('Webhook').item.json.tenantId,\n  connectionId: $('Webhook').item.json.connectionId,\n  messageId: $json.message_id || $json.id || null,\n  tempId: $('Webhook').item.json.tempId,\n  payload: {\n    timestamp: $json.timestamp || Math.floor(Date.now() / 1000)\n  }\n};\n\nconst signature = crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');\n\nreturn {\n  ...payload,\n  _signature: signature\n};"
+      },
+      "id": "prepare-confirmation",
+      "name": "Preparar Confirmação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CRM_MESSAGE_SENT_URL || 'https://seu-crm.com/webhooks/social/message.sent' }}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, connectionId: $json.connectionId, messageId: $json.messageId, tempId: $json.tempId, payload: $json.payload }) }}",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "x-n8n-signature",
+                "value": "={{ $json._signature }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "confirm-to-crm",
+      "name": "Confirmar no CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"messageId\": $('Preparar Confirmação').item.json.messageId } }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Buscar Conexão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Conexão": {
+      "main": [
+        [
+          {
+            "node": "Extrair Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Token": {
+      "main": [
+        [
+          {
+            "node": "Switch: Tipo de Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Tipo de Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enviar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        []
+      ]
+    },
+    "Enviar Texto": {
+      "main": [
+        [
+          {
+            "node": "Preparar Confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Imagem": {
+      "main": [
+        [
+          {
+            "node": "Preparar Confirmação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Confirmação": {
+      "main": [
+        [
+          {
+            "node": "Confirmar no CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar no CRM": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-11-28T00:00:00.000Z",
+  "versionId": "1"
+}
+

@@ -1,0 +1,138 @@
+{
+  "name": "Social - Receber Mensagens (Instagram/Facebook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/instagram",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "instagram-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalizar payload do Instagram/Facebook\nconst entry = $input.item.json.entry;\nconst messaging = entry?.[0]?.messaging || entry?.[0]?.messaging || [];\n\nif (messaging.length === 0) {\n  return [];\n}\n\nconst results = [];\n\nfor (const message of messaging) {\n  const messageData = message.message || {};\n  const sender = message.sender?.id;\n  \n  // Extrair tipo de mensagem\n  let messageType = 'text';\n  let mediaUrl = null;\n  let mediaMimeType = null;\n  \n  if (messageData.attachments && messageData.attachments.length > 0) {\n    const attachment = messageData.attachments[0];\n    messageType = attachment.type;\n    mediaUrl = attachment.payload?.url;\n    mediaMimeType = attachment.payload?.mime_type;\n  }\n  \n  // IMPORTANTE: Configurar tenantId e connectionId\n  // Estes devem ser obtidos do contexto ou configuração\n  const tenantId = $env.TENANT_ID || 'YOUR_TENANT_ID';\n  const connectionId = $env.CONNECTION_ID || 'YOUR_CONNECTION_ID';\n  const provider = 'INSTAGRAM'; // ou 'FACEBOOK'\n  \n  results.push({\n    tenantId: tenantId,\n    connectionId: connectionId,\n    provider: provider,\n    message: {\n      id: messageData.mid || messageData.id,\n      from: {\n        id: sender,\n        name: messageData.sender_name || null,\n        picture: messageData.sender_profile_picture || null\n      },\n      text: messageData.text || null,\n      type: messageType,\n      mediaUrl: mediaUrl,\n      mediaMimeType: mediaMimeType,\n      timestamp: message.timestamp ? new Date(message.timestamp).toISOString() : new Date().toISOString(),\n      isFromMe: false\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "normalize-payload",
+      "name": "Normalizar Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gerar assinatura HMAC\nconst crypto = require('crypto');\n\nconst secret = $env.WEBHOOK_SOCIAL_SECRET || 'your-secret';\nconst payload = JSON.stringify($input.item.json);\nconst signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');\n\nreturn {\n  ...$input.item.json,\n  _signature: signature\n};"
+      },
+      "id": "generate-signature",
+      "name": "Gerar Assinatura HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CRM_WEBHOOK_URL || 'https://seu-crm.com/webhooks/social' }}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "x-n8n-signature",
+                "value": "={{ $json._signature }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-to-crm",
+      "name": "Enviar para CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\" } }}",
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Responder ao Meta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Payload": {
+      "main": [
+        [
+          {
+            "node": "Gerar Assinatura HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Assinatura HMAC": {
+      "main": [
+        [
+          {
+            "node": "Enviar para CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar para CRM": {
+      "main": [
+        [
+          {
+            "node": "Responder ao Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-11-28T00:00:00.000Z",
+  "versionId": "1"
+}
+
