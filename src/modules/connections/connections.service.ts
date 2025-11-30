@@ -697,28 +697,25 @@ export class ConnectionsService {
     const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(code);
 
     // Se for primeira etapa (OAuth básico) e houver Graph App separado,
-    // verificar se precisa de segunda autorização
+    // sempre solicitar segunda autorização (App OAuth não tem escopos de páginas)
     if (!isGraphStep) {
       const hasGraphApp = !!this.configService.get<string>('META_GRAPH_APP_ID') &&
                           this.configService.get<string>('META_GRAPH_APP_ID') !== 
                           this.configService.get<string>('META_OAUTH_APP_ID');
       
       if (hasGraphApp) {
-        // Verificar se o token tem escopos necessários
-        const tokenInfo = await this.metaOAuthService.getTokenInfo(tokenResponse.access_token);
-        const hasRequiredScopes = tokenInfo.scopes?.some((scope: string) => 
-          ['pages_show_list', 'pages_messaging', 'instagram_basic'].includes(scope)
+        // Se há Graph App separado, o OAuth básico não tem escopos de páginas
+        // Solicitar segunda autorização via Graph App
+        this.logger.log(
+          `Apps separados detectados. OAuth básico concluído. Solicitando segunda autorização via Graph App.`,
         );
-
-        if (!hasRequiredScopes) {
-          // Retornar URL para segunda autorização via Graph App
-          const graphAuthUrl = this.metaOAuthService.generateGraphApiAuthUrl(tenantId, provider);
-          return {
-            requiresSecondAuth: true,
-            authUrl: graphAuthUrl,
-            message: 'Autorização básica concluída. É necessário autorizar acesso às páginas e Instagram.',
-          };
-        }
+        
+        const graphAuthUrl = this.metaOAuthService.generateGraphApiAuthUrl(tenantId, provider);
+        return {
+          requiresSecondAuth: true,
+          authUrl: graphAuthUrl,
+          message: 'Autorização básica concluída. É necessário autorizar acesso às páginas e Instagram.',
+        };
       }
     }
 
