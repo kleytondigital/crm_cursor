@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import Image from 'next/image'
 import {
   Dialog,
   DialogContent,
@@ -137,8 +138,28 @@ function SmartQueueItem({ item }: { item: Attendance }) {
     }
   }, [item.lead.profilePictureURL, item.id])
 
+  // Obter ícone da plataforma
+  const getPlatformIcon = () => {
+    const provider = item.provider || (item.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP')
+    if (provider === 'INSTAGRAM') {
+      return <Image src="/instagram.png" alt="Instagram" width={10} height={10} className="object-contain" />
+    }
+    if (provider === 'FACEBOOK') {
+      return <Image src="/facebook.png" alt="Facebook" width={10} height={10} className="object-contain" />
+    }
+    if (provider === 'WHATSAPP') {
+      return <Image src="/whatsapp.png" alt="WhatsApp" width={10} height={10} className="object-contain" />
+    }
+    return null
+  }
+
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-white/5 bg-white/5 px-3 py-2 text-xs text-text-muted">
+      {getPlatformIcon() && (
+        <div className="flex items-center">
+          {getPlatformIcon()}
+        </div>
+      )}
       {item.lead.profilePictureURL && !imageError ? (
         <img
           src={item.lead.profilePictureURL}
@@ -181,6 +202,21 @@ function AttendanceListItem({
     }
   }, [attendance.lead.profilePictureURL, attendance.id])
 
+  // Obter ícone da plataforma
+  const getPlatformIcon = () => {
+    const provider = attendance.provider || (attendance.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP')
+    if (provider === 'INSTAGRAM') {
+      return <Image src="/instagram.png" alt="Instagram" width={12} height={12} className="object-contain" />
+    }
+    if (provider === 'FACEBOOK') {
+      return <Image src="/facebook.png" alt="Facebook" width={12} height={12} className="object-contain" />
+    }
+    if (provider === 'WHATSAPP') {
+      return <Image src="/whatsapp.png" alt="WhatsApp" width={12} height={12} className="object-contain" />
+    }
+    return null
+  }
+
   return (
     <button
       onClick={() => onSelect(attendance)}
@@ -210,6 +246,11 @@ function AttendanceListItem({
           <AttendancePriorityBadge priority={attendance.priority} />
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+          {getPlatformIcon() && (
+            <div className="flex items-center gap-1">
+              {getPlatformIcon()}
+            </div>
+          )}
           <span className={status.color}>{status.label}</span>
           {hasAssignedUser(attendance, users) ? (
             <span>{getAssignedUserName(attendance, users)}</span>
@@ -625,7 +666,22 @@ function AttendanceDetailsPanel({
             </div>
           )}
           <div>
-            <h2 className="text-xl font-semibold text-white">{attendance.lead.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-white">{attendance.lead.name}</h2>
+              {(() => {
+                const provider = attendance.provider || (attendance.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP')
+                if (provider === 'INSTAGRAM') {
+                  return <Image src="/instagram.png" alt="Instagram" width={16} height={16} className="object-contain" />
+                }
+                if (provider === 'FACEBOOK') {
+                  return <Image src="/facebook.png" alt="Facebook" width={16} height={16} className="object-contain" />
+                }
+                if (provider === 'WHATSAPP') {
+                  return <Image src="/whatsapp.png" alt="WhatsApp" width={16} height={16} className="object-contain" />
+                }
+                return null
+              })()}
+            </div>
             <p className="text-sm text-text-muted">{attendance.lead.phone}</p>
           </div>
         </div>
@@ -637,6 +693,39 @@ function AttendanceDetailsPanel({
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-white/5 bg-white/5 p-4 text-sm text-text-primary sm:grid-cols-2">
+        <div>
+          <span className="text-xs uppercase tracking-wide text-text-muted">Plataforma</span>
+          <p className="font-medium text-white flex items-center gap-2">
+            {(() => {
+              const provider = attendance.provider || (attendance.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP')
+              if (provider === 'INSTAGRAM') {
+                return (
+                  <>
+                    <Image src="/instagram.png" alt="Instagram" width={16} height={16} className="object-contain" />
+                    <span>Instagram Direct</span>
+                  </>
+                )
+              }
+              if (provider === 'FACEBOOK') {
+                return (
+                  <>
+                    <Image src="/facebook.png" alt="Facebook" width={16} height={16} className="object-contain" />
+                    <span>Facebook Messenger</span>
+                  </>
+                )
+              }
+              if (provider === 'WHATSAPP') {
+                return (
+                  <>
+                    <Image src="/whatsapp.png" alt="WhatsApp" width={16} height={16} className="object-contain" />
+                    <span>WhatsApp</span>
+                  </>
+                )
+              }
+              return <span>Não identificado</span>
+            })()}
+          </p>
+        </div>
         <div>
           <span className="text-xs uppercase tracking-wide text-text-muted">Atendente</span>
           <p className="font-medium text-white">

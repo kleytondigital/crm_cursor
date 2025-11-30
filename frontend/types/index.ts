@@ -114,6 +114,7 @@ export interface Attendance {
     profilePictureURL?: string | null
   }
   connectionId?: string | null
+  provider?: 'WHATSAPP' | 'INSTAGRAM' | 'FACEBOOK' | null // Plataforma de origem do atendimento
   assignedUserId?: string | null // ID do usuário atribuído
   assignedUser?: {
     id: string

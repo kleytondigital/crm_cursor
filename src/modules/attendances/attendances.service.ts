@@ -246,6 +246,13 @@ export class AttendancesService {
               name: true,
             },
           },
+          connection: {
+            select: {
+              id: true,
+              provider: true,
+              name: true,
+            },
+          },
         },
       });
 
@@ -378,6 +385,13 @@ export class AttendancesService {
           department: {
             select: {
               id: true,
+              name: true,
+            },
+          },
+          connection: {
+            select: {
+              id: true,
+              provider: true,
               name: true,
             },
           },
@@ -721,6 +735,13 @@ export class AttendancesService {
           department: {
             select: {
               id: true,
+              name: true,
+            },
+          },
+          connection: {
+            select: {
+              id: true,
+              provider: true,
               name: true,
             },
           },
@@ -1272,6 +1293,13 @@ export class AttendancesService {
             name: true,
           },
         },
+        connection: {
+          select: {
+            id: true,
+            provider: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -1299,6 +1327,13 @@ export class AttendancesService {
       department: {
         select: {
           id: true,
+          name: true,
+        },
+      },
+      connection: {
+        select: {
+          id: true,
+          provider: true,
           name: true,
         },
       },
@@ -1342,6 +1377,13 @@ export class AttendancesService {
       department: {
         select: {
           id: true,
+          name: true,
+        },
+      },
+      connection: {
+        select: {
+          id: true,
+          provider: true,
           name: true,
         },
       },
@@ -1546,6 +1588,7 @@ export class AttendancesService {
         tenantId: attendance.tenantId,
         lead: attendance.lead || null,
         connectionId: attendance.connectionId || null,
+        provider: attendance.connection?.provider || (attendance.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP'),
         assignedUserId: attendance.assignedUserId || null, // Sempre incluir o ID
         assignedUser: attendance.assignedUser || null, // Incluir o objeto user completo
         departmentId: attendance.departmentId || null, // Sempre incluir o ID
@@ -1610,6 +1653,13 @@ export class AttendancesService {
         department: {
           select: {
             id: true,
+            name: true,
+          },
+        },
+        connection: {
+          select: {
+            id: true,
+            provider: true,
             name: true,
           },
         },
@@ -1751,6 +1801,13 @@ export class AttendancesService {
               department: {
                 select: {
                   id: true,
+                  name: true,
+                },
+              },
+              connection: {
+                select: {
+                  id: true,
+                  provider: true,
                   name: true,
                 },
               },
