@@ -20,6 +20,28 @@ export class N8nSocialConfigService {
   }
 
   /**
+   * Obtém OAuth App ID (para referência no n8n)
+   */
+  private get oauthAppId(): string {
+    return (
+      this.configService.get<string>('META_OAUTH_APP_ID') ||
+      this.configService.get<string>('META_APP_ID') ||
+      ''
+    );
+  }
+
+  /**
+   * Obtém Graph App ID (para referência no n8n)
+   */
+  private get graphAppId(): string {
+    return (
+      this.configService.get<string>('META_GRAPH_APP_ID') ||
+      this.oauthAppId ||
+      ''
+    );
+  }
+
+  /**
    * Envia configuração de conexão social para o n8n após OAuth bem-sucedido
    */
   async sendConnectionConfigToN8n(connection: Connection): Promise<void> {
@@ -54,6 +76,9 @@ export class N8nSocialConfigService {
       refreshToken: connection.refreshToken || undefined,
       tokenExpiresAt: metadata.tokenExpiresAt,
       webhookUrl,
+      // Informações dos apps Meta (opcional - para referência no n8n)
+      oauthAppId: this.oauthAppId || undefined,
+      graphAppId: this.graphAppId || undefined,
       metadata: {
         pageName: metadata.pageName,
         instagramUsername: metadata.instagramUsername,

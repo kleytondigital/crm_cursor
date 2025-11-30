@@ -673,12 +673,14 @@ export class ConnectionsService {
     // Decodificar state para obter tenantId e provider
     let tenantId: string;
     let provider: 'INSTAGRAM' | 'FACEBOOK';
+    let step: string | undefined;
 
     if (state) {
       try {
         const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
         tenantId = decoded.tenantId;
         provider = decoded.provider;
+        step = decoded.step; // 'graph' se for segunda etapa
       } catch (error) {
         this.logger.error(`Erro ao decodificar state: ${error}`);
         throw new BadRequestException('State inválido');
@@ -687,8 +689,38 @@ export class ConnectionsService {
       throw new BadRequestException('State não fornecido');
     }
 
+    // Determinar qual app usar baseado na etapa
+    const isGraphStep = step === 'graph';
+    
     // Trocar code por token
+    // Se for segunda etapa (Graph API), o token já terá os escopos necessários
     const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(code);
+
+    // Se for primeira etapa (OAuth básico) e houver Graph App separado,
+    // verificar se precisa de segunda autorização
+    if (!isGraphStep) {
+      const hasGraphApp = !!this.configService.get<string>('META_GRAPH_APP_ID') &&
+                          this.configService.get<string>('META_GRAPH_APP_ID') !== 
+                          this.configService.get<string>('META_OAUTH_APP_ID');
+      
+      if (hasGraphApp) {
+        // Verificar se o token tem escopos necessários
+        const tokenInfo = await this.metaOAuthService.getTokenInfo(tokenResponse.access_token);
+        const hasRequiredScopes = tokenInfo.scopes?.some((scope: string) => 
+          ['pages_show_list', 'pages_messaging', 'instagram_basic'].includes(scope)
+        );
+
+        if (!hasRequiredScopes) {
+          // Retornar URL para segunda autorização via Graph App
+          const graphAuthUrl = this.metaOAuthService.generateGraphApiAuthUrl(tenantId, provider);
+          return {
+            requiresSecondAuth: true,
+            authUrl: graphAuthUrl,
+            message: 'Autorização básica concluída. É necessário autorizar acesso às páginas e Instagram.',
+          };
+        }
+      }
+    }
 
     // Converter para long-lived token
     const longLivedToken = await this.metaOAuthService.getLongLivedToken(

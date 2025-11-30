@@ -16,12 +16,68 @@ export class MetaOAuthService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  private get appId(): string {
-    return this.configService.get<string>('META_APP_ID') || '';
+  /**
+   * App ID para autenticação OAuth (login)
+   * Se META_OAUTH_APP_ID não existir, usa META_APP_ID para compatibilidade
+   */
+  private get oauthAppId(): string {
+    return (
+      this.configService.get<string>('META_OAUTH_APP_ID') ||
+      this.configService.get<string>('META_APP_ID') ||
+      ''
+    );
   }
 
+  /**
+   * App Secret para autenticação OAuth (login)
+   * Se META_OAUTH_APP_SECRET não existir, usa META_APP_SECRET para compatibilidade
+   */
+  private get oauthAppSecret(): string {
+    return (
+      this.configService.get<string>('META_OAUTH_APP_SECRET') ||
+      this.configService.get<string>('META_APP_SECRET') ||
+      ''
+    );
+  }
+
+  /**
+   * App ID para operações Graph API (Instagram/Messenger)
+   * Se META_GRAPH_APP_ID não existir, usa o OAuth App ID para compatibilidade
+   */
+  private get graphAppId(): string {
+    return (
+      this.configService.get<string>('META_GRAPH_APP_ID') ||
+      this.oauthAppId ||
+      ''
+    );
+  }
+
+  /**
+   * App Secret para operações Graph API (Instagram/Messenger)
+   * Se META_GRAPH_APP_SECRET não existir, usa o OAuth App Secret para compatibilidade
+   */
+  private get graphAppSecret(): string {
+    return (
+      this.configService.get<string>('META_GRAPH_APP_SECRET') ||
+      this.oauthAppSecret ||
+      ''
+    );
+  }
+
+  /**
+   * Mantido para compatibilidade (deprecated - usar oauthAppId)
+   * @deprecated Use oauthAppId ou graphAppId conforme necessário
+   */
+  private get appId(): string {
+    return this.oauthAppId;
+  }
+
+  /**
+   * Mantido para compatibilidade (deprecated - usar oauthAppSecret)
+   * @deprecated Use oauthAppSecret ou graphAppSecret conforme necessário
+   */
   private get appSecret(): string {
-    return this.configService.get<string>('META_APP_SECRET') || '';
+    return this.oauthAppSecret;
   }
 
   private get redirectUri(): string {
@@ -30,10 +86,15 @@ export class MetaOAuthService {
 
   /**
    * Gera URL de autorização OAuth da Meta
+   * 
+   * IMPORTANTE: O App OAuth deve ter escopos mínimos apenas para login.
+   * Os escopos de páginas/Instagram devem ser solicitados via App Graph API separadamente.
    */
   generateAuthUrl(tenantId: string, provider: 'INSTAGRAM' | 'FACEBOOK', redirectUri?: string): string {
-    if (!this.appId) {
-      throw new InternalServerErrorException('META_APP_ID não configurado');
+    if (!this.oauthAppId) {
+      throw new InternalServerErrorException(
+        'META_OAUTH_APP_ID ou META_APP_ID não configurado',
+      );
     }
 
     const finalRedirectUri = redirectUri || this.redirectUri;
@@ -41,25 +102,32 @@ export class MetaOAuthService {
       throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
     }
 
-    // Escopos necessários para Instagram e Facebook Messenger
-    const scopes = [
-      'pages_show_list',
-      'pages_messaging',
-      'instagram_basic',
-      'instagram_manage_messages',
-      'pages_read_engagement',
-    ].join(',');
+    // Escopos mínimos para login OAuth (apenas autenticação básica)
+    // NOTA: Os escopos de páginas/Instagram devem ser solicitados via App Graph API
+    // Se o App Graph API estiver configurado, não solicita escopos aqui para evitar erro
+    const useGraphApp = !!this.graphAppId && this.graphAppId !== this.oauthAppId;
+    
+    const scopes = useGraphApp 
+      ? [] // App OAuth apenas para login - escopos serão solicitados via Graph App
+      : [
+          // Fallback: se usar app único, solicita todos os escopos (compatibilidade)
+          'pages_show_list',
+          'pages_messaging',
+          'instagram_basic',
+          'instagram_manage_messages',
+          'pages_read_engagement',
+        ];
 
     // State contém tenantId e provider para recuperar no callback
     const state = Buffer.from(JSON.stringify({ tenantId, provider })).toString('base64');
 
     const params = new URLSearchParams({
-      client_id: this.appId,
+      client_id: this.oauthAppId, // Usar OAuth App ID para autenticação
       redirect_uri: finalRedirectUri,
-      scope: scopes,
       response_type: 'code',
       state,
       auth_type: 'rerequest', // Força re-autorização se necessário
+      ...(scopes.length > 0 && { scope: scopes.join(',') }), // Só adiciona scope se houver escopos
     });
 
     return `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
@@ -69,8 +137,10 @@ export class MetaOAuthService {
    * Troca code OAuth por access_token
    */
   async exchangeCodeForToken(code: string, redirectUri?: string): Promise<MetaOAuthResponse> {
-    if (!this.appId || !this.appSecret) {
-      throw new InternalServerErrorException('Credenciais Meta não configuradas');
+    if (!this.oauthAppId || !this.oauthAppSecret) {
+      throw new InternalServerErrorException(
+        'Credenciais Meta OAuth não configuradas (META_OAUTH_APP_ID/META_OAUTH_APP_SECRET ou META_APP_ID/META_APP_SECRET)',
+      );
     }
 
     const finalRedirectUri = redirectUri || this.redirectUri;
@@ -81,8 +151,8 @@ export class MetaOAuthService {
     try {
       const response = await axios.get<MetaOAuthResponse>(`${this.baseUrl}/oauth/access_token`, {
         params: {
-          client_id: this.appId,
-          client_secret: this.appSecret,
+          client_id: this.oauthAppId, // Usar OAuth App ID
+          client_secret: this.oauthAppSecret, // Usar OAuth App Secret
           redirect_uri: finalRedirectUri,
           code,
         },
@@ -106,8 +176,10 @@ export class MetaOAuthService {
    * Converte short-lived token para long-lived token (60 dias)
    */
   async getLongLivedToken(shortLivedToken: string): Promise<MetaLongLivedTokenResponse> {
-    if (!this.appSecret) {
-      throw new InternalServerErrorException('META_APP_SECRET não configurado');
+    if (!this.oauthAppSecret) {
+      throw new InternalServerErrorException(
+        'META_OAUTH_APP_SECRET ou META_APP_SECRET não configurado',
+      );
     }
 
     try {
@@ -116,8 +188,8 @@ export class MetaOAuthService {
         {
           params: {
             grant_type: 'fb_exchange_token',
-            client_id: this.appId,
-            client_secret: this.appSecret,
+            client_id: this.oauthAppId, // Usar OAuth App ID
+            client_secret: this.oauthAppSecret, // Usar OAuth App Secret
             fb_exchange_token: shortLivedToken,
           },
         },
@@ -141,8 +213,10 @@ export class MetaOAuthService {
    * Renova access_token usando refresh_token
    */
   async refreshAccessToken(refreshToken: string): Promise<MetaLongLivedTokenResponse> {
-    if (!this.appSecret) {
-      throw new InternalServerErrorException('META_APP_SECRET não configurado');
+    if (!this.oauthAppSecret) {
+      throw new InternalServerErrorException(
+        'META_OAUTH_APP_SECRET ou META_APP_SECRET não configurado',
+      );
     }
 
     try {
@@ -151,8 +225,8 @@ export class MetaOAuthService {
         {
           params: {
             grant_type: 'fb_exchange_token',
-            client_id: this.appId,
-            client_secret: this.appSecret,
+            client_id: this.oauthAppId, // Usar OAuth App ID
+            client_secret: this.oauthAppSecret, // Usar OAuth App Secret
             fb_exchange_token: refreshToken,
           },
         },
@@ -264,11 +338,18 @@ export class MetaOAuthService {
     scopes: string[];
     user_id: string;
   }> {
+    // Para debug_token, usar Graph App ID/Secret (pode ser diferente do OAuth)
+    if (!this.graphAppId || !this.graphAppSecret) {
+      throw new InternalServerErrorException(
+        'Credenciais Meta Graph API não configuradas (META_GRAPH_APP_ID/META_GRAPH_APP_SECRET ou fallback)',
+      );
+    }
+
     try {
       const response = await axios.get(`${this.baseUrl}/debug_token`, {
         params: {
           input_token: accessToken,
-          access_token: `${this.appId}|${this.appSecret}`,
+          access_token: `${this.graphAppId}|${this.graphAppSecret}`, // Usar Graph App para debug
         },
       });
 
@@ -280,6 +361,54 @@ export class MetaOAuthService {
       }
       throw new InternalServerErrorException('Erro inesperado ao validar token');
     }
+  }
+
+  /**
+   * Gera URL de autorização adicional para solicitar escopos de páginas/Instagram
+   * Usa o App Graph API para solicitar permissões específicas após login OAuth básico
+   * 
+   * IMPORTANTE: Este método deve ser chamado após o login OAuth básico para obter
+   * os escopos necessários para acessar páginas e Instagram.
+   */
+  generateGraphApiAuthUrl(
+    tenantId: string,
+    provider: 'INSTAGRAM' | 'FACEBOOK',
+    redirectUri?: string,
+  ): string {
+    if (!this.graphAppId || this.graphAppId === this.oauthAppId) {
+      // Se não houver Graph App separado, não precisa de segunda autorização
+      throw new InternalServerErrorException(
+        'META_GRAPH_APP_ID não configurado ou igual ao OAuth App. Use generateAuthUrl() com escopos.',
+      );
+    }
+
+    const finalRedirectUri = redirectUri || this.redirectUri;
+    if (!finalRedirectUri) {
+      throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
+    }
+
+    // Escopos necessários para páginas e Instagram (solicitados via Graph App)
+    const scopes = [
+      'pages_show_list',
+      'pages_messaging',
+      'instagram_basic',
+      'instagram_manage_messages',
+      'pages_read_engagement',
+    ].join(',');
+
+    // State contém tenantId e provider para recuperar no callback
+    const state = Buffer.from(JSON.stringify({ tenantId, provider, step: 'graph' })).toString('base64');
+
+    const params = new URLSearchParams({
+      client_id: this.graphAppId, // Usar Graph App ID
+      redirect_uri: finalRedirectUri,
+      scope: scopes,
+      response_type: 'code',
+      state,
+      auth_type: 'rerequest',
+    });
+
+    return `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
   }
 
   /**
