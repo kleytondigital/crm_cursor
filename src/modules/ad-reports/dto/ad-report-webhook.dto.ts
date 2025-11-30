@@ -28,6 +28,7 @@ export interface AdReportWebhookPayload {
     adId: string;
     name: string;
     spend: number;
+    impressions: number;
     clicks: number;
     ctr: number;
     messages: number;

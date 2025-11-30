@@ -107,10 +107,10 @@ export class AdReportsService {
       impressions: item.impressions || 0,
       clicks: item.clicks || 0,
       messages: item.messages || 0,
-      cpc: item.cpc || null,
-      cpm: item.cpm || null,
-      ctr: item.ctr || null,
-      cpa: item.cpa || null,
+      cpc: item.cpc ?? null,
+      cpm: item.cpm ?? null,
+      ctr: item.ctr ?? null,
+      cpa: item.cpa ?? null,
     }));
 
     await this.prisma.adReportBreakdown.createMany({
