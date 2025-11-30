@@ -56,14 +56,28 @@ export class SocialMessageNormalizerService {
         ? ConnectionProvider.INSTAGRAM 
         : ConnectionProvider.FACEBOOK;
 
+      this.logger.debug(
+        `[normalize] Provider determinado: ${provider} (payload.provider=${payload.provider})`,
+      );
+
       const message = payload.message || payload;
+      this.logger.debug(
+        `[normalize] Message extraído. Keys: ${Object.keys(message).join(', ')}`,
+      );
+
       const from = message.from || {};
       const senderId = from.id || message.senderId || message.fromId || '';
       const senderName = from.name || message.senderName || null;
       const senderPicture = from.picture || message.senderPicture || null;
 
+      this.logger.debug(
+        `[normalize] Dados do remetente: senderId=${senderId} senderName=${senderName} from=${JSON.stringify(from)}`,
+      );
+
       if (!senderId) {
-        this.logger.warn('Payload sem senderId. Ignorando mensagem.');
+        this.logger.error('❌ Payload sem senderId. Ignorando mensagem.');
+        this.logger.error(`Payload completo: ${JSON.stringify(payload, null, 2)}`);
+        this.logger.error(`Message extraído: ${JSON.stringify(message, null, 2)}`);
         return null;
       }
 

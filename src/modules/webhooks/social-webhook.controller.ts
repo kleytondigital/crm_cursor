@@ -36,32 +36,49 @@ export class SocialWebhookController {
   @Post()
   async handleWebhook(@Body() body: any) {
     // Validação de API Key é feita pelo ApiKeyGuard
-    this.logger.debug(`Webhook social recebido: ${JSON.stringify(body).substring(0, 200)}`);
+    this.logger.log(`[handleWebhook] Webhook social recebido: ${JSON.stringify(body).substring(0, 500)}`);
 
     const events = Array.isArray(body) ? body : body ? [body] : [];
 
+    this.logger.log(`[handleWebhook] Total de eventos para processar: ${events.length}`);
+
     if (events.length === 0) {
-      this.logger.warn('Nenhum evento recebido em /webhooks/social');
+      this.logger.warn('[handleWebhook] Nenhum evento recebido em /webhooks/social');
       return { status: 'ok', processed: 0 };
     }
 
     let processed = 0;
+    let errors: string[] = [];
 
-    for (const event of events) {
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
       try {
+        this.logger.log(`[handleWebhook] Processando evento ${i + 1}/${events.length}`);
         const handled = await this.processEvent(event);
         if (handled) {
           processed += 1;
+          this.logger.log(`[handleWebhook] Evento ${i + 1} processado com sucesso`);
+        } else {
+          this.logger.warn(`[handleWebhook] Evento ${i + 1} retornou false (não foi processado)`);
+          errors.push(`Evento ${i + 1}: retornou false`);
         }
       } catch (error: any) {
+        const errorMessage = error?.message || String(error);
         this.logger.error(
-          `Erro ao processar evento social: ${error?.message || error}`,
+          `[handleWebhook] Erro ao processar evento social ${i + 1}: ${errorMessage}`,
           error?.stack,
         );
+        errors.push(`Evento ${i + 1}: ${errorMessage}`);
       }
     }
 
-    return { status: 'ok', processed };
+    const response: any = { status: 'ok', processed };
+    if (errors.length > 0) {
+      response.errors = errors;
+    }
+
+    this.logger.log(`[handleWebhook] Finalizado: ${processed}/${events.length} eventos processados`);
+    return response;
   }
 
   /**
@@ -263,10 +280,16 @@ export class SocialWebhookController {
       );
 
       // Normalizar mensagem
+      this.logger.log(
+        `[processEvent] Tentando normalizar mensagem. event keys: ${Object.keys(event).join(', ')}`,
+      );
       const normalized = this.normalizer.normalize(event, connection);
       if (!normalized) {
-        this.logger.warn(
-          `[processEvent] Falha ao normalizar mensagem social. connectionId=${connection.id} event=${JSON.stringify(event).substring(0, 300)}`,
+        this.logger.error(
+          `[processEvent] ❌ Falha ao normalizar mensagem social. connectionId=${connection.id}`,
+        );
+        this.logger.error(
+          `[processEvent] Evento completo: ${JSON.stringify(event, null, 2)}`,
         );
         return false;
       }
@@ -314,11 +337,23 @@ export class SocialWebhookController {
       );
 
       // Criar mensagem
-      const message = await this.createMessage(normalized, lead, conversation, connection);
-
       this.logger.log(
-        `[processEvent] Mensagem criada. messageId=${message.id} metaMessageId=${normalized.messageId}`,
+        `[processEvent] Tentando criar mensagem. normalized.messageId=${normalized.messageId} conversationId=${conversation.id} leadId=${lead.id} connectionId=${connection.id}`,
       );
+      
+      let message;
+      try {
+        message = await this.createMessage(normalized, lead, conversation, connection);
+        this.logger.log(
+          `[processEvent] ✅ Mensagem criada com sucesso. messageId=${message.id} metaMessageId=${normalized.messageId}`,
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `[processEvent] ❌ Erro ao criar mensagem: ${error?.message || error}`,
+          error?.stack,
+        );
+        throw error; // Re-lançar para ser capturado pelo catch externo
+      }
 
       // Processar mídia se houver
       if (normalized.mediaUrl && normalized.contentType !== ContentType.TEXT) {
@@ -723,4 +758,5 @@ export class SocialWebhookController {
   }
 
 }
+
 
