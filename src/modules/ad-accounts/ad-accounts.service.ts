@@ -23,9 +23,14 @@ export class AdAccountsService {
   ) {}
 
   /**
-   * Lista contas de anúncio disponíveis para conexão (via Meta API)
+   * Lista todas as contas de anúncio disponíveis para uma conexão (via Meta API)
+   * @param includeConnected - Se true, inclui também as contas já conectadas
    */
-  async listAvailable(tenantId: string, connectionId: string): Promise<MetaAdAccount[]> {
+  async listAvailable(
+    tenantId: string,
+    connectionId: string,
+    includeConnected: boolean = false,
+  ): Promise<MetaAdAccount[]> {
     // Verificar se a conexão existe e pertence ao tenant
     const connection = await this.prisma.connection.findFirst({
       where: {
@@ -62,20 +67,24 @@ export class AdAccountsService {
       throw error;
     }
 
-    // Filtrar contas já conectadas
-    const connectedAccounts = await this.prisma.adAccount.findMany({
-      where: {
-        tenantId,
-        isActive: true,
-      },
-      select: {
-        adAccountId: true,
-      },
-    });
+    // Se não deve incluir conectadas, filtrar
+    if (!includeConnected) {
+      const connectedAccounts = await this.prisma.adAccount.findMany({
+        where: {
+          tenantId,
+          isActive: true,
+        },
+        select: {
+          adAccountId: true,
+        },
+      });
 
-    const connectedIds = new Set(connectedAccounts.map((acc) => acc.adAccountId));
+      const connectedIds = new Set(connectedAccounts.map((acc) => acc.adAccountId));
+      return accounts.filter((account) => !connectedIds.has(account.id));
+    }
 
-    return accounts.filter((account) => !connectedIds.has(account.id));
+    // Retornar todas as contas (conectadas + disponíveis)
+    return accounts;
   }
 
   /**

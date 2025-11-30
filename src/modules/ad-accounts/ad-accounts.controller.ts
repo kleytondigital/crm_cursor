@@ -25,13 +25,15 @@ export class AdAccountsController {
    */
   @Get('available')
   async listAvailable(
-    @Query('connectionId') connectionId: string,
     @CurrentUser() user: any,
+    @Query('connectionId') connectionId: string,
+    @Query('includeConnected') includeConnected?: string,
   ) {
     if (!connectionId) {
       throw new BadRequestException('connectionId é obrigatório');
     }
-    return this.adAccountsService.listAvailable(user.companyId, connectionId);
+    const include = includeConnected === 'true';
+    return this.adAccountsService.listAvailable(user.companyId, connectionId, include);
   }
 
   /**

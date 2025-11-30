@@ -667,8 +667,12 @@ export const bulkMessagingAPI = {
 // AD ACCOUNTS API
 // ============================================
 export const adAccountsAPI = {
-  listAvailable: (connectionId: string) =>
-    authFetch(`/ad-accounts/available?connectionId=${connectionId}`),
+  listAvailable: (connectionId: string, includeConnected: boolean = false) => {
+    const params = new URLSearchParams()
+    params.append('connectionId', connectionId)
+    if (includeConnected) params.append('includeConnected', 'true')
+    return authFetch(`/ad-accounts/available?${params.toString()}`)
+  },
   connect: (data: { connectionId: string; adAccountId: string }) =>
     authFetch('/ad-accounts/connect', {
       method: 'POST',
