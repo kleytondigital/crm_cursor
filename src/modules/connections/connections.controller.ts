@@ -15,6 +15,7 @@ import { CreateSocialConnectionDto } from './dto/create-social-connection.dto';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
+import { Public } from '@/shared/decorators/public.decorator';
 import { AutomationsAccessGuard } from '@/shared/guards/automations-access.guard';
 
 type ConnectionAction =
@@ -111,6 +112,7 @@ export class ConnectionsController {
     return this.connectionsService.startSocialOAuth(provider, user.companyId);
   }
 
+  @Public()
   @Get('social/oauth/callback')
   handleOAuthCallback(@Query() query: OAuthCallbackDto) {
     return this.connectionsService.handleOAuthCallback(query.code, query.state);
