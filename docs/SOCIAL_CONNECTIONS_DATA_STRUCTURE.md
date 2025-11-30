@@ -141,6 +141,11 @@ O CRM fornece um endpoint público para consulta:
 GET /webhooks/social/connection/lookup?provider=INSTAGRAM&pageId=123456789&instagramBusinessId=17841405309211844
 ```
 
+**Headers obrigatórios:**
+```
+X-API-Key: crm_abc123... (API Key global gerada no CRM)
+```
+
 **Resposta (Sucesso):**
 ```json
 {
@@ -190,12 +195,9 @@ GET /webhooks/social/connection/lookup?provider=INSTAGRAM&pageId=123456789&insta
 ### 2. n8n → CRM (Lookup)
 
 ```bash
-POST /webhooks/social/connection/lookup
-{
-  "provider": "INSTAGRAM",
-  "pageId": "123456789",
-  "instagramBusinessId": "17841405309211844"
-}
+GET /webhooks/social/connection/lookup?provider=INSTAGRAM&pageId=123456789&instagramBusinessId=17841405309211844
+Headers:
+  X-API-Key: crm_abc123... (API Key global obrigatória)
 ```
 
 ### 3. n8n → CRM (Enviar Mensagem)
@@ -412,7 +414,11 @@ GET /webhooks/social/connection/lookup
      lookupUrl += `&instagramBusinessId=${recipientId}`;
    }
    
-   const lookupResponse = await $http.get(lookupUrl);
+   const lookupResponse = await $http.get(lookupUrl, {
+     headers: {
+       'X-API-Key': $env.CRM_API_KEY // API Key global obrigatória
+     }
+   });
    
    if (!lookupResponse.found) {
      throw new Error('Conexão não encontrada');
@@ -435,6 +441,14 @@ GET /webhooks/social/connection/lookup
 
 ## 🔒 Segurança
 
+### Autenticação via API Key
+
+Todos os endpoints de webhook social são protegidos por **API Key global**:
+- O n8n deve enviar a API Key no header `X-API-Key` em todas as requisições
+- A API Key deve ser **global** (criada como Super Admin no CRM)
+- O `ApiKeyGuard` valida a API Key antes de processar qualquer requisição
+- Se a API Key não for fornecida ou for inválida, a requisição será rejeitada com erro 401
+
 ### Tokens Não Expostos
 
 O endpoint de lookup **NÃO retorna tokens** (`accessToken`, `refreshToken`). Isso garante que:
@@ -442,9 +456,15 @@ O endpoint de lookup **NÃO retorna tokens** (`accessToken`, `refreshToken`). Is
 - Apenas o backend interno acessa tokens
 - O n8n precisa armazenar tokens recebidos durante a configuração inicial
 
-### Validação de Assinatura
+### Como Criar uma API Key Global
 
-Todos os webhooks públicos suportam validação HMAC via header `x-n8n-signature` (opcional, se `WEBHOOK_SOCIAL_SECRET` estiver configurado).
+1. Faça login no CRM como **Super Admin**
+2. Acesse a página de **API Keys** (geralmente em Configurações)
+3. Clique em **"Criar Nova API Key"**
+4. Preencha o nome (ex: "N8N Social Webhooks")
+5. Marque a opção **"Global"** (apenas Super Admins podem criar keys globais)
+6. Copie a chave gerada (ela só será exibida uma vez)
+7. Configure no n8n como variável de ambiente `CRM_API_KEY`
 
 ---
 

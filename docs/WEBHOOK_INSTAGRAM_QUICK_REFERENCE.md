@@ -11,9 +11,14 @@ POST https://backcrm.aoseudispor.com.br/webhooks/social
 ```json
 {
   "Content-Type": "application/json",
-  "x-n8n-signature": "hmac-sha256-signature" // Opcional se WEBHOOK_SOCIAL_SECRET estiver configurado
+  "X-API-Key": "crm_abc123..." // API Key global gerada no CRM (OBRIGATÓRIO)
 }
 ```
+
+**⚠️ IMPORTANTE:** 
+- Você precisa criar uma API Key global no CRM (como Super Admin)
+- Use esta API Key no header `X-API-Key` de **todas** as requisições
+- A validação por assinatura HMAC foi substituída por validação via API Key
 
 ---
 
@@ -280,7 +285,11 @@ if (provider === 'INSTAGRAM' && recipientId) {
   lookupUrl += `&instagramBusinessId=${recipientId}`;
 }
 
-const lookupResponse = await $http.get(lookupUrl);
+const lookupResponse = await $http.get(lookupUrl, {
+  headers: {
+    'X-API-Key': $env.CRM_API_KEY // API Key global obrigatória
+  }
+});
 
 if (!lookupResponse.found) {
   throw new Error(`Conexão não encontrada para provider=${provider} pageId=${recipientId}`);
@@ -362,22 +371,27 @@ return {
 
 ---
 
-## Assinatura HMAC (Opcional)
+## Autenticação via API Key (Obrigatório)
 
-Se você configurou `WEBHOOK_SOCIAL_SECRET` no backend, precisa incluir o header `x-n8n-signature`:
+Todas as requisições para os endpoints de webhook social devem incluir a API Key no header:
 
 ```javascript
-const crypto = require('crypto');
+// No n8n, configure a API Key como variável de ambiente
+const apiKey = $env.CRM_API_KEY; // API Key global gerada no CRM
 
-const secret = $env.WEBHOOK_SOCIAL_SECRET;
-const payload = JSON.stringify($json);
-const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-
-// Adicionar ao header:
+// Adicionar ao header em todas as requisições HTTP:
 headers: {
-  "x-n8n-signature": signature
+  "Content-Type": "application/json",
+  "X-API-Key": apiKey
 }
 ```
+
+**Como criar uma API Key Global:**
+1. Faça login no CRM como Super Admin
+2. Acesse a página de API Keys
+3. Crie uma nova API Key com a opção "Global" marcada
+4. Copie a chave (ela só será exibida uma vez)
+5. Configure no n8n como variável de ambiente `CRM_API_KEY`
 
 ---
 
@@ -398,10 +412,11 @@ headers: {
 - Verifique se os campos `tenantId` e `connectionId` estão presentes e são UUIDs válidos
 - Confirme que a conexão Instagram existe no CRM e está ativa
 
-### Erro 401/403: "Assinatura inválida"
-- Verifique se o `WEBHOOK_SOCIAL_SECRET` está configurado no backend
-- Confirme que o header `x-n8n-signature` está sendo enviado corretamente
-- Verifique se a assinatura HMAC está sendo calculada corretamente
+### Erro 401: "API Key não fornecida" ou "API Key inválida ou expirada"
+- Verifique se o header `X-API-Key` está sendo enviado
+- Confirme que a API Key está correta e ativa no CRM
+- Verifique se a API Key é global (para acesso a múltiplos tenants)
+- Se necessário, crie uma nova API Key global no CRM
 
 ### Mensagem não aparece no CRM
 - Verifique os logs do backend para erros
@@ -420,6 +435,7 @@ headers: {
 ```bash
 curl -X POST https://backcrm.aoseudispor.com.br/webhooks/social \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: crm_sua-api-key-aqui" \
   -d '{
     "tenantId": "seu-tenant-id",
     "connectionId": "sua-connection-id",
@@ -437,6 +453,8 @@ curl -X POST https://backcrm.aoseudispor.com.br/webhooks/social \
     }
   }'
 ```
+
+**Importante:** Substitua `crm_sua-api-key-aqui` pela sua API Key global real.
 
 ---
 

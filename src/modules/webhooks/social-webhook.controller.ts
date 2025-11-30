@@ -1,4 +1,4 @@
-import { Body, Controller, Logger, Post, Get, Query, Headers, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Logger, Post, Get, Query, Headers, BadRequestException, UseGuards } from '@nestjs/common';
 import { Public } from '@/shared/decorators/public.decorator';
 import { PrismaService } from '@/shared/prisma/prisma.service';
 import { MessagesGateway } from '@/modules/messages/messages.gateway';
@@ -13,12 +13,14 @@ import { ConfigService } from '@nestjs/config';
 import { AttendancesService } from '@/modules/attendances/attendances.service';
 import { MinioService } from '@/shared/minio/minio.service';
 import { SocialMessageNormalizerService } from './services/social-message-normalizer.service';
-import * as crypto from 'crypto';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 
 @Controller('webhooks/social')
+@Public() // Marcar como público para JwtAuthGuard global não interferir
+@UseGuards(ApiKeyGuard) // ApiKeyGuard fará a validação de API Key
 export class SocialWebhookController {
   private readonly logger = new Logger(SocialWebhookController.name);
 
@@ -31,22 +33,10 @@ export class SocialWebhookController {
     private readonly normalizer: SocialMessageNormalizerService,
   ) {}
 
-  @Public()
   @Post()
-  async handleWebhook(
-    @Body() body: any,
-    @Headers('x-n8n-signature') signature?: string,
-    @Headers('x-webhook-signature') webhookSignature?: string,
-  ) {
-    // Validar assinatura se configurada
-    const webhookSecret = this.configService.get<string>('WEBHOOK_SOCIAL_SECRET');
-    if (webhookSecret) {
-      const providedSignature = signature || webhookSignature;
-      if (!providedSignature || !this.validateSignature(body, providedSignature, webhookSecret)) {
-        this.logger.warn('Webhook social rejeitado: assinatura inválida');
-        throw new BadRequestException('Assinatura inválida');
-      }
-    }
+  async handleWebhook(@Body() body: any) {
+    // Validação de API Key é feita pelo ApiKeyGuard
+    this.logger.debug(`Webhook social recebido: ${JSON.stringify(body).substring(0, 200)}`);
 
     const events = Array.isArray(body) ? body : body ? [body] : [];
 
@@ -78,22 +68,9 @@ export class SocialWebhookController {
    * Webhook para confirmação de mensagens enviadas (message.sent)
    * Chamado pelo n8n após enviar mensagem para Meta API
    */
-  @Public()
   @Post('message.sent')
-  async handleMessageSent(
-    @Body() body: any,
-    @Headers('x-n8n-signature') signature?: string,
-    @Headers('x-webhook-signature') webhookSignature?: string,
-  ) {
-    // Validar assinatura se configurada
-    const webhookSecret = this.configService.get<string>('WEBHOOK_SOCIAL_SECRET');
-    if (webhookSecret) {
-      const providedSignature = signature || webhookSignature;
-      if (!providedSignature || !this.validateSignature(body, providedSignature, webhookSecret)) {
-        this.logger.warn('Webhook message.sent rejeitado: assinatura inválida');
-        throw new BadRequestException('Assinatura inválida');
-      }
-    }
+  async handleMessageSent(@Body() body: any) {
+    // Validação de API Key é feita pelo ApiKeyGuard
 
     try {
       this.logger.debug(`Webhook message.sent recebido: ${JSON.stringify(body).substring(0, 500)}`);
@@ -657,10 +634,10 @@ export class SocialWebhookController {
   }
 
   /**
-   * Endpoint público para n8n consultar conexão por identificadores
+   * Endpoint para n8n consultar conexão por identificadores
    * Permite ao n8n buscar tenantId e connectionId baseado em pageId ou instagramBusinessId
+   * Protegido por API Key (ApiKeyGuard)
    */
-  @Public()
   @Get('connection/lookup')
   async lookupConnection(
     @Query('provider') provider: string,
@@ -745,22 +722,5 @@ export class SocialWebhookController {
     }
   }
 
-  /**
-   * Valida assinatura HMAC do webhook
-   */
-  private validateSignature(body: any, signature: string, secret: string): boolean {
-    try {
-      const payload = typeof body === 'string' ? body : JSON.stringify(body);
-      const hmac = crypto.createHmac('sha256', secret);
-      const calculatedSignature = hmac.update(payload).digest('hex');
-      return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(calculatedSignature),
-      );
-    } catch (error) {
-      this.logger.error(`Erro ao validar assinatura: ${error}`);
-      return false;
-    }
-  }
 }
 
