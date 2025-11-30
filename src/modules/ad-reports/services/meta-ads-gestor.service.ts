@@ -1,5 +1,7 @@
 import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '@/shared/prisma/prisma.service';
+import { SocialConnectionMetadata } from '@/modules/connections/types/social-connection-metadata.interface';
 import axios, { AxiosError } from 'axios';
 
 export enum MetaAdsGestorAction {
@@ -12,6 +14,7 @@ export interface MetaAdsGestorRequest {
   action: MetaAdsGestorAction;
   tenantId: string;
   connectionId: string;
+  userAccessToken: string; // Token de acesso do usuário (obrigatório para Meta Ads)
   adAccountId?: string;
   campaignId?: string;
   adsetId?: string;
@@ -31,7 +34,10 @@ export interface MetaAdsGestorResponse {
 export class MetaAdsGestorService {
   private readonly logger = new Logger(MetaAdsGestorService.name);
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     // Verificar se a URL está configurada na inicialização
     const url = this.configService.get<string>('N8N_WEBHOOK_GESTOR_META');
     if (url) {
@@ -137,13 +143,44 @@ export class MetaAdsGestorService {
   }
 
   /**
+   * Busca token de acesso da conexão
+   */
+  private async getConnectionToken(tenantId: string, connectionId: string): Promise<string> {
+    const connection = await this.prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        tenantId,
+        isActive: true,
+      },
+    });
+
+    if (!connection) {
+      throw new BadRequestException('Conexão não encontrada ou inativa');
+    }
+
+    const metadata = connection.metadata as SocialConnectionMetadata | null;
+    const userAccessToken = metadata?.userAccessToken || metadata?.accessToken;
+
+    if (!userAccessToken) {
+      throw new BadRequestException(
+        'Token de acesso não encontrado na conexão. É necessário um user access token com escopo ads_read para acessar contas de anúncio.',
+      );
+    }
+
+    return userAccessToken;
+  }
+
+  /**
    * Lista contas de anúncio disponíveis para uma conexão
    */
   async listContas(tenantId: string, connectionId: string): Promise<any[]> {
+    const userAccessToken = await this.getConnectionToken(tenantId, connectionId);
+    
     const response = await this.callGestor({
       action: MetaAdsGestorAction.LIST_CONTAS,
       tenantId,
       connectionId,
+      userAccessToken,
     });
 
     return response.data || [];
@@ -157,11 +194,14 @@ export class MetaAdsGestorService {
     connectionId: string,
     adAccountId: string,
   ): Promise<any[]> {
+    const userAccessToken = await this.getConnectionToken(tenantId, connectionId);
+    
     const response = await this.callGestor({
       action: MetaAdsGestorAction.LIST_CAMPANHAS,
       tenantId,
       connectionId,
       adAccountId,
+      userAccessToken,
     });
 
     return response.data || [];
@@ -180,6 +220,8 @@ export class MetaAdsGestorService {
     adsetId?: string,
     adId?: string,
   ): Promise<any> {
+    const userAccessToken = await this.getConnectionToken(tenantId, connectionId);
+    
     const request: MetaAdsGestorRequest = {
       action: MetaAdsGestorAction.LIST_METRICAS,
       tenantId,
@@ -187,6 +229,7 @@ export class MetaAdsGestorService {
       adAccountId,
       dateStart,
       dateEnd,
+      userAccessToken,
     };
 
     if (campaignId) request.campaignId = campaignId;

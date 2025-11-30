@@ -23,9 +23,12 @@ Todas as requisições seguem o mesmo formato base:
   "action": "list_contas" | "list_campanhas" | "list_metricas",
   "tenantId": "uuid-do-tenant",
   "connectionId": "uuid-da-conexao",
+  "userAccessToken": "EAAxxxxxxxxxxxxx",
   // Campos adicionais dependendo da ação
 }
 ```
+
+**IMPORTANTE:** O `userAccessToken` é sempre enviado na requisição. É o token de acesso do usuário (user access token) necessário para acessar as contas de anúncio via Meta Marketing API. O CRM busca automaticamente este token da conexão antes de chamar o webhook.
 
 ## Ações Disponíveis
 
@@ -37,7 +40,8 @@ Todas as requisições seguem o mesmo formato base:
 {
   "action": "list_contas",
   "tenantId": "550e8400-e29b-41d4-a716-446655440000",
-  "connectionId": "123e4567-e89b-12d3-a456-426614174000"
+  "connectionId": "123e4567-e89b-12d3-a456-426614174000",
+  "userAccessToken": "EAAxxxxxxxxxxxxx"
 }
 ```
 
@@ -94,7 +98,8 @@ Todas as requisições seguem o mesmo formato base:
   "action": "list_campanhas",
   "tenantId": "550e8400-e29b-41d4-a716-446655440000",
   "connectionId": "123e4567-e89b-12d3-a456-426614174000",
-  "adAccountId": "act_123456789"
+  "adAccountId": "act_123456789",
+  "userAccessToken": "EAAxxxxxxxxxxxxx"
 }
 ```
 
@@ -152,6 +157,7 @@ Todas as requisições seguem o mesmo formato base:
   "adAccountId": "act_123456789",
   "dateStart": "2025-11-23T00:00:00.000Z",
   "dateEnd": "2025-11-30T23:59:59.999Z",
+  "userAccessToken": "EAAxxxxxxxxxxxxx",
   "campaignId": "12345678901234567",
   "adsetId": "12345678901234568",
   "adId": "12345678901234569"
@@ -303,23 +309,28 @@ Todas as requisições seguem o mesmo formato base:
 
 ---
 
-## Como Obter Token de Acesso
+## Token de Acesso
 
-O n8n deve obter o token de acesso da conexão consultando o CRM via API ou banco de dados. O `connectionId` fornecido na requisição identifica a conexão, e o token está armazenado no campo `metadata.userAccessToken` da tabela `connections`.
+O `userAccessToken` é enviado automaticamente pelo CRM em todas as requisições. Não é necessário que o n8n consulte o CRM para obter o token - ele já vem no body da requisição.
 
-**Exemplo de consulta (pseudocódigo):**
+**Uso no n8n:**
+
+No primeiro node após o webhook, você pode acessar o token diretamente:
 
 ```javascript
-// No n8n, você pode fazer uma requisição HTTP para o CRM
-const connection = await httpRequest({
-  url: 'https://crm.com/api/connections/{connectionId}',
-  headers: {
-    'Authorization': 'Bearer {api-key}'
+// No n8n, acesse o token do body
+const userAccessToken = $json.body.userAccessToken;
+
+// Use o token para chamar a Meta Marketing API
+const response = await axios.get('https://graph.facebook.com/v21.0/me/adaccounts', {
+  params: {
+    access_token: userAccessToken,
+    fields: 'id,account_id,name,currency,account_status,business{id,name}'
   }
 });
-
-const userAccessToken = connection.metadata.userAccessToken;
 ```
+
+**Nota:** O token enviado é o user access token com escopo `ads_read` necessário para acessar as contas de anúncio via Meta Marketing API.
 
 ---
 
@@ -346,32 +357,50 @@ const userAccessToken = connection.metadata.userAccessToken;
 ### Para `list_contas`:
 
 1. Receber requisição do CRM
-2. Extrair `connectionId` e `tenantId`
-3. Consultar token de acesso da conexão (via API do CRM ou banco)
-4. Chamar Meta Marketing API: `GET /me/adaccounts?access_token={token}`
-5. Formatar resposta conforme schema acima
-6. Retornar JSON para o CRM
+2. Extrair `userAccessToken` do body (`$json.body.userAccessToken`)
+3. Chamar Meta Marketing API: `GET /me/adaccounts?access_token={userAccessToken}`
+4. Formatar resposta conforme schema acima
+5. Retornar JSON para o CRM
+
+**Exemplo de código n8n:**
+
+```javascript
+// Extrair token do body
+const userAccessToken = $json.body.userAccessToken;
+
+// Chamar Meta API
+const response = await axios.get('https://graph.facebook.com/v21.0/me/adaccounts', {
+  params: {
+    access_token: userAccessToken,
+    fields: 'id,account_id,name,currency,account_status,business{id,name}'
+  }
+});
+
+// Formatar resposta
+return {
+  success: true,
+  data: response.data.data
+};
+```
 
 ### Para `list_campanhas`:
 
 1. Receber requisição do CRM
-2. Extrair `connectionId`, `tenantId`, `adAccountId`
-3. Consultar token de acesso
-4. Chamar Meta Marketing API: `GET /{adAccountId}/campaigns?access_token={token}`
-5. Formatar resposta conforme schema acima
-6. Retornar JSON para o CRM
+2. Extrair `userAccessToken` e `adAccountId` do body
+3. Chamar Meta Marketing API: `GET /{adAccountId}/campaigns?access_token={userAccessToken}`
+4. Formatar resposta conforme schema acima
+5. Retornar JSON para o CRM
 
 ### Para `list_metricas`:
 
 1. Receber requisição do CRM
-2. Extrair todos os parâmetros (incluindo filtros opcionais)
-3. Consultar token de acesso
-4. Chamar Meta Marketing API com os campos necessários:
-   - `GET /{adAccountId}/insights?access_token={token}&date_preset=last_7d&fields=spend,impressions,reach,clicks,ctr,cpc,cpm`
-5. Processar e agregar dados
-6. Correlacionar mensagens (se necessário)
-7. Formatar resposta conforme schema acima
-8. Retornar JSON para o CRM
+2. Extrair todos os parâmetros do body (incluindo `userAccessToken`, filtros opcionais)
+3. Chamar Meta Marketing API com os campos necessários:
+   - `GET /{adAccountId}/insights?access_token={userAccessToken}&date_preset=last_7d&fields=spend,impressions,reach,clicks,ctr,cpc,cpm`
+4. Processar e agregar dados
+5. Correlacionar mensagens (se necessário)
+6. Formatar resposta conforme schema acima
+7. Retornar JSON para o CRM
 
 ---
 

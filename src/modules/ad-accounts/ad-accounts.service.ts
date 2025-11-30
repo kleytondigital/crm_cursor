@@ -44,24 +44,11 @@ export class AdAccountsService {
       throw new BadRequestException('Esta conexão não é compatível com Meta Ads');
     }
 
-    // Obter user access token da conexão (obrigatório para acessar contas de anúncio)
-    const metadata = connection.metadata as SocialConnectionMetadata | null;
-    const userAccessToken = metadata?.userAccessToken || metadata?.accessToken;
-    
-    if (!userAccessToken) {
-      this.logger.error(
-        `Token de acesso não encontrado na conexão ${connectionId}. Metadata: ${JSON.stringify(metadata)}`,
-      );
-      throw new BadRequestException(
-        'Token de acesso de usuário não encontrado na conexão. É necessário um user access token com escopo ads_read para acessar contas de anúncio.',
-      );
-    }
-
     this.logger.log(
       `Listando contas disponíveis via webhook gestor. ConnectionId: ${connectionId}, TenantId: ${tenantId}`,
     );
 
-    // Listar contas disponíveis via webhook gestor n8n
+    // Listar contas disponíveis via webhook gestor n8n (o serviço já busca o token internamente)
     let accounts: any[];
     try {
       accounts = await this.metaAdsGestor.listContas(tenantId, connectionId);
