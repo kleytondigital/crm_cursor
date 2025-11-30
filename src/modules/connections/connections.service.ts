@@ -693,8 +693,9 @@ export class ConnectionsService {
     const isGraphStep = step === 'graph';
     
     // Trocar code por token
-    // Se for segunda etapa (Graph API), o token já terá os escopos necessários
-    const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(code);
+    // IMPORTANTE: Na segunda etapa (Graph API), usar Graph App credentials
+    // Na primeira etapa (OAuth básico), usar OAuth App credentials
+    const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(code, undefined, isGraphStep);
 
     // Se for primeira etapa (OAuth básico) e houver Graph App separado,
     // sempre solicitar segunda autorização (App OAuth não tem escopos de páginas)

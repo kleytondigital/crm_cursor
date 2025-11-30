@@ -97,7 +97,7 @@ export class MetaOAuthService {
       );
     }
 
-    const finalRedirectUri = redirectUri || this.redirectUri;
+    const finalRedirectUri = this.normalizeRedirectUri(redirectUri || this.redirectUri);
     if (!finalRedirectUri) {
       throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
     }
@@ -123,7 +123,7 @@ export class MetaOAuthService {
 
     const params = new URLSearchParams({
       client_id: this.oauthAppId, // Usar OAuth App ID para autenticação
-      redirect_uri: finalRedirectUri,
+      redirect_uri: finalRedirectUri, // URI normalizado
       response_type: 'code',
       state,
       auth_type: 'rerequest', // Força re-autorização se necessário
@@ -134,31 +134,43 @@ export class MetaOAuthService {
   }
 
   /**
+   * Normaliza redirect URI para garantir consistência (remove trailing slash, etc)
+   */
+  private normalizeRedirectUri(uri: string): string {
+    return uri.replace(/\/+$/, ''); // Remove trailing slash
+  }
+
+  /**
    * Troca code OAuth por access_token
    */
-  async exchangeCodeForToken(code: string, redirectUri?: string): Promise<MetaOAuthResponse> {
-    if (!this.oauthAppId || !this.oauthAppSecret) {
-      throw new InternalServerErrorException(
-        'Credenciais Meta OAuth não configuradas (META_OAUTH_APP_ID/META_OAUTH_APP_SECRET ou META_APP_ID/META_APP_SECRET)',
-      );
-    }
-
-    const finalRedirectUri = redirectUri || this.redirectUri;
+  async exchangeCodeForToken(code: string, redirectUri?: string, useGraphApp: boolean = false): Promise<MetaOAuthResponse> {
+    const finalRedirectUri = this.normalizeRedirectUri(redirectUri || this.redirectUri);
     if (!finalRedirectUri) {
       throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
+    }
+
+    // Determinar qual app usar baseado no parâmetro
+    const appId = useGraphApp ? this.graphAppId : this.oauthAppId;
+    const appSecret = useGraphApp ? this.graphAppSecret : this.oauthAppSecret;
+
+    if (!appId || !appSecret) {
+      const appType = useGraphApp ? 'Graph API' : 'OAuth';
+      throw new InternalServerErrorException(
+        `Credenciais Meta ${appType} não configuradas`,
+      );
     }
 
     try {
       const response = await axios.get<MetaOAuthResponse>(`${this.baseUrl}/oauth/access_token`, {
         params: {
-          client_id: this.oauthAppId, // Usar OAuth App ID
-          client_secret: this.oauthAppSecret, // Usar OAuth App Secret
-          redirect_uri: finalRedirectUri,
+          client_id: appId,
+          client_secret: appSecret,
+          redirect_uri: finalRedirectUri, // Usar URI normalizado
           code,
         },
       });
 
-      this.logger.log('Token OAuth obtido com sucesso');
+      this.logger.log(`Token OAuth obtido com sucesso usando ${useGraphApp ? 'Graph' : 'OAuth'} App`);
       return response.data;
     } catch (error: unknown) {
       if (this.isAxiosError(error)) {
@@ -382,7 +394,7 @@ export class MetaOAuthService {
       );
     }
 
-    const finalRedirectUri = redirectUri || this.redirectUri;
+    const finalRedirectUri = this.normalizeRedirectUri(redirectUri || this.redirectUri);
     if (!finalRedirectUri) {
       throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
     }
@@ -401,7 +413,7 @@ export class MetaOAuthService {
 
     const params = new URLSearchParams({
       client_id: this.graphAppId, // Usar Graph App ID
-      redirect_uri: finalRedirectUri,
+      redirect_uri: finalRedirectUri, // URI normalizado (deve ser EXATAMENTE o mesmo da primeira etapa)
       scope: scopes,
       response_type: 'code',
       state,
