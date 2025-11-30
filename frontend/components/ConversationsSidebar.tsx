@@ -1,13 +1,17 @@
 'use client'
 
 import { useChat } from '@/contexts/ChatContext'
-import { Search, MessageCircle, Filter } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Search, MessageCircle, Filter, MessageSquare } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
 import ConversationListItem from './ConversationListItem'
+import Image from 'next/image'
+
+type PlatformTab = 'WHATSAPP' | 'INSTAGRAM' | 'FACEBOOK' | 'ALL'
 
 export default function ConversationsSidebar() {
   const { conversations, selectedConversation, selectConversation, loading } = useChat()
   const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<PlatformTab>('ALL')
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
   // Resetar erros de imagem quando o profilePictureURL mudar nas conversas
@@ -24,21 +28,71 @@ export default function ConversationsSidebar() {
     })
   }, [conversations])
 
+  // Filtrar conversas por plataforma
+  const conversationsByPlatform = useMemo(() => {
+    const whatsapp = conversations.filter((conv) => {
+      // WhatsApp: não é social (phone não começa com 'social_') e provider não é INSTAGRAM/FACEBOOK
+      const isSocial = conv.lead?.phone?.startsWith('social_')
+      return !isSocial && conv.provider !== 'INSTAGRAM' && conv.provider !== 'FACEBOOK'
+    })
+    
+    const instagram = conversations.filter((conv) => conv.provider === 'INSTAGRAM')
+    const facebook = conversations.filter((conv) => conv.provider === 'FACEBOOK')
+    
+    return {
+      WHATSAPP: whatsapp,
+      INSTAGRAM: instagram,
+      FACEBOOK: facebook,
+      ALL: conversations,
+    }
+  }, [conversations])
+
+  // Contar conversas por plataforma
+  const platformCounts = useMemo(() => {
+    return {
+      WHATSAPP: conversationsByPlatform.WHATSAPP.length,
+      INSTAGRAM: conversationsByPlatform.INSTAGRAM.length,
+      FACEBOOK: conversationsByPlatform.FACEBOOK.length,
+      ALL: conversationsByPlatform.ALL.length,
+    }
+  }, [conversationsByPlatform])
+
   const normalizedSearch = searchTerm.toLowerCase().trim()
 
-  const filteredConversations = conversations.filter((conv) => {
-    const leadName = conv.lead?.name ?? ''
-    const leadPhone = conv.lead?.phone ?? ''
+  // Filtrar conversas pela aba ativa e busca
+  const filteredConversations = useMemo(() => {
+    const platformConversations = conversationsByPlatform[activeTab] || conversationsByPlatform.ALL
 
     if (!normalizedSearch) {
-      return true
+      return platformConversations
     }
 
-    return (
-      leadName.toLowerCase().includes(normalizedSearch) ||
-      leadPhone.includes(normalizedSearch)
-    )
-  })
+    return platformConversations.filter((conv) => {
+      const leadName = conv.lead?.name ?? ''
+      const leadPhone = conv.lead?.phone ?? ''
+
+      return (
+        leadName.toLowerCase().includes(normalizedSearch) ||
+        leadPhone.includes(normalizedSearch)
+      )
+    })
+  }, [conversationsByPlatform, activeTab, normalizedSearch])
+
+  // Resetar aba ativa quando não há conversas da plataforma selecionada
+  useEffect(() => {
+    if (platformCounts[activeTab] === 0 && activeTab !== 'ALL') {
+      // Se a aba ativa não tem conversas e há conversas em outras plataformas, mudar para ALL
+      if (platformCounts.ALL > 0) {
+        setActiveTab('ALL')
+      } else if (platformCounts.WHATSAPP > 0) {
+        setActiveTab('WHATSAPP')
+      } else if (platformCounts.INSTAGRAM > 0) {
+        setActiveTab('INSTAGRAM')
+      } else if (platformCounts.FACEBOOK > 0) {
+        setActiveTab('FACEBOOK')
+      }
+    }
+  }, [platformCounts, activeTab])
 
   return (
     <div className="flex h-full w-full flex-col md:h-auto">
@@ -50,6 +104,93 @@ export default function ConversationsSidebar() {
           <p className="hidden md:block text-sm text-text-muted">
             Acompanhe atendimentos em tempo real e priorize leads quentes.
           </p>
+        </div>
+      </div>
+
+      {/* Abas de Plataforma */}
+      <div className="border-b border-white/5 bg-background-subtle/70 px-3 pt-3 md:px-4 md:pt-4">
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide">
+          <button
+            onClick={() => setActiveTab('ALL')}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
+              activeTab === 'ALL'
+                ? 'bg-brand-primary/20 text-white shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <MessageCircle className="h-3 w-3 flex-shrink-0" />
+            <span>Todas</span>
+            {platformCounts.ALL > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                activeTab === 'ALL' ? 'bg-brand-primary/30' : 'bg-white/10'
+              }`}>
+                {platformCounts.ALL}
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('WHATSAPP')}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
+              activeTab === 'WHATSAPP'
+                ? 'bg-green-500/20 text-green-300 shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="h-3 w-3 flex-shrink-0 relative">
+              <Image src="/whatsapp.png" alt="WhatsApp" width={12} height={12} className="object-contain" />
+            </div>
+            <span>WhatsApp</span>
+            {platformCounts.WHATSAPP > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                activeTab === 'WHATSAPP' ? 'bg-green-500/30' : 'bg-white/10'
+              }`}>
+                {platformCounts.WHATSAPP}
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('INSTAGRAM')}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
+              activeTab === 'INSTAGRAM'
+                ? 'bg-pink-500/20 text-pink-300 shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="h-3 w-3 flex-shrink-0 relative">
+              <Image src="/instagram.png" alt="Instagram" width={12} height={12} className="object-contain" />
+            </div>
+            <span>Instagram</span>
+            {platformCounts.INSTAGRAM > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                activeTab === 'INSTAGRAM' ? 'bg-pink-500/30' : 'bg-white/10'
+              }`}>
+                {platformCounts.INSTAGRAM}
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('FACEBOOK')}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
+              activeTab === 'FACEBOOK'
+                ? 'bg-blue-500/20 text-blue-300 shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="h-3 w-3 flex-shrink-0 relative">
+              <Image src="/facebook.png" alt="Facebook" width={12} height={12} className="object-contain" />
+            </div>
+            <span>Facebook</span>
+            {platformCounts.FACEBOOK > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                activeTab === 'FACEBOOK' ? 'bg-blue-500/30' : 'bg-white/10'
+              }`}>
+                {platformCounts.FACEBOOK}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 

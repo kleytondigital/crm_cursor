@@ -3,9 +3,11 @@
 import { Conversation } from '@/types'
 import { format, isToday, isYesterday } from 'date-fns'
 import ptBR from 'date-fns/locale/pt-BR'
-import { Bot, User, Building2, Flag } from 'lucide-react'
+import { Bot, User, Building2, Flag, Megaphone, Users } from 'lucide-react'
 import { useConversationTags } from '@/hooks/useConversationTags'
 import Tag from './ui/Tag'
+import Image from 'next/image'
+import { useMemo } from 'react'
 
 interface ConversationListItemProps {
   conversation: Conversation
@@ -40,6 +42,37 @@ export default function ConversationListItem({
     .charAt(0)
     .toUpperCase()
 
+  // Determinar provider da conversa
+  const provider = conversation.provider || (conversation.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP')
+
+  // Verificar se origem é de anúncio (pode vir do campo origin ou tags)
+  const isAdSource = useMemo(() => {
+    const origin = conversation.lead?.origin?.toLowerCase() || ''
+    const tags = conversation.lead?.tags || []
+    return (
+      origin.includes('anúncio') ||
+      origin.includes('ad') ||
+      origin.includes('facebook ads') ||
+      origin.includes('instagram ads') ||
+      origin.includes('meta ads') ||
+      tags.some((tag) => tag.toLowerCase().includes('anúncio') || tag.toLowerCase().includes('ads'))
+    )
+  }, [conversation.lead?.origin, conversation.lead?.tags])
+
+  // Obter ícone da plataforma
+  const getPlatformIcon = () => {
+    if (provider === 'INSTAGRAM') {
+      return <Image src="/instagram.png" alt="Instagram" width={12} height={12} className="object-contain" />
+    }
+    if (provider === 'FACEBOOK') {
+      return <Image src="/facebook.png" alt="Facebook" width={12} height={12} className="object-contain" />
+    }
+    if (provider === 'WHATSAPP') {
+      return <Image src="/whatsapp.png" alt="WhatsApp" width={12} height={12} className="object-contain" />
+    }
+    return null
+  }
+
   return (
     <button
       onClick={onSelect}
@@ -73,8 +106,44 @@ export default function ConversationListItem({
           )}
         </div>
         
-        {/* Tags: Bot, Estágio, Atendente, Departamento, Prioridade */}
+        {/* Tags: Plataforma, Origem (Anúncio/Orgânico), Bot, Estágio, Atendente, Departamento, Prioridade */}
         <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Tag de Plataforma */}
+          {provider && (
+            <Tag
+              variant="default"
+              title={`Plataforma: ${provider === 'INSTAGRAM' ? 'Instagram Direct' : provider === 'FACEBOOK' ? 'Facebook Messenger' : 'WhatsApp'}`}
+              className={
+                provider === 'INSTAGRAM'
+                  ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                  : provider === 'FACEBOOK'
+                  ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                  : 'bg-green-500/20 text-green-300 border-green-500/30'
+              }
+            >
+              <div className="h-2.5 w-2.5 flex-shrink-0 relative">
+                {getPlatformIcon()}
+              </div>
+              <span className="hidden sm:inline truncate">
+                {provider === 'INSTAGRAM' ? 'Instagram' : provider === 'FACEBOOK' ? 'Facebook' : 'WhatsApp'}
+              </span>
+            </Tag>
+          )}
+          
+          {/* Tag de Origem (Anúncio vs Orgânico) */}
+          {isAdSource && (
+            <Tag variant="default" title="Lead de anúncio" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+              <Megaphone className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">Anúncio</span>
+            </Tag>
+          )}
+          {!isAdSource && conversation.lead?.origin && (
+            <Tag variant="default" title="Lead orgânico" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+              <Users className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">Orgânico</span>
+            </Tag>
+          )}
+          
           {conversation.isBotAttending && (
             <Tag variant="bot" title="Sendo atendido por bot">
               <Bot className="h-2.5 w-2.5" />

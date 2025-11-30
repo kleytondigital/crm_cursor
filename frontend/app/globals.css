@@ -41,6 +41,16 @@ body {
   background: rgba(148, 163, 184, 0.55);
 }
 
+/* Esconder scrollbar mas manter funcionalidade */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
 /* Animação de destaque para mensagens quando clicadas via reply */
 .message-item {
   transition: all 0.3s ease;

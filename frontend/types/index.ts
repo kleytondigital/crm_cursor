@@ -53,6 +53,7 @@ export interface Conversation {
   departmentId?: string
   status: 'ACTIVE' | 'CLOSED'
   isBotAttending?: boolean // Novo campo para indicador de bot
+  provider?: 'WHATSAPP' | 'INSTAGRAM' | 'FACEBOOK' | null // Plataforma de origem da conversa
   tenantId: string
   createdAt: string
   updatedAt: string
@@ -62,6 +63,7 @@ export interface Conversation {
     phone: string
     tags: string[]
     profilePictureURL?: string | null
+    origin?: string | null // Origem do lead (orgânico vs anúncio)
   }
   assignedUser?: {
     id: string

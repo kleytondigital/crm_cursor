@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Conversation } from '@/types'
 import ChatActionsMenu from './chat/ChatActionsMenu'
 import EditableText from './EditableText'
 import { useChat } from '@/contexts/ChatContext'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { Calendar, ArrowLeft, Bot, User, Building2, Flag } from 'lucide-react'
+import { Calendar, ArrowLeft, Bot, User, Building2, Flag, Megaphone, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { leadsAPI } from '@/lib/api'
 import { useConversationTags } from '@/hooks/useConversationTags'
 import Tag from './ui/Tag'
+import Image from 'next/image'
 
 interface ChatHeaderProps {
   conversation: Conversation
@@ -54,6 +55,37 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
   }, [])
 
   const showImage = conversation.lead.profilePictureURL && !imageError
+
+  // Determinar provider da conversa
+  const provider = conversation.provider || (conversation.lead?.phone?.startsWith('social_') ? null : 'WHATSAPP')
+
+  // Verificar se origem é de anúncio
+  const isAdSource = useMemo(() => {
+    const origin = conversation.lead?.origin?.toLowerCase() || ''
+    const tags = conversation.lead?.tags || []
+    return (
+      origin.includes('anúncio') ||
+      origin.includes('ad') ||
+      origin.includes('facebook ads') ||
+      origin.includes('instagram ads') ||
+      origin.includes('meta ads') ||
+      tags.some((tag) => tag.toLowerCase().includes('anúncio') || tag.toLowerCase().includes('ads'))
+    )
+  }, [conversation.lead?.origin, conversation.lead?.tags])
+
+  // Obter ícone da plataforma
+  const getPlatformIcon = () => {
+    if (provider === 'INSTAGRAM') {
+      return <Image src="/instagram.png" alt="Instagram" width={12} height={12} className="object-contain" />
+    }
+    if (provider === 'FACEBOOK') {
+      return <Image src="/facebook.png" alt="Facebook" width={12} height={12} className="object-contain" />
+    }
+    if (provider === 'WHATSAPP') {
+      return <Image src="/whatsapp.png" alt="WhatsApp" width={12} height={12} className="object-contain" />
+    }
+    return null
+  }
 
   // Função para formatar telefone
   const formatPhone = (phone: string) => {
@@ -191,8 +223,44 @@ export default function ChatHeader({ conversation, onViewSchedulingHistory }: Ch
               </Tag>
             )}
           </div>
-          {/* Linha de tags: estágio, atendente, departamento, prioridade */}
+          {/* Linha de tags: plataforma, origem, estágio, atendente, departamento, prioridade */}
           <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Tag de Plataforma */}
+            {provider && (
+              <Tag
+                variant="default"
+                title={`Plataforma: ${provider === 'INSTAGRAM' ? 'Instagram Direct' : provider === 'FACEBOOK' ? 'Facebook Messenger' : 'WhatsApp'}`}
+                className={
+                  provider === 'INSTAGRAM'
+                    ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                    : provider === 'FACEBOOK'
+                    ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                    : 'bg-green-500/20 text-green-300 border-green-500/30'
+                }
+              >
+                <div className="h-2.5 w-2.5 flex-shrink-0 relative">
+                  {getPlatformIcon()}
+                </div>
+                <span className="truncate">
+                  {provider === 'INSTAGRAM' ? 'Instagram' : provider === 'FACEBOOK' ? 'Facebook' : 'WhatsApp'}
+                </span>
+              </Tag>
+            )}
+            
+            {/* Tag de Origem (Anúncio vs Orgânico) */}
+            {isAdSource && (
+              <Tag variant="default" title="Lead de anúncio" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                <Megaphone className="h-2.5 w-2.5" />
+                <span className="truncate">Anúncio</span>
+              </Tag>
+            )}
+            {!isAdSource && conversation.lead?.origin && (
+              <Tag variant="default" title="Lead orgânico" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                <Users className="h-2.5 w-2.5" />
+                <span className="truncate">Orgânico</span>
+              </Tag>
+            )}
+            
             {/* Tag do estágio */}
             {stage && (
               <Tag variant="stage" color={stage.color} title={`Etapa: ${stage.name}`}>
