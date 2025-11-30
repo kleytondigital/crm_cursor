@@ -11,6 +11,7 @@ import { PrismaService } from '@/shared/prisma/prisma.service';
 import { CreateConnectionDto } from './dto/create-connection.dto';
 import { CreateSocialConnectionDto } from './dto/create-social-connection.dto';
 import { UpdateSocialConnectionDto } from './dto/update-social-connection.dto';
+import { CreateMetaApiConnectionDto, MetaService } from './dto/create-meta-api-connection.dto';
 import { N8nService } from '@/shared/n8n/n8n.service';
 import { MetaOAuthService } from './services/meta-oauth.service';
 import { N8nSocialConfigService } from './services/n8n-social-config.service';
@@ -663,6 +664,45 @@ export class ConnectionsService {
   }
 
   /**
+   * Inicia fluxo OAuth para Meta API com serviços selecionados
+   */
+  async startMetaApiOAuth(dto: CreateMetaApiConnectionDto, tenantId: string) {
+    // Determinar provider baseado nos serviços (Instagram ou Facebook para mensagens)
+    const hasInstagram = dto.services.includes(MetaService.INSTAGRAM_DIRECT);
+    const hasFacebook = dto.services.includes(MetaService.FACEBOOK_MESSENGER);
+    const hasWhatsAppApi = dto.services.includes(MetaService.WHATSAPP_API);
+    const hasMetaAds = dto.services.includes(MetaService.META_ADS);
+
+    // Se tem mensagens, determinar provider (Instagram tem prioridade)
+    const provider = hasInstagram ? 'INSTAGRAM' : hasFacebook ? 'FACEBOOK' : 'FACEBOOK';
+
+    // Criar state com informações necessárias para o callback
+    const state = Buffer.from(
+      JSON.stringify({
+        tenantId,
+        name: dto.name,
+        services: dto.services,
+        provider,
+        step: 'initial',
+      }),
+    ).toString('base64');
+
+    // Gerar URL de autorização com escopos baseados nos serviços e state customizado
+    const authUrl = this.metaOAuthService.generateMetaApiAuthUrl(
+      tenantId,
+      dto.services,
+      undefined,
+      state,
+    );
+
+    return {
+      authUrl,
+      provider,
+      services: dto.services,
+    };
+  }
+
+  /**
    * Processa callback OAuth da Meta
    */
   async handleOAuthCallback(code: string, state?: string) {
@@ -674,6 +714,8 @@ export class ConnectionsService {
     let tenantId: string;
     let provider: 'INSTAGRAM' | 'FACEBOOK';
     let step: string | undefined;
+    let connectionName: string | undefined;
+    let enabledServices: string[] | undefined;
 
     if (state) {
       try {
@@ -681,6 +723,14 @@ export class ConnectionsService {
         tenantId = decoded.tenantId;
         provider = decoded.provider;
         step = decoded.step; // 'graph' se for segunda etapa
+        
+        // Detectar se é o novo fluxo Meta API (tem services e name)
+        if (decoded.services && decoded.name) {
+          connectionName = decoded.name;
+          enabledServices = decoded.services;
+          // No novo fluxo, sempre usar Graph App (tem todas as permissões)
+          step = 'initial';
+        }
       } catch (error) {
         this.logger.error(`Erro ao decodificar state: ${error}`);
         throw new BadRequestException('State inválido');
@@ -774,16 +824,30 @@ export class ConnectionsService {
       this.logger.warn(`Não foi possível calcular data de expiração. expires_in: ${longLivedToken.expires_in}. Token será salvo sem data de expiração.`);
     }
     
+    // Determinar se precisa armazenar user token (para Meta Ads)
+    const hasMetaAds = enabledServices?.includes('META_ADS');
+    const hasMessages = enabledServices?.some(
+      (s) => s === 'INSTAGRAM_DIRECT' || s === 'FACEBOOK_MESSENGER' || s === 'WHATSAPP_API',
+    );
+    
     const metadata: SocialConnectionMetadata = {
       pageId: selectedPage.id,
       pageName: selectedPage.name,
       pageCategory: selectedPage.category,
-      accessToken: selectedPage.access_token || longLivedToken.access_token,
+      // Page access token (para mensagens)
+      accessToken: hasMessages ? (selectedPage.access_token || longLivedToken.access_token) : undefined,
+      // User access token (para Meta Ads)
+      userAccessToken: hasMetaAds ? longLivedToken.access_token : undefined,
       tokenExpiresAt,
       permissions: tokenResponse.scope?.split(',') || [],
       instagramBusinessId: instagramBusinessAccount?.id,
       instagramUsername: instagramBusinessAccount?.username,
+      // Serviços habilitados
+      enabledServices: enabledServices as Array<'WHATSAPP_API' | 'INSTAGRAM_DIRECT' | 'FACEBOOK_MESSENGER' | 'META_ADS'> | undefined,
     };
+    
+    // Nome da conexão: usar o fornecido pelo usuário se disponível, senão gerar
+    const finalConnectionName = connectionName || `${provider} - ${selectedPage.name}`;
 
     // Verificar se já existe conexão para esta página OU Instagram Business Account
     // Para Instagram: verifica por instagramBusinessId (mais específico)
@@ -828,7 +892,7 @@ export class ConnectionsService {
       connection = await this.prisma.connection.update({
         where: { id: existing.id },
         data: {
-          name: `${provider} - ${selectedPage.name}`,
+          name: finalConnectionName,
           metadata: metadata as any,
           refreshToken: tokenResponse.refresh_token || existing.refreshToken,
           status: ConnectionStatus.ACTIVE,
@@ -874,7 +938,7 @@ export class ConnectionsService {
       connection = await this.prisma.connection.create({
         data: {
           tenantId,
-          name: `${provider} - ${selectedPage.name}`,
+          name: finalConnectionName,
           sessionName,
           provider: providerType,
           status: ConnectionStatus.ACTIVE,

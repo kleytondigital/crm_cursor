@@ -383,6 +383,66 @@ export class MetaOAuthService {
   }
 
   /**
+   * Gera URL de autorização baseada nos serviços Meta selecionados
+   */
+  generateMetaApiAuthUrl(
+    tenantId: string,
+    services: string[],
+    redirectUri?: string,
+    customState?: string,
+  ): string {
+    const finalRedirectUri = this.normalizeRedirectUri(redirectUri || this.redirectUri);
+    if (!finalRedirectUri) {
+      throw new InternalServerErrorException('META_REDIRECT_URI não configurado');
+    }
+
+    // Determinar escopos baseados nos serviços
+    const scopes: string[] = [];
+
+    // Se precisa de Meta Ads, solicitar escopos de usuário (ads_read, ads_management)
+    if (services.includes('META_ADS')) {
+      scopes.push('ads_read', 'ads_management', 'business_management');
+    }
+
+    // Se precisa de mensagens (Instagram/Facebook/WhatsApp), solicitar escopos de páginas
+    if (
+      services.includes('INSTAGRAM_DIRECT') ||
+      services.includes('FACEBOOK_MESSENGER') ||
+      services.includes('WHATSAPP_API')
+    ) {
+      scopes.push(
+        'pages_show_list',
+        'pages_messaging',
+        'instagram_basic',
+        'instagram_manage_messages',
+        'pages_read_engagement',
+      );
+    }
+
+    // Usar Graph App ID (deve ter todas as permissões)
+    const appId = this.graphAppId || this.oauthAppId;
+    if (!appId) {
+      throw new InternalServerErrorException('META_GRAPH_APP_ID ou META_OAUTH_APP_ID não configurado');
+    }
+
+    // Usar state customizado se fornecido, senão criar um padrão
+    const state = customState || Buffer.from(
+      JSON.stringify({ tenantId, services, step: 'initial' }),
+    ).toString('base64');
+
+    const params = new URLSearchParams({
+      client_id: appId,
+      redirect_uri: finalRedirectUri,
+      response_type: 'code',
+      state,
+      auth_type: 'rerequest',
+      ...(scopes.length > 0 && { scope: scopes.join(',') }),
+    });
+
+    return `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
+  }
+
+  /**
    * Gera URL de autorização adicional para solicitar escopos de páginas/Instagram
    * Usa o App Graph API para solicitar permissões específicas após login OAuth básico
    * 

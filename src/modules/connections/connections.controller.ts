@@ -13,6 +13,7 @@ import { ConnectionsService } from './connections.service';
 import { CreateConnectionDto } from './dto/create-connection.dto';
 import { CreateSocialConnectionDto } from './dto/create-social-connection.dto';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
+import { CreateMetaApiConnectionDto } from './dto/create-meta-api-connection.dto';
 import { JwtAuthGuard } from '@/shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@/shared/decorators/current-user.decorator';
 import { Public } from '@/shared/decorators/public.decorator';
@@ -110,6 +111,14 @@ export class ConnectionsController {
     @CurrentUser() user: any,
   ) {
     return this.connectionsService.startSocialOAuth(provider, user.companyId);
+  }
+
+  @Post('meta-api/oauth/start')
+  startMetaApiOAuth(
+    @Body() dto: CreateMetaApiConnectionDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.connectionsService.startMetaApiOAuth(dto, user.companyId);
   }
 
   @Public()

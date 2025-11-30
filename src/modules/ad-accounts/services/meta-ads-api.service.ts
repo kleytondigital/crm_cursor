@@ -13,14 +13,15 @@ export class MetaAdsApiService {
 
   /**
    * Lista todas as contas de anúncio disponíveis para o usuário
+   * IMPORTANTE: Requer user access token com escopo 'ads_read', não page access token
    */
-  async listAvailableAdAccounts(accessToken: string): Promise<MetaAdAccount[]> {
+  async listAvailableAdAccounts(userAccessToken: string): Promise<MetaAdAccount[]> {
     try {
       const response = await axios.get<MetaAdAccountsListResponse>(
         `${this.baseUrl}/me/adaccounts`,
         {
           params: {
-            access_token: accessToken,
+            access_token: userAccessToken, // Deve ser user access token, não page token
             fields: 'id,account_id,name,currency,account_status,business{id,name}',
             limit: 100,
           },
@@ -34,9 +35,15 @@ export class MetaAdsApiService {
         const errorData = error.response?.data as any;
         this.logger.error(`Erro ao listar contas de anúncio: ${JSON.stringify(errorData)}`);
         
-        if (error.response?.status === 400) {
+        if (error.response?.status === 400 || error.response?.status === 403) {
+          const errorMessage = errorData?.error?.message || 'Erro ao listar contas de anúncio';
+          if (errorMessage.includes('adaccounts') || errorMessage.includes('Page')) {
+            throw new BadRequestException(
+              'Token inválido para acessar contas de anúncio. É necessário um user access token com escopo ads_read. Use um token de usuário, não um token de página.',
+            );
+          }
           throw new BadRequestException(
-            errorData?.error?.message || 'Erro ao listar contas de anúncio. Verifique as permissões do token.',
+            errorMessage || 'Erro ao listar contas de anúncio. Verifique as permissões do token.',
           );
         }
       }

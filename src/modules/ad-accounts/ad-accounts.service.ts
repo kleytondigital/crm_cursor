@@ -42,17 +42,21 @@ export class AdAccountsService {
       throw new BadRequestException('Esta conexão não é compatível com Meta Ads');
     }
 
-    // Obter access token da conexão
+    // Obter user access token da conexão (obrigatório para acessar contas de anúncio)
     const metadata = connection.metadata as SocialConnectionMetadata | null;
-    if (!metadata?.accessToken) {
-      throw new BadRequestException('Token de acesso não encontrado na conexão');
+    const userAccessToken = metadata?.userAccessToken || metadata?.accessToken;
+    
+    if (!userAccessToken) {
+      throw new BadRequestException(
+        'Token de acesso de usuário não encontrado na conexão. É necessário um user access token com escopo ads_read para acessar contas de anúncio.',
+      );
     }
 
     // TODO: Implementar refresh do token se necessário
     // const refreshedToken = await this.refreshTokenIfNeeded(connection);
 
-    // Listar contas disponíveis via Meta API
-    const accounts = await this.metaAdsApi.listAvailableAdAccounts(metadata.accessToken);
+    // Listar contas disponíveis via Meta API (usa user access token)
+    const accounts = await this.metaAdsApi.listAvailableAdAccounts(userAccessToken);
 
     // Filtrar contas já conectadas
     const connectedAccounts = await this.prisma.adAccount.findMany({
@@ -105,9 +109,13 @@ export class AdAccountsService {
       } else {
         // Reativar conta existente
         const metadata = connection.metadata as SocialConnectionMetadata | null;
+        const userAccessToken = metadata?.userAccessToken || metadata?.accessToken || '';
+        if (!userAccessToken) {
+          throw new BadRequestException('Token de acesso de usuário não encontrado na conexão');
+        }
         const accountDetails = await this.metaAdsApi.getAdAccountDetails(
           adAccountId,
-          metadata?.accessToken || '',
+          userAccessToken,
         );
 
         return this.prisma.adAccount.update({
@@ -131,15 +139,16 @@ export class AdAccountsService {
       }
     }
 
-    // Obter detalhes da conta via Meta API
+    // Obter detalhes da conta via Meta API (usa user access token)
     const metadata = connection.metadata as SocialConnectionMetadata | null;
-    if (!metadata?.accessToken) {
-      throw new BadRequestException('Token de acesso não encontrado na conexão');
+    const userAccessToken = metadata?.userAccessToken || metadata?.accessToken;
+    if (!userAccessToken) {
+      throw new BadRequestException('Token de acesso de usuário não encontrado na conexão');
     }
 
     const accountDetails = await this.metaAdsApi.getAdAccountDetails(
       adAccountId,
-      metadata.accessToken,
+      userAccessToken,
     );
 
     // Criar registro da conta
@@ -230,13 +239,14 @@ export class AdAccountsService {
     }
 
     const metadata = account.connection.metadata as SocialConnectionMetadata | null;
-    if (!metadata?.accessToken) {
-      throw new BadRequestException('Token de acesso não encontrado na conexão');
+    const userAccessToken = metadata?.userAccessToken || metadata?.accessToken;
+    if (!userAccessToken) {
+      throw new BadRequestException('Token de acesso de usuário não encontrado na conexão');
     }
 
     const accountDetails = await this.metaAdsApi.getAdAccountDetails(
       account.adAccountId,
-      metadata.accessToken,
+      userAccessToken,
     );
 
     return this.prisma.adAccount.update({

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageCircle, Instagram, Facebook, Loader2 } from 'lucide-react'
+import { MessageCircle, Zap, Loader2, Check } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { connectionsAPI } from '@/lib/api'
+import Image from 'next/image'
 
 interface CreateConnectionDialogProps {
   open: boolean
@@ -21,7 +22,9 @@ interface CreateConnectionDialogProps {
   onSuccess?: () => void
 }
 
-type ConnectionType = 'WHATSAPP' | 'INSTAGRAM' | 'FACEBOOK' | null
+type ConnectionType = 'WHATSAPP' | 'META_API' | null
+
+type MetaService = 'WHATSAPP_API' | 'INSTAGRAM_DIRECT' | 'FACEBOOK_MESSENGER' | 'META_ADS'
 
 export default function CreateConnectionDialog({
   open,
@@ -30,12 +33,49 @@ export default function CreateConnectionDialog({
 }: CreateConnectionDialogProps) {
   const [connectionType, setConnectionType] = useState<ConnectionType>(null)
   const [name, setName] = useState('')
+  const [selectedServices, setSelectedServices] = useState<MetaService[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const metaServices: Array<{ id: MetaService; label: string; description: string }> = [
+    {
+      id: 'WHATSAPP_API',
+      label: 'WhatsApp API Oficial',
+      description: 'Envio e recebimento de mensagens via WhatsApp Business API',
+    },
+    {
+      id: 'INSTAGRAM_DIRECT',
+      label: 'Instagram Direct',
+      description: 'Mensagens diretas do Instagram',
+    },
+    {
+      id: 'FACEBOOK_MESSENGER',
+      label: 'Facebook Messenger',
+      description: 'Mensagens do Facebook Messenger',
+    },
+    {
+      id: 'META_ADS',
+      label: 'Meta Ads',
+      description: 'Relatórios e métricas de campanhas de anúncios',
+    },
+  ]
+
+  const toggleService = (serviceId: MetaService) => {
+    setSelectedServices((prev) =>
+      prev.includes(serviceId)
+        ? prev.filter((id) => id !== serviceId)
+        : [...prev, serviceId],
+    )
+  }
 
   const handleCreate = async () => {
     if (!connectionType || !name.trim()) {
       setError('Selecione um tipo de conexão e informe um nome')
+      return
+    }
+
+    if (connectionType === 'META_API' && selectedServices.length === 0) {
+      setError('Selecione pelo menos um serviço Meta')
       return
     }
 
@@ -44,14 +84,17 @@ export default function CreateConnectionDialog({
 
     try {
       if (connectionType === 'WHATSAPP') {
-        // Criar conexão WhatsApp
+        // Criar conexão WhatsApp (WAHA)
         await connectionsAPI.create({ name: name.trim() })
         onSuccess?.()
         handleClose()
       } else {
-        // Iniciar OAuth para Instagram ou Facebook
-        const response = await connectionsAPI.startSocialOAuth(connectionType as 'INSTAGRAM' | 'FACEBOOK')
-        
+        // Iniciar OAuth para Meta API com serviços selecionados
+        const response = await connectionsAPI.startMetaApiOAuth({
+          name: name.trim(),
+          services: selectedServices,
+        })
+
         if (response.authUrl) {
           // Redirecionar para OAuth
           window.location.href = response.authUrl
@@ -69,6 +112,7 @@ export default function CreateConnectionDialog({
     if (!loading) {
       setConnectionType(null)
       setName('')
+      setSelectedServices([])
       setError(null)
       onOpenChange(false)
     }
@@ -93,7 +137,7 @@ export default function CreateConnectionDialog({
 
           <div className="space-y-2">
             <Label>Tipo de Conexão</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setConnectionType('WHATSAPP')}
@@ -105,36 +149,64 @@ export default function CreateConnectionDialog({
                 }`}
               >
                 <MessageCircle className="h-6 w-6" />
-                <span className="font-medium text-sm">WhatsApp</span>
+                <span className="font-medium text-sm">WAHA API</span>
               </button>
               <button
                 type="button"
-                onClick={() => setConnectionType('INSTAGRAM')}
+                onClick={() => setConnectionType('META_API')}
                 disabled={loading}
                 className={`flex flex-col items-center gap-2 rounded-lg border p-4 transition ${
-                  connectionType === 'INSTAGRAM'
+                  connectionType === 'META_API'
                     ? 'border-brand-secondary bg-brand-secondary/20 text-brand-secondary'
                     : 'border-white/10 bg-background-muted/50 text-text-muted hover:border-brand-secondary/40'
                 }`}
               >
-                <Instagram className="h-6 w-6" />
-                <span className="font-medium text-sm">Instagram</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setConnectionType('FACEBOOK')}
-                disabled={loading}
-                className={`flex flex-col items-center gap-2 rounded-lg border p-4 transition ${
-                  connectionType === 'FACEBOOK'
-                    ? 'border-brand-secondary bg-brand-secondary/20 text-brand-secondary'
-                    : 'border-white/10 bg-background-muted/50 text-text-muted hover:border-brand-secondary/40'
-                }`}
-              >
-                <Facebook className="h-6 w-6" />
-                <span className="font-medium text-sm">Facebook</span>
+                <Zap className="h-6 w-6" />
+                <span className="font-medium text-sm">Meta API</span>
               </button>
             </div>
           </div>
+
+          {/* Seleção de Serviços Meta API */}
+          {connectionType === 'META_API' && (
+            <div className="space-y-2">
+              <Label>Serviços Meta</Label>
+              <div className="space-y-2">
+                {metaServices.map((service) => {
+                  const isSelected = selectedServices.includes(service.id)
+                  return (
+                    <button
+                      key={service.id}
+                      type="button"
+                      onClick={() => toggleService(service.id)}
+                      disabled={loading}
+                      className={`w-full flex items-start gap-3 rounded-lg border p-3 text-left transition ${
+                        isSelected
+                          ? 'border-brand-secondary bg-brand-secondary/10'
+                          : 'border-white/10 bg-background-muted/50 hover:border-brand-secondary/40'
+                      }`}
+                    >
+                      <div
+                        className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${
+                          isSelected
+                            ? 'border-brand-secondary bg-brand-secondary'
+                            : 'border-white/20 bg-transparent'
+                        }`}
+                      >
+                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-white">{service.label}</span>
+                        </div>
+                        <p className="text-xs text-text-muted mt-0.5">{service.description}</p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="name">Nome da Conexão</Label>

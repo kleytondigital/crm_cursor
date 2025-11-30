@@ -157,6 +157,12 @@ export const connectionsAPI = {
   // Social Connections
   startSocialOAuth: (provider: 'INSTAGRAM' | 'FACEBOOK') =>
     authFetch(`/connections/social/oauth/start?provider=${provider}`),
+  // Meta API Connections
+  startMetaApiOAuth: (data: { name: string; services: string[] }) =>
+    authFetch('/connections/meta-api/oauth/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   getSocialConnections: () => authFetch('/connections/social'),
   createSocialConnection: (data: { provider: 'INSTAGRAM' | 'FACEBOOK'; name: string }) =>
     authFetch('/connections/social', {
