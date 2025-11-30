@@ -163,7 +163,7 @@ export class AdReportsService {
     // Buscar relatório mais recente no período
     const where: any = {
       tenantId,
-      accountId: adAccount.id,
+      accountId: adAccount.id, // Usar o ID interno do AdAccount (FK)
       dateStart: { lte: endOfDay(dateEnd) },
       dateEnd: { gte: startOfDay(dateStart) },
     };

@@ -654,3 +654,48 @@ export const bulkMessagingAPI = {
     return authFetch(`/bulk-messaging/${id}/logs${query ? `?${query}` : ''}`)
   },
 }
+
+// ============================================
+// AD ACCOUNTS API
+// ============================================
+export const adAccountsAPI = {
+  listAvailable: (connectionId: string) =>
+    authFetch(`/ad-accounts/available?connectionId=${connectionId}`),
+  connect: (data: { connectionId: string; adAccountId: string }) =>
+    authFetch('/ad-accounts/connect', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  listConnected: () => authFetch('/ad-accounts'),
+  disconnect: (id: string) =>
+    authFetch(`/ad-accounts/${id}`, {
+      method: 'DELETE',
+    }),
+  updateStatus: (id: string) =>
+    authFetch(`/ad-accounts/${id}/status`, {
+      method: 'PATCH',
+    }),
+}
+
+// ============================================
+// AD REPORTS API
+// ============================================
+export const adReportsAPI = {
+  getDashboard: (filters: {
+    adAccountId: string
+    campaignId?: string
+    adsetId?: string
+    adId?: string
+    dateStart?: string
+    dateEnd?: string
+  }) => {
+    const params = new URLSearchParams()
+    params.append('adAccountId', filters.adAccountId)
+    if (filters.campaignId) params.append('campaignId', filters.campaignId)
+    if (filters.adsetId) params.append('adsetId', filters.adsetId)
+    if (filters.adId) params.append('adId', filters.adId)
+    if (filters.dateStart) params.append('dateStart', filters.dateStart)
+    if (filters.dateEnd) params.append('dateEnd', filters.dateEnd)
+    return authFetch(`/ad-reports/dashboard?${params.toString()}`)
+  },
+}

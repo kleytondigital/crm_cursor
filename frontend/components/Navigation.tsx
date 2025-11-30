@@ -16,6 +16,7 @@ import {
   Calendar,
   Bot,
   User,
+  TrendingUp,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useAutomationsAccess } from '@/hooks/useAutomationsAccess'
@@ -36,6 +37,7 @@ const navigationItems: NavItem[] = [
   { href: '/kanban', label: 'Pipeline', icon: Kanban },
   { href: '/attendances', label: 'Atendimentos', icon: Headphones },
   { href: '/gestor', label: 'Gestor', icon: LayoutDashboard, adminOnly: true },
+  { href: '/anuncios/relatorios', label: 'Meta Ads', icon: TrendingUp, adminOnly: true },
   { href: '/automacoes', label: 'Automações', icon: Bot, requiresAutomationsAccess: true },
 ]
 
