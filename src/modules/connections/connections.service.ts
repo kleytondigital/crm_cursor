@@ -1054,6 +1054,40 @@ export class ConnectionsService {
   }
 
   /**
+   * Lista conexões Meta que têm Meta Ads habilitado
+   */
+  async getMetaAdsConnections(tenantId: string) {
+    const connections = await this.prisma.connection.findMany({
+      where: {
+        tenantId,
+        provider: {
+          in: [ConnectionProvider.INSTAGRAM, ConnectionProvider.FACEBOOK],
+        },
+        isActive: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Filtrar apenas conexões que têm Meta Ads habilitado
+    return connections
+      .filter((conn) => {
+        const metadata = conn.metadata as SocialConnectionMetadata | null;
+        const enabledServices = metadata?.enabledServices || [];
+        return enabledServices.includes('META_ADS');
+      })
+      .map((conn) => ({
+        id: conn.id,
+        name: conn.name,
+        provider: conn.provider,
+        status: conn.status,
+        isActive: conn.isActive,
+        metadata: conn.metadata,
+        createdAt: conn.createdAt,
+        updatedAt: conn.updatedAt,
+      }));
+  }
+
+  /**
    * Cria conexão social (prepara para OAuth)
    */
   async createSocialConnection(dto: CreateSocialConnectionDto, tenantId: string) {

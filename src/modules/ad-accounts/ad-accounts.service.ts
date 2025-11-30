@@ -10,6 +10,7 @@ import { MetaAdsApiService } from './services/meta-ads-api.service';
 import { CreateAdAccountDto } from './dto/create-ad-account.dto';
 import { MetaAdAccount } from './types/meta-ads-account.interface';
 import { SocialConnectionMetadata } from '@/modules/connections/types/social-connection-metadata.interface';
+import { MetaAdsGestorService } from '@/modules/ad-reports/services/meta-ads-gestor.service';
 
 @Injectable()
 export class AdAccountsService {
@@ -18,6 +19,7 @@ export class AdAccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly metaAdsApi: MetaAdsApiService,
+    private readonly metaAdsGestor: MetaAdsGestorService,
   ) {}
 
   /**
@@ -52,11 +54,8 @@ export class AdAccountsService {
       );
     }
 
-    // TODO: Implementar refresh do token se necessário
-    // const refreshedToken = await this.refreshTokenIfNeeded(connection);
-
-    // Listar contas disponíveis via Meta API (usa user access token)
-    const accounts = await this.metaAdsApi.listAvailableAdAccounts(userAccessToken);
+    // Listar contas disponíveis via webhook gestor n8n
+    const accounts = await this.metaAdsGestor.listContas(tenantId, connectionId);
 
     // Filtrar contas já conectadas
     const connectedAccounts = await this.prisma.adAccount.findMany({

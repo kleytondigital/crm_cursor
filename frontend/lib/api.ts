@@ -164,6 +164,8 @@ export const connectionsAPI = {
       body: JSON.stringify(data),
     }),
   getSocialConnections: () => authFetch('/connections/social'),
+  // Meta Ads Connections
+  getMetaAdsConnections: () => authFetch('/connections/meta-ads'),
   createSocialConnection: (data: { provider: 'INSTAGRAM' | 'FACEBOOK'; name: string }) =>
     authFetch('/connections/social', {
       method: 'POST',
@@ -703,5 +705,26 @@ export const adReportsAPI = {
     if (filters.dateStart) params.append('dateStart', filters.dateStart)
     if (filters.dateEnd) params.append('dateEnd', filters.dateEnd)
     return authFetch(`/ad-reports/dashboard?${params.toString()}`)
+  },
+  listCampanhas: (connectionId: string, adAccountId: string) =>
+    authFetch(`/ad-reports/campanhas/${connectionId}/${adAccountId}`),
+  listMetricas: (params: {
+    connectionId: string
+    adAccountId: string
+    dateStart: string
+    dateEnd: string
+    campaignId?: string
+    adsetId?: string
+    adId?: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append('dateStart', params.dateStart)
+    queryParams.append('dateEnd', params.dateEnd)
+    if (params.campaignId) queryParams.append('campaignId', params.campaignId)
+    if (params.adsetId) queryParams.append('adsetId', params.adsetId)
+    if (params.adId) queryParams.append('adId', params.adId)
+    return authFetch(
+      `/ad-reports/metricas/${params.connectionId}/${params.adAccountId}?${queryParams.toString()}`,
+    )
   },
 }

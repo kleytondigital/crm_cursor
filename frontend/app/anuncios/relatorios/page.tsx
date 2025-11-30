@@ -35,13 +35,14 @@ import {
 } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { adReportsAPI, adAccountsAPI } from '@/lib/api'
+import { adReportsAPI, adAccountsAPI, connectionsAPI } from '@/lib/api'
 
 const COLORS = ['#8B5CF6', '#EC4899', '#10B981', '#F59E0B', '#EF4444', '#3B82F6']
 
 export default function AdReportsPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string>('')
   const [selectedAccountId, setSelectedAccountId] = useState<string>('')
   const [dateStart, setDateStart] = useState<string>(
     format(subDays(new Date(), 7), 'yyyy-MM-dd')
@@ -54,17 +55,31 @@ export default function AdReportsPage() {
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
-  // Buscar contas conectadas
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['ad-accounts'],
-    queryFn: () => adAccountsAPI.listConnected(),
+  // Buscar conexões Meta Ads disponíveis
+  const { data: connections = [] } = useQuery({
+    queryKey: ['meta-ads-connections'],
+    queryFn: () => connectionsAPI.getMetaAdsConnections(),
     enabled: mounted && !!token,
+  })
+
+  // Selecionar primeira conexão se disponível
+  useEffect(() => {
+    if (connections.length > 0 && !selectedConnectionId) {
+      setSelectedConnectionId((connections[0] as any).id)
+    }
+  }, [connections, selectedConnectionId])
+
+  // Buscar contas de anúncio da conexão selecionada
+  const { data: accounts = [], isLoading: loadingAccounts } = useQuery({
+    queryKey: ['ad-accounts', selectedConnectionId],
+    queryFn: () => adAccountsAPI.listAvailable(selectedConnectionId),
+    enabled: mounted && !!token && !!selectedConnectionId,
   })
 
   // Selecionar primeira conta se disponível
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccountId) {
-      setSelectedAccountId((accounts[0] as any).adAccountId)
+      setSelectedAccountId((accounts[0] as any).id)
     }
   }, [accounts, selectedAccountId])
 
@@ -168,7 +183,31 @@ export default function AdReportsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-white">
+                    Conexão Meta
+                  </label>
+                  <select
+                    value={selectedConnectionId}
+                    onChange={(e) => {
+                      setSelectedConnectionId(e.target.value)
+                      setSelectedAccountId('') // Resetar conta ao trocar conexão
+                    }}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white"
+                    disabled={loadingAccounts}
+                  >
+                    {connections.length === 0 ? (
+                      <option value="">Nenhuma conexão disponível</option>
+                    ) : (
+                      connections.map((conn: any) => (
+                        <option key={conn.id} value={conn.id}>
+                          {conn.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-white">
                     Conta de Anúncio
@@ -177,13 +216,18 @@ export default function AdReportsPage() {
                     value={selectedAccountId}
                     onChange={(e) => setSelectedAccountId(e.target.value)}
                     className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white"
+                    disabled={!selectedConnectionId || loadingAccounts}
                   >
-                    {accounts.length === 0 ? (
-                      <option value="">Nenhuma conta conectada</option>
+                    {!selectedConnectionId ? (
+                      <option value="">Selecione uma conexão</option>
+                    ) : loadingAccounts ? (
+                      <option value="">Carregando...</option>
+                    ) : accounts.length === 0 ? (
+                      <option value="">Nenhuma conta disponível</option>
                     ) : (
                       accounts.map((account: any) => (
-                        <option key={account.id} value={account.adAccountId}>
-                          {account.name} ({account.adAccountId})
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({account.id})
                         </option>
                       ))
                     )}
@@ -215,12 +259,23 @@ export default function AdReportsPage() {
             </CardContent>
           </Card>
 
-          {!selectedAccountId ? (
+          {!selectedConnectionId ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Target className="mb-4 h-12 w-12 text-text-muted" />
                 <p className="text-center text-text-muted">
-                  Selecione uma conta de anúncio para visualizar os relatórios.
+                  Selecione uma conexão Meta para visualizar os relatórios.
+                </p>
+              </CardContent>
+            </Card>
+          ) : !selectedAccountId ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Target className="mb-4 h-12 w-12 text-text-muted" />
+                <p className="text-center text-text-muted">
+                  {loadingAccounts
+                    ? 'Carregando contas de anúncio...'
+                    : 'Selecione uma conta de anúncio para visualizar os relatórios.'}
                 </p>
               </CardContent>
             </Card>

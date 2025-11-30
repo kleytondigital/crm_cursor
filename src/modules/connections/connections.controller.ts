@@ -137,6 +137,11 @@ export class ConnectionsController {
     return this.connectionsService.getSocialConnections(user.companyId);
   }
 
+  @Get('meta-ads')
+  getMetaAdsConnections(@CurrentUser() user: any) {
+    return this.connectionsService.getMetaAdsConnections(user.companyId);
+  }
+
   @Post('social')
   createSocialConnection(
     @Body() dto: CreateSocialConnectionDto,
