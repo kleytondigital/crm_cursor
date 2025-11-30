@@ -49,13 +49,31 @@ export class AdAccountsService {
     const userAccessToken = metadata?.userAccessToken || metadata?.accessToken;
     
     if (!userAccessToken) {
+      this.logger.error(
+        `Token de acesso não encontrado na conexão ${connectionId}. Metadata: ${JSON.stringify(metadata)}`,
+      );
       throw new BadRequestException(
         'Token de acesso de usuário não encontrado na conexão. É necessário um user access token com escopo ads_read para acessar contas de anúncio.',
       );
     }
 
+    this.logger.log(
+      `Listando contas disponíveis via webhook gestor. ConnectionId: ${connectionId}, TenantId: ${tenantId}`,
+    );
+
     // Listar contas disponíveis via webhook gestor n8n
-    const accounts = await this.metaAdsGestor.listContas(tenantId, connectionId);
+    let accounts: any[];
+    try {
+      accounts = await this.metaAdsGestor.listContas(tenantId, connectionId);
+      this.logger.log(
+        `Webhook gestor retornou ${accounts.length} contas para a conexão ${connectionId}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Erro ao listar contas via webhook gestor. ConnectionId: ${connectionId}, Erro: ${error.message}`,
+      );
+      throw error;
+    }
 
     // Filtrar contas já conectadas
     const connectedAccounts = await this.prisma.adAccount.findMany({

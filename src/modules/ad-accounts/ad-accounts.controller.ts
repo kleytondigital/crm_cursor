@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Patch,
+  BadRequestException,
 } from '@nestjs/common';
 import { AdAccountsService } from './ad-accounts.service';
 import { CreateAdAccountDto } from './dto/create-ad-account.dto';
@@ -28,7 +29,7 @@ export class AdAccountsController {
     @CurrentUser() user: any,
   ) {
     if (!connectionId) {
-      throw new Error('connectionId é obrigatório');
+      throw new BadRequestException('connectionId é obrigatório');
     }
     return this.adAccountsService.listAvailable(user.companyId, connectionId);
   }
