@@ -729,7 +729,8 @@ export class ConnectionsService {
           connectionName = decoded.name;
           enabledServices = decoded.services;
           // No novo fluxo, sempre usar Graph App (tem todas as permissões)
-          step = 'initial';
+          step = 'meta-api'; // Marcar como fluxo Meta API
+          this.logger.log(`Novo fluxo Meta API detectado. Serviços: ${decoded.services.join(', ')}`);
         }
       } catch (error) {
         this.logger.error(`Erro ao decodificar state: ${error}`);
@@ -740,12 +741,31 @@ export class ConnectionsService {
     }
 
     // Determinar qual app usar baseado na etapa
-    const isGraphStep = step === 'graph';
+    // No novo fluxo Meta API, sempre usar Graph App (gerou URL com Graph App)
+    // IMPORTANTE: O redirect_uri DEVE ser idêntico ao usado na geração da URL
+    const isGraphStep = step === 'graph' || step === 'meta-api';
+    
+    // Para o novo fluxo Meta API, garantir que usamos o mesmo redirect_uri
+    // que foi usado na geração da URL (normalizado)
+    const redirectUri = step === 'meta-api' 
+      ? this.configService.get<string>('META_REDIRECT_URI') 
+      : undefined;
+    
+    this.logger.log(
+      `Processando callback OAuth. Step: ${step}, isGraphStep: ${isGraphStep}, redirectUri: ${redirectUri}`,
+    );
     
     // Trocar code por token
-    // IMPORTANTE: Na segunda etapa (Graph API), usar Graph App credentials
-    // Na primeira etapa (OAuth básico), usar OAuth App credentials
-    const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(code, undefined, isGraphStep);
+    // IMPORTANTE: 
+    // - Na segunda etapa (Graph API), usar Graph App credentials
+    // - No novo fluxo Meta API, usar Graph App credentials (gerou URL com Graph App)
+    // - Na primeira etapa (OAuth básico), usar OAuth App credentials
+    // - O redirect_uri DEVE ser EXATAMENTE o mesmo usado na geração da URL
+    const tokenResponse = await this.metaOAuthService.exchangeCodeForToken(
+      code,
+      redirectUri, // Passar redirectUri explicitamente para garantir consistência
+      isGraphStep,
+    );
 
     // Se for primeira etapa (OAuth básico) e houver Graph App separado,
     // sempre solicitar segunda autorização (App OAuth não tem escopos de páginas)

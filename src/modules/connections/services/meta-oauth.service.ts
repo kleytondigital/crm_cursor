@@ -161,12 +161,17 @@ export class MetaOAuthService {
       );
     }
 
+    // Log detalhado para debug
+    this.logger.log(
+      `Trocando code por token. App: ${useGraphApp ? 'Graph' : 'OAuth'}, AppId: ${appId}, RedirectUri: ${finalRedirectUri}`,
+    );
+
     try {
       const response = await axios.get<MetaOAuthResponse>(`${this.baseUrl}/oauth/access_token`, {
         params: {
           client_id: appId,
           client_secret: appSecret,
-          redirect_uri: finalRedirectUri, // Usar URI normalizado
+          redirect_uri: finalRedirectUri, // Usar URI normalizado (DEVE ser idêntico ao da URL de autorização)
           code,
         },
       });
@@ -176,7 +181,17 @@ export class MetaOAuthService {
     } catch (error: unknown) {
       if (this.isAxiosError(error)) {
         const errorData = error.response?.data as any;
-        this.logger.error(`Erro ao trocar code por token: ${JSON.stringify(errorData)}`);
+        this.logger.error(
+          `Erro ao trocar code por token. App: ${useGraphApp ? 'Graph' : 'OAuth'}, AppId: ${appId}, RedirectUri usado: ${finalRedirectUri}, Erro: ${JSON.stringify(errorData)}`,
+        );
+        
+        // Mensagem de erro mais específica para redirect_uri
+        if (errorData?.error?.message?.includes('redirect_uri') || errorData?.error?.message?.includes('verification code')) {
+          throw new BadRequestException(
+            `Erro de redirect_uri: ${errorData.error.message}. Certifique-se de que o redirect_uri configurado no app Meta é exatamente: ${finalRedirectUri}`,
+          );
+        }
+        
         throw new BadRequestException(
           errorData?.error?.message || 'Erro ao obter token de acesso',
         );
@@ -430,16 +445,23 @@ export class MetaOAuthService {
       JSON.stringify({ tenantId, services, step: 'initial' }),
     ).toString('base64');
 
+    // Log para debug
+    this.logger.log(
+      `Gerando URL de autorização Meta API. AppId: ${appId}, RedirectUri: ${finalRedirectUri}, Scopes: ${scopes.join(', ')}`,
+    );
+
     const params = new URLSearchParams({
       client_id: appId,
-      redirect_uri: finalRedirectUri,
+      redirect_uri: finalRedirectUri, // IMPORTANTE: Este redirect_uri DEVE ser idêntico ao usado no exchangeCodeForToken
       response_type: 'code',
       state,
       auth_type: 'rerequest',
       ...(scopes.length > 0 && { scope: scopes.join(',') }),
     });
 
-    return `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
+    const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
+    this.logger.log(`URL de autorização gerada: ${authUrl.substring(0, 200)}...`);
+    return authUrl;
   }
 
   /**
