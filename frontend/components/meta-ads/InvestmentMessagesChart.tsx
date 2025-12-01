@@ -7,11 +7,11 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
   LabelList,
 } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { format, parseISO } from 'date-fns'
 
 interface InvestmentMessagesChartProps {
@@ -40,6 +40,17 @@ export default function InvestmentMessagesChart({
     return `R$ ${value.toFixed(2).replace('.', ',')}`
   }
 
+  const chartConfig = {
+    investimento: {
+      label: 'Investimento',
+      color: '#10B981',
+    },
+    mensagens: {
+      label: 'Mensagens',
+      color: '#EC4899',
+    },
+  }
+
   return (
     <Card className="bg-white/5">
       <CardHeader>
@@ -59,74 +70,64 @@ export default function InvestmentMessagesChart({
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData} barCategoryGap="20%">
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-            <XAxis
-              dataKey="date"
-              stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF' }}
-              style={{ fontSize: '12px' }}
-            />
-            <YAxis
-              yAxisId="left"
-              stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF' }}
-              style={{ fontSize: '12px' }}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF' }}
-              style={{ fontSize: '12px' }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#fff',
-              }}
-              formatter={(value: number, name: string) => {
-                if (name === 'investimento') {
-                  return [formatCurrency(value), 'Investimento']
-                }
-                return [value, 'Mensagens']
-              }}
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="investimento"
-              fill="#10B981"
-              radius={[8, 8, 0, 0]}
-              maxBarSize={60}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill="#10B981" />
-              ))}
-            </Bar>
-            <Bar
-              yAxisId="right"
-              dataKey="mensagens"
-              fill="#EC4899"
-              radius={[8, 8, 0, 0]}
-              maxBarSize={60}
-            >
-              <LabelList
-                dataKey="mensagens"
-                position="top"
-                fill="#FFFFFF"
-                style={{ fontSize: '14px', fontWeight: 'bold' }}
+        <ChartContainer config={chartConfig} className="h-full w-full">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} barCategoryGap="20%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+              <XAxis
+                dataKey="date"
+                stroke="#9CA3AF"
+                tick={{ fill: '#9CA3AF' }}
+                style={{ fontSize: '12px' }}
               />
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill="#EC4899" />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <YAxis
+                yAxisId="left"
+                stroke="#9CA3AF"
+                tick={{ fill: '#9CA3AF' }}
+                style={{ fontSize: '12px' }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#9CA3AF"
+                tick={{ fill: '#9CA3AF' }}
+                style={{ fontSize: '12px' }}
+              />
+              <ChartTooltip
+                content={<ChartTooltipContent />}
+              />
+              <Bar
+                yAxisId="left"
+                dataKey="investimento"
+                fill="#10B981"
+                radius={[8, 8, 0, 0]}
+                maxBarSize={60}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill="#10B981" />
+                ))}
+              </Bar>
+              <Bar
+                yAxisId="right"
+                dataKey="mensagens"
+                fill="#EC4899"
+                radius={[8, 8, 0, 0]}
+                maxBarSize={60}
+              >
+                <LabelList
+                  dataKey="mensagens"
+                  position="top"
+                  fill="#FFFFFF"
+                  style={{ fontSize: '14px', fontWeight: 'bold' }}
+                />
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill="#EC4899" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )
 }
-

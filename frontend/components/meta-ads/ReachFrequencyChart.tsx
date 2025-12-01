@@ -7,11 +7,11 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   Cell,
   LabelList,
 } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { format, parseISO } from 'date-fns'
 
 interface ReachFrequencyChartProps {
@@ -41,6 +41,13 @@ export default function ReachFrequencyChart({
     return value.toLocaleString('pt-BR')
   }
 
+  const chartConfig = {
+    impressoes: {
+      label: 'Impressões',
+      color: '#3B82F6',
+    },
+  }
+
   return (
     <Card className="bg-white/5">
       <CardHeader>
@@ -61,48 +68,43 @@ export default function ReachFrequencyChart({
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData} barCategoryGap="20%">
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-            <XAxis
-              dataKey="date"
-              stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF' }}
-              style={{ fontSize: '12px' }}
-            />
-            <YAxis
-              stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF' }}
-              style={{ fontSize: '12px' }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#fff',
-              }}
-              formatter={(value: number) => formatNumber(value)}
-            />
-            <Bar dataKey="impressoes" fill="#3B82F6" radius={[8, 8, 0, 0]} maxBarSize={60}>
-              <LabelList
-                dataKey="frequencia"
-                position="bottom"
-                fill="#9CA3AF"
+        <ChartContainer config={chartConfig} className="h-full w-full">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} barCategoryGap="20%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+              <XAxis
+                dataKey="date"
+                stroke="#9CA3AF"
+                tick={{ fill: '#9CA3AF' }}
                 style={{ fontSize: '12px' }}
-                formatter={(value: any) => {
-                  const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
-                  return numValue > 0 ? numValue.toFixed(2) : ''
-                }}
               />
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill="#3B82F6" />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <YAxis
+                stroke="#9CA3AF"
+                tick={{ fill: '#9CA3AF' }}
+                style={{ fontSize: '12px' }}
+              />
+              <ChartTooltip
+                content={<ChartTooltipContent />}
+              />
+              <Bar dataKey="impressoes" fill="#3B82F6" radius={[8, 8, 0, 0]} maxBarSize={60}>
+                <LabelList
+                  dataKey="frequencia"
+                  position="bottom"
+                  fill="#9CA3AF"
+                  style={{ fontSize: '12px' }}
+                  formatter={(value: any) => {
+                    const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+                    return numValue > 0 ? numValue.toFixed(2) : ''
+                  }}
+                />
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill="#3B82F6" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )
 }
-
