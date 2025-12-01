@@ -90,7 +90,10 @@ export default function ReachFrequencyChart({
                 position="bottom"
                 fill="#9CA3AF"
                 style={{ fontSize: '12px' }}
-                formatter={(value: number) => (value > 0 ? value.toFixed(2) : '')}
+                formatter={(value: any) => {
+                  const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+                  return numValue > 0 ? numValue.toFixed(2) : ''
+                }}
               />
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill="#3B82F6" />

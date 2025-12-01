@@ -109,37 +109,7 @@ export default function AdReportsPage() {
   }
 
   const timeline = metricsData?.timeline || []
-  const funnel = {
-    impressions: metrics.impressions || 0,
-    clicks: metrics.clicks || 0,
-    messages: metrics.messages || 0,
-    conversions: metrics.conversions || 0,
-  }
   const breakdown = metricsData?.adsBreakdown || []
-
-  // Preparar dados para gráficos
-  const funnelData = [
-    { name: 'Impressões', value: funnel.impressions, color: COLORS[0] },
-    { name: 'Cliques', value: funnel.clicks, color: COLORS[1] },
-    { name: 'Mensagens', value: funnel.messages, color: COLORS[2] },
-    { name: 'Conversões', value: funnel.conversions, color: COLORS[3] },
-  ]
-
-  const timelineChartData = timeline.map((item: any) => ({
-    date: format(parseISO(item.date), 'dd/MM'),
-    Investimento: item.spend || 0,
-    Impressões: item.impressions || 0,
-    Cliques: item.clicks || 0,
-    Mensagens: item.messages || 0,
-  }))
-
-  const breakdownChartData = breakdown.slice(0, 10).map((item: any) => ({
-    name: item.name?.length > 20 ? item.name.substring(0, 20) + '...' : item.name || 'Sem nome',
-    Investimento: item.spend || 0,
-    Impressões: item.impressions || 0,
-    Cliques: item.clicks || 0,
-    Mensagens: item.messages || 0,
-  }))
 
   // Handler para selecionar conexão
   const handleSelectConnection = (connectionId: string, connectionName: string) => {
